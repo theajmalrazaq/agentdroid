@@ -15,12 +15,15 @@ from typing import Any
 from agentdroid.adb import AdbDevice
 from agentdroid.artemis_bridge import ArtemisBridge
 from agentdroid.helper import AccessibilityHelperClient
+from agentdroid.installer import install_agent_skills_and_rules, run_one_command_setup
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec
 from agentdroid.watcher import LiveWatcher
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 KNOWN_SUBCOMMANDS = {
+    "setup",
+    "init",
     "run",
     "watch",
     "up",
@@ -615,6 +618,41 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 1
 
 
+def cmd_setup(args: argparse.Namespace) -> int:
+    if getattr(args, "agents_only", False):
+        mounted = install_agent_skills_and_rules()
+        if args.json:
+            print(json.dumps({"ok": True, **mounted}, indent=2))
+        else:
+            print("✅ Mounted AgentRedroid skills & rules into your AI coding assistants:")
+            for p in mounted["skills_installed"] + mounted["rules_installed"]:
+                print(f"  • {p}")
+        return 0
+
+    res = run_one_command_setup(
+        api_key=args.api_key,
+        start_stack=not args.no_start,
+        build_images=bool(args.build),
+        watch=bool(args.watch),
+    )
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"✅ Global CLI installed at: {res['cli_binary']}")
+        print(f"✅ Environment configured:  {res['env_file']}")
+        skills_cnt = len(res["ai_agents_configured"]["skills_installed"])
+        rules_cnt = len(res["ai_agents_configured"]["rules_installed"])
+        print(f"✅ AI Agents configured:    {skills_cnt} skill locations, {rules_cnt} global rule files")
+        st = res.get("stack", {})
+        if st.get("started"):
+            print("✅ Silent Android Device + Artemis Controller stack is up and provisioned!")
+        elif st.get("skipped"):
+            print("ℹ Stack startup skipped (--no-start). Run 'agentdroid up' when ready.")
+        elif st.get("error"):
+            print(f"ℹ Stack note: {st['error']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentdroid",
@@ -628,6 +666,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version="agentdroid 0.2.0")
     subparsers = parser.add_subparsers(dest="subcommand")
+
+    # --- setup / init ---
+    for setup_name in ("setup", "init"):
+        setup_p = subparsers.add_parser(
+            setup_name,
+            help="One-command setup: install global CLI, configure API key, mount skills/rules into all AI agents, and boot the silent Android device.",
+        )
+        setup_p.add_argument("--api-key", help="LLM API Key (Gemini, OpenAI, Anthropic, or OpenRouter).")
+        setup_p.add_argument("--no-start", action="store_true", help="Configure CLI and AI agent rules without starting Docker containers.")
+        setup_p.add_argument("--agents-only", action="store_true", help="Only install/update AI agent skills & rules.")
+        setup_p.add_argument("--build", action="store_true", help="Build Docker images when starting stack.")
+        setup_p.add_argument("-w", "--watch", action="store_true", help="Open live viewer after starting stack.")
+        setup_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
+        setup_p.set_defaults(func=cmd_setup)
 
     # --- run ---
     run_p = subparsers.add_parser(

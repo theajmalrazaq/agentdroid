@@ -204,5 +204,24 @@ class TestCompoundPipelineExecution(unittest.TestCase):
         self.assertIn("Dismiss Popup", call_goals[1])
 
 
+class TestOneCommandInstaller(unittest.TestCase):
+    def test_install_agent_skills_and_rules_idempotent(self) -> None:
+        from agentdroid.installer import ensure_cli_on_path, install_agent_skills_and_rules
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_home = Path(tmp)
+            mounted1 = install_agent_skills_and_rules(home_dir=fake_home)
+            self.assertTrue(len(mounted1["skills_installed"]) >= 4)
+            self.assertTrue(len(mounted1["rules_installed"]) >= 4)
+
+            # Re-running should update in-place without duplicating marker blocks
+            mounted2 = install_agent_skills_and_rules(home_dir=fake_home)
+            codex_agents = (fake_home / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertEqual(codex_agents.count("<!-- AGENTDROID_RULES_START -->"), 1)
+
+            cli_link = ensure_cli_on_path(home_dir=fake_home)
+            self.assertTrue(Path(cli_link).exists())
+
+
 if __name__ == "__main__":
     unittest.main()
