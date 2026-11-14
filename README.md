@@ -1,8 +1,8 @@
 English | [简体中文](README.zh-cn.md)
 
-# AgentRedroid (`agentdroid`) — Silent General-Purpose Android Computer for AI Agents
+# AgentDroid (`agentdroid`) — Silent General-Purpose Android Computer for AI Agents
 
-**AgentRedroid** combines [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis) into a **silent, headless-by-default Android device** that any AI agent can use as a general-purpose mobile computer — searching & installing apps on the fly, browsing the web, opening deep links, pushing/pulling files, reading OTP/notification messages, automating real-world mobile workflows, or testing APKs.
+**AgentDroid** combines [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis) into a **silent, headless-by-default Android device** that any AI agent can use as a general-purpose mobile computer — searching & installing apps on the fly, browsing the web, opening deep links, pushing/pulling files, reading OTP/notification messages, automating real-world mobile workflows, or testing APKs.
 
 Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, screenshot, tap, screenshot...), AI agents drive the phone through **one compound CLI tool (`agentdroid`)** that chains setup, file transfers, app installation, multi-step UI execution (until the required output is obtained), and data extraction into a single command.
 
@@ -45,7 +45,7 @@ git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
 
 What `./install.sh` (and `agentdroid setup`) does automatically:
 1. **Host & Kernel Modules**: Installs `adb` and `scrcpy` if missing, and loads/persists Linux kernel modules (`binder_linux`, `ashmem_linux`).
-2. **Global CLI**: Links `agentdroid` (and `agentsredroid`) into `~/.local/bin` and `/usr/local/bin` so it runs anywhere.
+2. **Global CLI**: Links `agentdroid` into `~/.local/bin` and `/usr/local/bin` so it runs anywhere.
 3. **Zero API Keys / Zero `.env` Required**: Your host AI agent (Claude Code, Antigravity, Codex, Cursor, etc.) **is already the brain**. `agentdroid` gives it eyes (compact screen UI dumps in ~150 tokens) and hands (`--click`, `--fill`, `--scroll`, `--do`) directly over ADB and the on-device Artemis Accessibility Helper.
 4. **AI Agent Skill & Rule Mounting**: Automatically installs [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md) and [`AGENTS.md`](AGENTS.md) into:
    - **Antigravity / Gemini**: `~/.gemini/jetski/skills/agentdroid/SKILL.md` & `~/.gemini/GEMINI.md`
@@ -88,7 +88,7 @@ Once `./install.sh` finishes, open **Antigravity, Claude Code, Codex, Cursor, or
 
 ### 2. Side-by-Side Comparison
 
-| Metric | AgentRedroid (`agentdroid`) | Android Studio AVD (Emulator) | Why Redroid Wins |
+| Metric | AgentDroid (`agentdroid`) | Android Studio AVD (Emulator) | Why Redroid Wins |
 | :--- | :--- | :--- | :--- |
 | **RAM Footprint** | **~1.2 GB – 1.8 GB** | **4 GB – 8 GB+** *(+ 4–6 GB for Android Studio IDE)* | Redroid only runs Android system services; no guest VM memory allocation. |
 | **Boot Time** | **5 – 10 seconds** | **30 – 90+ seconds** *(cold boot)* | Starting container processes vs. booting an entire virtual machine kernel. |

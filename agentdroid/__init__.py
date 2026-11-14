@@ -1,4 +1,4 @@
-"""AgentRedroid: Silent AI-Agent Usable Android Device (Redroid + Google Artemis)."""
+"""AgentDroid: Silent AI-Agent Usable Android Device (Redroid + Google Artemis)."""
 
 from agentdroid.adb import AdbDevice
 from agentdroid.artemis_bridge import ArtemisBridge

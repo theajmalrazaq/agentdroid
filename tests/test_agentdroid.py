@@ -1,4 +1,4 @@
-"""Tests for the AgentRedroid (agentdroid) CLI, compound pipeline, and general-purpose helpers."""
+"""Tests for the AgentDroid (agentdroid) CLI, compound pipeline, and general-purpose helpers."""
 
 from __future__ import annotations
 

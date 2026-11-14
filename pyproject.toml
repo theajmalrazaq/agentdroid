@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [
-    { name = "AgentRedroid Contributors" }
+    { name = "AgentDroid Contributors" }
 ]
 dependencies = []
 
@@ -21,7 +21,6 @@ artemis = [
 
 [project.scripts]
 agentdroid = "agentdroid.cli:main"
-agentsredroid = "agentdroid.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

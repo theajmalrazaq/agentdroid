@@ -1,8 +1,8 @@
 # ==============================================================================
-# AgentRedroid × Google Artemis Controller Container
+# AgentDroid × Google Artemis Controller Container
 # ==============================================================================
 # Builds the Google Artemis autonomous Android agent runtime + Web/Stream Console
-# and bundles the AgentRedroid (`agentdroid`) compound CLI & silent provisioner.
+# and bundles the AgentDroid (`agentdroid`) compound CLI & silent provisioner.
 # ==============================================================================
 
 ARG ARTEMIS_REPO=https://github.com/google/artemis.git
@@ -47,7 +47,7 @@ RUN pip install --no-cache-dir /wheels/artemis_client-*.whl \
     && pip install --no-cache-dir /wheels/artemis-*.whl \
     && rm -rf /wheels
 
-# Copy AgentRedroid CLI package & silent device provisioner
+# Copy AgentDroid CLI package & silent device provisioner
 COPY pyproject.toml /app/agentdroid-src/pyproject.toml
 COPY agentdroid/ /app/agentdroid-src/agentdroid/
 COPY bin/agentdroid /usr/local/bin/agentdroid

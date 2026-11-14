@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# AgentRedroid Silent Device Provisioner
+# AgentDroid Silent Device Provisioner
 # ==============================================================================
 # Configures a Redroid / Android device for silent, zero-popup AI agent usage:
 #   1. Connects over ADB and elevates to root (ro.secure=0)

@@ -1,4 +1,4 @@
-"""Command-line interface for AgentRedroid (agentdroid) — General-purpose AI Android environment."""
+"""Command-line interface for AgentDroid (agentdroid) — General-purpose AI Android environment."""
 
 from __future__ import annotations
 
@@ -327,7 +327,7 @@ def cmd_up(args: argparse.Namespace) -> int:
         cmd.append("redroid")
 
     if not args.json:
-        print("[agentdroid:up] Starting AgentRedroid Docker Compose stack...", file=sys.stderr)
+        print("[agentdroid:up] Starting AgentDroid Docker Compose stack...", file=sys.stderr)
     res = subprocess.run(cmd, cwd=str(REPO_ROOT), env=env, check=False)
     if res.returncode != 0:
         return res.returncode
@@ -358,7 +358,7 @@ def cmd_up(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(out, indent=2))
     else:
-        print(f"✅ AgentRedroid device {adb.serial} is online and silently provisioned.")
+        print(f"✅ AgentDroid device {adb.serial} is online and silently provisioned.")
     return 0 if out["ok"] else 1
 
 
@@ -648,7 +648,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print(f"AgentRedroid Doctor ({adb.serial})")
+        print(f"AgentDroid Doctor ({adb.serial})")
         print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={binder_ok}")
         print(f"  • Device Connected:   {connected} (root={is_root}, silent_provisioned={silent_ok})")
         print(f"  • Artemis A11y APK:   {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping else 'not reachable'}")
@@ -662,7 +662,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
         if args.json:
             print(json.dumps({"ok": True, **mounted}, indent=2))
         else:
-            print("✅ Mounted AgentRedroid skills & rules into your AI coding assistants:")
+            print("✅ Mounted AgentDroid skills & rules into your AI coding assistants:")
             for p in mounted["skills_installed"] + mounted["rules_installed"]:
                 print(f"  • {p}")
         return 0
@@ -695,7 +695,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentdroid",
         description=(
-            "AgentRedroid: Silent General-Purpose Android Environment for AI Agents (Redroid + Google Artemis).\n"
+            "AgentDroid: Silent General-Purpose Android Environment for AI Agents (Redroid + Google Artemis).\n"
             "Allows AI agents to use Android for any task — installing tools/apps on demand, opening URLs/deep links,\n"
             "pushing/pulling files, reading notifications/clipboard, and executing multi-step UI workflows in one call\n"
             "with silent --headless background mode and live --watch visual mode."

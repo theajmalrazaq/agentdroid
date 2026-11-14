@@ -8,7 +8,7 @@ services:
       dockerfile: docker/redroid/Dockerfile
       args:
         REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}
-    image: agentsredroid/redroid-silent:latest
+    image: agentdroid/redroid-silent:latest
     container_name: agentdroid-device
     privileged: true
     restart: unless-stopped
@@ -39,7 +39,7 @@ services:
       args:
         ARTEMIS_REPO: ${ARTEMIS_REPO:-https://github.com/google/artemis.git}
         ARTEMIS_REF: ${ARTEMIS_REF:-main}
-    image: agentsredroid/artemis-controller:latest
+    image: agentdroid/artemis-controller:latest
     container_name: agentdroid-artemis
     restart: unless-stopped
     depends_on:
