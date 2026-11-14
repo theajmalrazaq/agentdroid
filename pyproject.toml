@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentdroid"
+version = "0.2.0"
+description = "Silent AI-Agent-Ready Android Device (Redroid + Google Artemis) with Compound Single-Call CLI & Headless/Watch Modes"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [
+    { name = "AgentRedroid Contributors" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+artemis = [
+    "artemis-client @ git+https://github.com/google/artemis.git#subdirectory=packages/artemis-client",
+]
+
+[project.scripts]
+agentdroid = "agentdroid.cli:main"
+agentsredroid = "agentdroid.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentdroid*"]

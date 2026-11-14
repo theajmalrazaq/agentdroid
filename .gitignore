@@ -1,0 +1,17 @@
+# Bytecode & packaging
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Runtime & secrets
+.env
+traces/
+artifacts/
+apks/*.apk
+*.tgz
