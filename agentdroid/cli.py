@@ -192,6 +192,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         headless=headless_mode,
         watch=watch_mode,
         watch_web=bool(args.watch_web),
+        watch_width=getattr(args, "window_width", 412),
+        watch_height=getattr(args, "window_height", 892),
+        always_on_top=not getattr(args, "no_always_on_top", False),
+        watch_borderless=bool(getattr(args, "borderless", False)),
+        watch_interactive=bool(getattr(args, "interactive", False)),
         auto_provision=not args.no_provision,
         install_apks=list(args.install or []),
         grant_all_permissions=not args.no_grant,
@@ -280,6 +285,10 @@ def cmd_watch(args: argparse.Namespace) -> int:
         watch=True,
         prefer_web=bool(args.web),
         interactive_control=bool(args.interactive),
+        always_on_top=not getattr(args, "no_always_on_top", False),
+        window_width=getattr(args, "window_width", 412),
+        window_height=getattr(args, "window_height", 892),
+        borderless=bool(getattr(args, "borderless", False)),
     )
     info = watcher.start(session_id=args.session_id)
     print(
@@ -328,7 +337,16 @@ def cmd_up(args: argparse.Namespace) -> int:
 
     watcher_info = None
     if args.watch:
-        watcher = LiveWatcher(adb.serial, watch=True, prefer_web=bool(args.watch_web))
+        watcher = LiveWatcher(
+            adb.serial,
+            watch=True,
+            prefer_web=bool(args.watch_web),
+            interactive_control=bool(getattr(args, "interactive", False)),
+            always_on_top=not getattr(args, "no_always_on_top", False),
+            window_width=getattr(args, "window_width", 412),
+            window_height=getattr(args, "window_height", 892),
+            borderless=bool(getattr(args, "borderless", False)),
+        )
         watcher_info = watcher.start()
 
     out = {
@@ -734,6 +752,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow mouse/keyboard input inside the scrcpy watch window.",
     )
+    watch_p.add_argument(
+        "--window-width",
+        type=int,
+        default=412,
+        help="Width of the floating simulator watch window in pixels (default: 412).",
+    )
+    watch_p.add_argument(
+        "--window-height",
+        type=int,
+        default=892,
+        help="Height of the floating simulator watch window in pixels (default: 892).",
+    )
+    watch_p.add_argument(
+        "--no-always-on-top",
+        action="store_true",
+        help="Do not keep the simulator watch window floating on top.",
+    )
+    watch_p.add_argument(
+        "--borderless",
+        action="store_true",
+        help="Display the mobile simulator window borderless.",
+    )
     watch_p.set_defaults(func=cmd_watch)
 
     # --- up ---
@@ -748,6 +788,10 @@ def build_parser() -> argparse.ArgumentParser:
     up_p.add_argument("--headless", action="store_true", default=True, help="Run silently in background (default).")
     up_p.add_argument("-w", "--watch", action="store_true", help="Open live scrcpy/web viewer once booted.")
     up_p.add_argument("--watch-web", action="store_true", help="Open Artemis Web Console when used with --watch.")
+    up_p.add_argument("--window-width", type=int, default=412, help="Width of the simulator watch window.")
+    up_p.add_argument("--window-height", type=int, default=892, help="Height of the simulator watch window.")
+    up_p.add_argument("--no-always-on-top", action="store_true", help="Do not keep simulator window on top.")
+    up_p.add_argument("--borderless", action="store_true", help="Display simulator window borderless.")
     up_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     up_p.set_defaults(func=cmd_up)
 
@@ -912,12 +956,39 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "-w",
         "--watch",
         action="store_true",
-        help="Show live what the AI agent is doing via scrcpy + real-time terminal step stream.",
+        help="Show live what the AI agent is doing via a floating mobile simulator overlay window (like macOS iOS Simulator).",
     )
     p.add_argument(
         "--watch-web",
         action="store_true",
         help="Open the Artemis Web Console live stream instead of scrcpy when watching.",
+    )
+    p.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Allow mouse/keyboard input inside the watch window.",
+    )
+    p.add_argument(
+        "--window-width",
+        type=int,
+        default=412,
+        help="Width of the floating simulator watch window (default: 412, phone simulator).",
+    )
+    p.add_argument(
+        "--window-height",
+        type=int,
+        default=892,
+        help="Height of the floating simulator watch window (default: 892, phone simulator).",
+    )
+    p.add_argument(
+        "--no-always-on-top",
+        action="store_true",
+        help="Do not keep the simulator watch window floating on top.",
+    )
+    p.add_argument(
+        "--borderless",
+        action="store_true",
+        help="Display the simulator window borderless.",
     )
     p.add_argument(
         "--no-provision",

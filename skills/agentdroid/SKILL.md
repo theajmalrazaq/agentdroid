@@ -79,9 +79,9 @@ Supported `--do` verbs:
 ---
 
 ## 5. Headless vs. Watch Mode
-
-- **`--headless` (default)**: Silent background execution. Zero GUI windows, muted device audio, and a single compact JSON output with live UI tree.
-- **`--watch` (`-w`)**: Opens a live `scrcpy` window (or `--watch-web` browser stream) and streams real-time step telemetry so the user can watch what you are doing on the Android device.
-- **Standalone live viewer**:
-  - `agentdroid watch` — Open `scrcpy` + live step stream.
-  - `agentdroid watch --headless` — Stream live agent events & foreground changes as background JSONL without any GUI window.
+ 
+ - **`--headless` (default)**: Silent background execution. Zero GUI windows, muted device audio, and a single compact JSON output with live UI tree.
+ - **`--watch` (`-w`)**: Opens a sleek **floating mobile phone simulator overlay window** (`412×892`, `--always-on-top`, styled like macOS iOS Simulator) that stays docked next to the user's terminal/editor instead of taking over the full display, and streams real-time step telemetry.
+ - **Standalone live viewer**:
+   - `agentdroid watch` — Open floating phone simulator overlay + live step stream.
+   - `agentdroid watch --headless` — Stream live agent events & foreground changes as background JSONL without any GUI window.

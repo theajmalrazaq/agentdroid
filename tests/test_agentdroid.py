@@ -260,5 +260,45 @@ class TestOneCommandInstaller(unittest.TestCase):
             self.assertTrue(Path(cli_link).exists())
 
 
+class TestLiveWatcherSimulatorOverlay(unittest.TestCase):
+    @patch("agentdroid.watcher.has_gui_display", return_value=True)
+    @patch("shutil.which", return_value="/usr/bin/scrcpy")
+    @patch("subprocess.Popen")
+    def test_scrcpy_simulator_overlay_cmd_arguments(
+        self, mock_popen: MagicMock, mock_which: MagicMock, mock_display: MagicMock
+    ) -> None:
+        from agentdroid.watcher import LiveWatcher
+
+        mock_proc = MagicMock()
+        mock_proc.pid = 9999
+        mock_popen.return_value = mock_proc
+
+        watcher = LiveWatcher(
+            serial="127.0.0.1:5555",
+            watch=True,
+            always_on_top=True,
+            window_width=412,
+            window_height=892,
+            borderless=True,
+            interactive_control=False,
+        )
+        info = watcher.start()
+        self.assertEqual(info["mode"], "watch")
+        self.assertEqual(info["viewer"], "scrcpy_overlay")
+
+        mock_popen.assert_called_once()
+        cmd = mock_popen.call_args[0][0]
+        self.assertIn("--always-on-top", cmd)
+        self.assertIn("--window-borderless", cmd)
+        self.assertIn("--window-width", cmd)
+        self.assertEqual(cmd[cmd.index("--window-width") + 1], "412")
+        self.assertIn("--window-height", cmd)
+        self.assertEqual(cmd[cmd.index("--window-height") + 1], "892")
+        self.assertIn("--stay-awake", cmd)
+        self.assertIn("--no-audio", cmd)
+        self.assertIn("--no-control", cmd)
+
+
 if __name__ == "__main__":
     unittest.main()
+

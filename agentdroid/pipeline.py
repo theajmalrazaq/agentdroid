@@ -31,6 +31,13 @@ class PipelineSpec:
     watch_web: bool = False
     auto_provision: bool = True
 
+    # Watcher / Mobile Simulator Overlay styling (iOS Simulator look & feel)
+    watch_width: int = 412
+    watch_height: int = 892
+    always_on_top: bool = True
+    watch_borderless: bool = False
+    watch_interactive: bool = False
+
     # App setup & on-demand installation (local APK, URL, or fdroid:<query_or_pkg>)
     install_apks: list[str] = field(default_factory=list)
     grant_all_permissions: bool = True
@@ -152,6 +159,11 @@ class CompoundPipeline:
             artemis_url=self.artemis.base_url,
             watch=watch_enabled,
             prefer_web=spec.watch_web,
+            interactive_control=spec.watch_interactive,
+            always_on_top=spec.always_on_top,
+            window_width=spec.watch_width,
+            window_height=spec.watch_height,
+            borderless=spec.watch_borderless,
         )
 
         report: dict[str, Any] = {

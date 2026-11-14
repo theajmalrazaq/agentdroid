@@ -31,12 +31,26 @@ class LiveWatcher:
         watch: bool = False,
         prefer_web: bool = False,
         interactive_control: bool = False,
+        always_on_top: bool = True,
+        window_width: int = 412,
+        window_height: int = 892,
+        borderless: bool = False,
+        window_title: str | None = None,
+        window_x: int | None = None,
+        window_y: int | None = None,
     ) -> None:
         self.serial = serial
         self.artemis_url = artemis_url.rstrip("/")
         self.watch = watch
         self.prefer_web = prefer_web
         self.interactive_control = interactive_control
+        self.always_on_top = always_on_top
+        self.window_width = window_width
+        self.window_height = window_height
+        self.borderless = borderless
+        self.window_title = window_title
+        self.window_x = window_x
+        self.window_y = window_y
         self._scrcpy_proc: subprocess.Popen | None = None
         self._sse_stop = threading.Event()
         self._sse_thread: threading.Thread | None = None
@@ -50,17 +64,32 @@ class LiveWatcher:
         scrcpy_bin = shutil.which("scrcpy")
 
         if has_gui_display() and scrcpy_bin and not self.prefer_web:
+            title = self.window_title or f"AgentDroid · Android 16 Simulator ({self.serial})"
             cmd = [
                 scrcpy_bin,
                 "-s",
                 self.serial,
                 "--window-title",
-                f"AgentDroid AI Live Watch ({self.serial})",
+                title,
                 "--stay-awake",
                 "--no-audio",
             ]
+            # iOS-simulator-like floating overlay window geometry
+            if self.always_on_top:
+                cmd.append("--always-on-top")
+            if self.window_width > 0:
+                cmd.extend(["--window-width", str(self.window_width)])
+            if self.window_height > 0:
+                cmd.extend(["--window-height", str(self.window_height)])
+            if self.window_x is not None:
+                cmd.extend(["--window-x", str(self.window_x)])
+            if self.window_y is not None:
+                cmd.extend(["--window-y", str(self.window_y)])
+            if self.borderless:
+                cmd.append("--window-borderless")
             if not self.interactive_control:
                 cmd.append("--no-control")
+
             try:
                 self._scrcpy_proc = subprocess.Popen(
                     cmd,
@@ -68,13 +97,13 @@ class LiveWatcher:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                viewer_used = "scrcpy"
+                viewer_used = "scrcpy_overlay"
                 print(
-                    f"[agentdroid:watch] Live scrcpy window opened for {self.serial} (PID {self._scrcpy_proc.pid})",
+                    f"[agentdroid:watch] Live mobile simulator overlay opened ({self.window_width}x{self.window_height}, always-on-top, PID {self._scrcpy_proc.pid})",
                     file=sys.stderr,
                 )
             except Exception as exc:
-                print(f"[agentdroid:watch] Could not start scrcpy: {exc}", file=sys.stderr)
+                print(f"[agentdroid:watch] Could not start scrcpy overlay: {exc}", file=sys.stderr)
 
         elif has_gui_display() and self.prefer_web:
             try:

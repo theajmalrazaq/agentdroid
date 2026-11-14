@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: docker/redroid/Dockerfile
       args:
-        REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:12.0.0_64only-latest}
+        REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}
     image: agentsredroid/redroid-silent:latest
     container_name: agentdroid-device
     privileged: true
@@ -18,9 +18,9 @@ services:
       - redroid-data:/data
     command:
       - androidboot.redroid_width=${REDROID_WIDTH:-1080}
-      - androidboot.redroid_height=${REDROID_HEIGHT:-1920}
-      - androidboot.redroid_dpi=${REDROID_DPI:-320}
-      - androidboot.redroid_fps=${REDROID_FPS:-30}
+      - androidboot.redroid_height=${REDROID_HEIGHT:-2400}
+      - androidboot.redroid_dpi=${REDROID_DPI:-440}
+      - androidboot.redroid_fps=${REDROID_FPS:-60}
       - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
       - androidboot.use_memfd=${REDROID_USE_MEMFD:-true}
       - ro.secure=0
