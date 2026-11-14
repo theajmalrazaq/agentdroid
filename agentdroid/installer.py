@@ -1,4 +1,4 @@
-"""One-command full environment setup & automatic AI agent skill/rule installer for AgentRedroid."""
+"""One-command full environment setup & automatic AI agent skill/rule installer for AgentDroid."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ MARKER_END = "<!-- AGENTDROID_RULES_END -->"
 
 
 def _upsert_marked_block(target_file: Path, content: str) -> None:
-    """Idempotently insert or update the AgentRedroid instructions block in a markdown rules file."""
+    """Idempotently insert or update the AgentDroid instructions block in a markdown rules file."""
     block = f"{MARKER_START}\n{content.strip()}\n{MARKER_END}\n"
     target_file.parent.mkdir(parents=True, exist_ok=True)
     if target_file.is_file():
@@ -35,7 +35,7 @@ def _upsert_marked_block(target_file: Path, content: str) -> None:
 
 
 def install_agent_skills_and_rules(home_dir: Path | None = None) -> dict[str, list[str]]:
-    """Install AgentRedroid skill and rules into all major AI coding agents on the machine."""
+    """Install AgentDroid skill and rules into all major AI coding agents on the machine."""
     home = home_dir or Path.home()
     skill_text = SKILL_FILE.read_text(encoding="utf-8") if SKILL_FILE.is_file() else ""
     rules_text = AGENTS_FILE.read_text(encoding="utf-8") if AGENTS_FILE.is_file() else ""
@@ -107,24 +107,23 @@ def install_agent_skills_and_rules(home_dir: Path | None = None) -> dict[str, li
 
 
 def ensure_cli_on_path(home_dir: Path | None = None) -> str:
-    """Symlink `agentdroid` and `agentsredroid` into ~/.local/bin so any AI agent can invoke them globally."""
+    """Symlink `agentdroid` into ~/.local/bin so any AI agent can invoke it globally."""
     home = home_dir or Path.home()
     local_bin = home / ".local" / "bin"
     local_bin.mkdir(parents=True, exist_ok=True)
     src_bin = REPO_ROOT / "bin" / "agentdroid"
     src_bin.chmod(0o755)
 
-    for name in ("agentdroid", "agentsredroid"):
-        target = local_bin / name
-        try:
-            if target.is_symlink() or target.exists():
-                target.unlink()
-            target.symlink_to(src_bin)
-        except OSError:
-            shutil.copy2(src_bin, target)
-            target.chmod(0o755)
+    target = local_bin / "agentdroid"
+    try:
+        if target.is_symlink() or target.exists():
+            target.unlink()
+        target.symlink_to(src_bin)
+    except OSError:
+        shutil.copy2(src_bin, target)
+        target.chmod(0o755)
 
-    return str(local_bin / "agentdroid")
+    return str(target)
 
 
 def ensure_env_file(api_key: str | None = None) -> Path:
