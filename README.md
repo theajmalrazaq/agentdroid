@@ -51,37 +51,24 @@ Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, scree
 
 ---
 
-## Quick Start
+## Quick Start (One-Command Install & Setup)
 
-### 1. Prerequisites (Linux Host Kernel Modules)
-Ensure Docker and the required Android kernel modules (`binder_linux`, `ashmem_linux` or `memfd`) are loaded on your Linux host (see [deploy/](deploy/README.md) for distro-specific guides):
-
-```bash
-sudo apt install -y linux-modules-extra-$(uname -r) adb scrcpy
-sudo modprobe binder_linux devices="binder,hwbinder,vndbinder"
-sudo modprobe ashmem_linux || true
-```
-
-### 2. Configure API Key & Install `agentdroid` CLI
+Run **one command** to install host dependencies (`adb`, `scrcpy`, Redroid kernel modules), link `agentdroid` globally on your `PATH`, mount the `agentdroid` skill & rules into **all your AI coding agents** (Antigravity, Claude Code, Codex, Cursor, Windsurf), and boot the silent Android device:
 
 ```bash
-cp .env.example .env
-# Edit .env and set GEMINI_API_KEY (or OPENAI_API_KEY / ANTHROPIC_API_KEY / OPEN_ROUTER_API_KEY)
+# Option A: One-liner from anywhere
+curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
 
-pip install -e .
-# Or with uv:
-uv tool install -e .
+# Option B: From a local clone
+git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
+./install.sh
 ```
 
-### 3. Boot the Silent Android Device + Artemis Controller Stack
+> **Tip**: You can also pass your LLM API key directly (`GEMINI_API_KEY=... ./install.sh` or `agentdroid setup --api-key YOUR_KEY`), or re-sync AI agent rules anytime with `agentdroid setup --agents-only`.
 
-```bash
-# Starts Redroid + Artemis in Docker Compose and silently provisions the Android device
-agentdroid up --headless
-
-# Verify device, root ADB, silent settings, and Artemis Accessibility Helper
-agentdroid doctor
-```
+Once `./install.sh` finishes, open **any AI agent** (Antigravity, Claude Code, Codex, Cursor, Windsurf) and simply ask:
+> *"Use agentdroid to install a markdown editor, edit my draft, and verify how it looks"*
+> *(or add *"with `--watch`"* when you want to see the live Android screen while the AI works!)*
 
 ---
 
