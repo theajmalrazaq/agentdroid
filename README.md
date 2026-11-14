@@ -1,26 +1,74 @@
 English | [简体中文](README.zh-cn.md)
 
-# AgentRedroid (`agentdroid`) — Silent General-Purpose Android Device for AI Agents
+# AgentRedroid (`agentdroid`) — Silent General-Purpose Android Computer for AI Agents
 
-**AgentRedroid** turns [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis) into a **silent, general-purpose Android device** that an AI agent can use for **any task** — searching and installing apps on the fly, browsing the web, opening deep links, pushing/pulling files, reading OTP/notification messages, automating real-world mobile workflows, or testing apps.
+**AgentRedroid** combines [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis) into a **silent, headless-by-default Android device** that any AI agent can use as a general-purpose mobile computer — searching & installing apps on the fly, browsing the web, opening deep links, pushing/pulling files, reading OTP/notification messages, automating real-world mobile workflows, or testing APKs.
 
-Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, screenshot, tap, screenshot...), AI agents drive the phone through a **single compound CLI tool (`agentdroid`)** that chains setup, file transfers, app installation, multi-step UI execution (until the required output is obtained), and data extraction into one command.
+Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, screenshot, tap, screenshot...), AI agents drive the phone through **one compound CLI tool (`agentdroid`)** that chains setup, file transfers, app installation, multi-step UI execution (until the required output is obtained), and data extraction into a single command.
 
+- **One-Command Install & Auto AI-Agent Setup (`./install.sh`)**: Installs host dependencies & kernel modules, puts `agentdroid` on `PATH`, boots the silent Android container, and automatically mounts the `agentdroid` skill & rules into **Antigravity, Claude Code, Codex, Cursor, and Windsurf**.
 - **Silent & Headless by Default (`--headless`)**: Runs in the background with zero GUI windows, muted audio streams, root ADB (`ro.secure=0`), disabled animations (`0.0`), skipped setup wizards, and pre-installed **Artemis Accessibility Helper** (`com.artemis.helper`).
-- **Live Visual Watch Mode (`--watch`)**: Pass `--watch` (or run `agentdroid watch`) to open a live `scrcpy` window (or Artemis Web Stream) and real-time step telemetry so you can watch what the AI agent is doing on the device.
+- **Live Visual Watch Mode (`--watch`)**: Pass `--watch` (or run `agentdroid watch`) to open a live `scrcpy` window (or Artemis Web Stream) and real-time step telemetry whenever you want to watch what your AI agent is doing.
 
 ---
 
 ## Table of Contents
+- [One-Command Install & Setup](#one-command-install--setup)
+- [How to Prompt Your AI Agent](#how-to-prompt-your-ai-agent)
 - [Architecture](#architecture)
-- [Quick Start](#quick-start)
 - [General-Purpose Compound CLI (`agentdroid`)](#general-purpose-compound-cli-agentdroid)
+- [CLI Reference (`agentdroid`)](#cli-reference-agentdroid)
 - [Headless vs. Watch Mode](#headless-vs-watch-mode)
 - [Silent Device Provisioning](#silent-device-provisioning)
 - [Redroid Base Configuration & Kernel Modules](#redroid-base-configuration--kernel-modules)
 - [Native Bridge & GMS Support](#native-bridge--gms-support)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
+
+---
+
+## One-Command Install & Setup
+
+Run **one command** to install host tools (`adb`, `scrcpy`, Redroid kernel modules), link `agentdroid` globally on your `PATH`, mount the `agentdroid` skill & operating rules into all your AI coding assistants, and start the silent Android device:
+
+```bash
+# Option A: One-liner from anywhere
+curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
+
+# Option B: From a local clone
+git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
+./install.sh
+```
+
+What `./install.sh` (and `agentdroid setup`) does automatically:
+1. **Host & Kernel Modules**: Installs `adb` and `scrcpy` if missing, and loads/persists Linux kernel modules (`binder_linux`, `ashmem_linux`).
+2. **Global CLI**: Links `agentdroid` (and `agentsredroid`) into `~/.local/bin` and `/usr/local/bin`.
+3. **LLM Credentials**: Auto-detects `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPEN_ROUTER_API_KEY` (or prompts once if interactive) and writes `.env`.
+4. **AI Agent Skill & Rule Mounting**: Automatically installs [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md) and [`AGENTS.md`](AGENTS.md) into:
+   - **Antigravity / Gemini**: `~/.gemini/jetski/skills/agentdroid/SKILL.md` & `~/.gemini/GEMINI.md`
+   - **Claude Code**: `~/.claude/skills/agentdroid/SKILL.md` & `~/.claude/rules/agentdroid.md`
+   - **Codex CLI**: `~/.codex/skills/agentdroid/SKILL.md` & `~/.codex/AGENTS.md`
+   - **Cursor**: `~/.cursor/rules/agentdroid.mdc`
+   - **Windsurf**: `~/.codeium/windsurf/memories/global_rules.md`
+   - **Universal Agents**: `~/.agents/skills/agentdroid/SKILL.md`
+5. **Silent Android Boot**: Starts the Docker Compose stack (`agentdroid-device` + `agentdroid-artemis`) and provisions the Android instance for silent background operation.
+
+---
+
+## How to Prompt Your AI Agent
+
+Once `./install.sh` finishes, open **Antigravity, Claude Code, Codex, Cursor, or Windsurf** in any workspace and ask it to use `agentdroid` for any task:
+
+- **General Android Tasks (Silent Background)**:
+  > *"Use `agentdroid` to open Hacker News in the browser, read the top 5 stories, and save a summary."*
+- **Install Tools On the Fly & Process Files**:
+  > *"Use `agentdroid` to find and install a markdown or PDF app on Android, push `./report.md` to the device, format and export it, and pull the result back."*
+- **Read 2FA / Notifications / Messages**:
+  > *"Use `agentdroid` to sign into the app, read the verification code from Android notifications, complete login, and return the dashboard state."*
+- **Build & Test an Android App**:
+  > *"Build the debug APK, use `agentdroid` to install it with all permissions, test the onboarding and settings screens, check for crashes, and return a screenshot."*
+- **Watch Live While the AI Works (`--watch`)**:
+  > *"Use `agentdroid --watch` to open YouTube and play a lofi stream so I can watch what you're doing on the screen."*
 
 ---
 
@@ -48,27 +96,6 @@ Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, scree
 │ • ArtemisAccessibilityHelper.apk  │ └───────────────────────────────────┘
 └───────────────────────────────────┘
 ```
-
----
-
-## Quick Start (One-Command Install & Setup)
-
-Run **one command** to install host dependencies (`adb`, `scrcpy`, Redroid kernel modules), link `agentdroid` globally on your `PATH`, mount the `agentdroid` skill & rules into **all your AI coding agents** (Antigravity, Claude Code, Codex, Cursor, Windsurf), and boot the silent Android device:
-
-```bash
-# Option A: One-liner from anywhere
-curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
-
-# Option B: From a local clone
-git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
-./install.sh
-```
-
-> **Tip**: You can also pass your LLM API key directly (`GEMINI_API_KEY=... ./install.sh` or `agentdroid setup --api-key YOUR_KEY`), or re-sync AI agent rules anytime with `agentdroid setup --agents-only`.
-
-Once `./install.sh` finishes, open **any AI agent** (Antigravity, Claude Code, Codex, Cursor, Windsurf) and simply ask:
-> *"Use agentdroid to install a markdown editor, edit my draft, and verify how it looks"*
-> *(or add *"with `--watch`"* when you want to see the live Android screen while the AI works!)*
 
 ---
 
@@ -134,6 +161,23 @@ agentdroid ui dump --json
 # Chain fast deterministic gestures and dump the resulting screen state in one call
 agentdroid --tap 540,1200 --type "hello@example.com" --key ENTER --dump-ui --json
 ```
+
+---
+
+## CLI Reference (`agentdroid`)
+
+| Subcommand | Description | Example |
+| :--- | :--- | :--- |
+| `agentdroid setup` | One-command setup: link CLI, write `.env`, mount AI agent skills/rules, boot stack | `agentdroid setup --api-key $GEMINI_API_KEY` |
+| `agentdroid [run] ...` | Execute compound workflow (install, push/pull, open URL, AI goals, crash/UI check) | `agentdroid -i app.apk --launch -g "Log in" -u --json` |
+| `agentdroid watch` | Watch live via `scrcpy`/Web (`--watch`) or stream background JSONL (`--headless`) | `agentdroid watch` / `agentdroid watch --headless` |
+| `agentdroid app` | `search`, `install` (APK/URL/`fdroid:`), `grant`, `launch`, `stop`, `clear`, `list` | `agentdroid app search "browser" --json` |
+| `agentdroid device` | `push`, `pull`, `open` (URLs/deep links), `clipboard`, `notifications`, `shell` | `agentdroid device notifications --json` |
+| `agentdroid ui` | Sub-second `dump`, `tap`, `type`, `swipe`, `key`, `screenshot` via A11y Helper | `agentdroid ui dump --json` |
+| `agentdroid pipeline` | Execute declarative multi-step JSON pipeline file | `agentdroid pipeline examples/app-test-pipeline.json --json` |
+| `agentdroid up` / `down` | Start or stop the Redroid + Artemis Docker Compose stack | `agentdroid up --headless` / `agentdroid down` |
+| `agentdroid provision` | Apply silent AI agent settings & install/bind Artemis Accessibility Helper | `agentdroid provision --force` |
+| `agentdroid doctor` | Full health check of host tools, `binder`, root ADB, A11y Helper, and Artemis | `agentdroid doctor --json` |
 
 ---
 
