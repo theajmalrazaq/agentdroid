@@ -1,0 +1,71 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Headless Redroid Android Device (Pre-configured for Silent AI Agents)
+  # ---------------------------------------------------------------------------
+  redroid:
+    build:
+      context: .
+      dockerfile: docker/redroid/Dockerfile
+      args:
+        REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:12.0.0_64only-latest}
+    image: agentsredroid/redroid-silent:latest
+    container_name: agentdroid-device
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDROID_ADB_PORT:-5555}:5555"
+    volumes:
+      - redroid-data:/data
+    command:
+      - androidboot.redroid_width=${REDROID_WIDTH:-1080}
+      - androidboot.redroid_height=${REDROID_HEIGHT:-1920}
+      - androidboot.redroid_dpi=${REDROID_DPI:-320}
+      - androidboot.redroid_fps=${REDROID_FPS:-30}
+      - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
+      - androidboot.use_memfd=${REDROID_USE_MEMFD:-true}
+      - ro.secure=0
+      - ro.adb.secure=0
+      - ro.debuggable=1
+      - ro.setupwizard.mode=DISABLED
+      - ro.audio.silent=1
+
+  # ---------------------------------------------------------------------------
+  # 2. Google Artemis Autonomous Android Agent Controller & Live Stream Server
+  # ---------------------------------------------------------------------------
+  artemis:
+    build:
+      context: .
+      dockerfile: docker/artemis/Dockerfile
+      args:
+        ARTEMIS_REPO: ${ARTEMIS_REPO:-https://github.com/google/artemis.git}
+        ARTEMIS_REF: ${ARTEMIS_REF:-main}
+    image: agentsredroid/artemis-controller:latest
+    container_name: agentdroid-artemis
+    restart: unless-stopped
+    depends_on:
+      - redroid
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - REDROID_ADDR=redroid:5555
+      - ADB_DEVICE_SERIAL=redroid:5555
+      - ARTEMIS_KEEP_DEVICE_AWAKE=true
+      - ARTEMIS_HIERARCHY_BACKEND=${ARTEMIS_HIERARCHY_BACKEND:-auto}
+      - ARTEMIS_HELPER_AUTO_INSTALL=true
+      - ARTEMIS_DEFAULT_PROFILE=${ARTEMIS_DEFAULT_PROFILE:-flash}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY:-}
+      - PORT=8000
+    ports:
+      - "127.0.0.1:${ARTEMIS_PORT:-8000}:8000"
+    volumes:
+      - ./apks:/workspace/apks
+      - ./artifacts:/workspace/artifacts
+      - ./traces:/app/traces
+
+volumes:
+  redroid-data:
