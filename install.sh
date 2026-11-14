@@ -115,22 +115,14 @@ if command -v uv >/dev/null 2>&1; then
     uv tool install --force -e "${REPO_ROOT}" >/dev/null 2>&1 || true
 fi
 
-# 4. Prompt for LLM API key if interactive and none set yet
+# 4. Optional LLM API key detection (only if user explicitly exported one)
 if [[ -z "${API_KEY_ARG}" && -f "${REPO_ROOT}/.env" ]]; then
     if grep -qE '^(GEMINI_API_KEY|GOOGLE_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|OPEN_ROUTER_API_KEY)=.+' "${REPO_ROOT}/.env" 2>/dev/null; then
         API_KEY_ARG="__already_set__"
     fi
 fi
 
-if [[ -z "${API_KEY_ARG}" && -t 0 ]]; then
-    printf "\n\033[1;36m[agentdroid]\033[0m Enter your LLM API Key (Gemini / OpenAI / Anthropic / OpenRouter) [press Enter to skip for now]: "
-    read -r USER_KEY || true
-    if [[ -n "${USER_KEY}" ]]; then
-        API_KEY_ARG="${USER_KEY}"
-    fi
-fi
-
-# 5. Run `agentdroid setup` to configure .env, mount AI agent skills/rules, and boot the silent device
+# 5. Run `agentdroid setup` to configure CLI, mount AI agent skills/rules into AI coding agents, and boot the silent device
 SETUP_ARGS=("setup")
 if [[ -n "${API_KEY_ARG}" && "${API_KEY_ARG}" != "__already_set__" ]]; then
     SETUP_ARGS+=("--api-key" "${API_KEY_ARG}")

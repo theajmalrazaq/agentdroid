@@ -1,4 +1,9 @@
-"""Direct client for the on-device Artemis Accessibility Helper (127.0.0.1:18888) with UIAutomator fallback."""
+"""Direct client for the on-device Artemis Accessibility Helper (127.0.0.1:18888) with UIAutomator fallback.
+
+Provides sub-second UI hierarchy dumps, semantic element targeting (by text, content-desc,
+resource-id, or element index), scrolling, and gesture injection so the host AI agent
+(Claude Code, Antigravity, Codex, Cursor, etc.) can drive Android directly with zero API keys.
+"""
 
 from __future__ import annotations
 
@@ -60,7 +65,7 @@ def get_or_create_helper_token() -> str:
 
 
 class AccessibilityHelperClient:
-    """Sub-second UI hierarchy and gesture client backed by ArtemisAccessibilityHelper.apk."""
+    """Sub-second UI hierarchy, semantic locator, and gesture client backed by ArtemisAccessibilityHelper.apk."""
 
     def __init__(self, adb: AdbDevice) -> None:
         self.adb = adb
@@ -174,7 +179,10 @@ class AccessibilityHelperClient:
             return self._fallback_adb_action(cmd, **params)
         payload = {"cmd": cmd, **params}
         try:
-            return self._request("POST", "/action", payload, timeout=5.0)
+            res = self._request("POST", "/action", payload, timeout=5.0)
+            if res.get("success"):
+                return res
+            return self._fallback_adb_action(cmd, **params)
         except Exception:
             return self._fallback_adb_action(cmd, **params)
 
@@ -183,7 +191,12 @@ class AccessibilityHelperClient:
         if c == "tap":
             x, y = int(params["x"]), int(params["y"])
             self.adb.shell(f"input tap {x} {y}")
-            return {"success": True, "backend": "adb_input"}
+            return {"success": True, "backend": "adb_input", "center": [x, y]}
+        if c == "long_press":
+            x, y = int(params["x"]), int(params["y"])
+            dur = int(params.get("duration", 1000))
+            self.adb.shell(f"input swipe {x} {y} {x} {y} {dur}")
+            return {"success": True, "backend": "adb_input", "center": [x, y]}
         if c == "swipe":
             x1, y1 = int(params["x1"]), int(params["y1"])
             x2, y2 = int(params["x2"]), int(params["y2"])
@@ -201,13 +214,116 @@ class AccessibilityHelperClient:
                 "HOME": "KEYCODE_HOME",
                 "RECENTS": "KEYCODE_APP_SWITCH",
                 "ENTER": "KEYCODE_ENTER",
+                "SEARCH": "KEYCODE_SEARCH",
+                "DELETE": "KEYCODE_DEL",
+                "TAB": "KEYCODE_TAB",
             }
-            keycode = keymap.get(act, act)
+            keycode = keymap.get(act, act if act.startswith("KEYCODE_") else f"KEYCODE_{act}")
             self.adb.shell(f"input keyevent {keycode}")
             return {"success": True, "backend": "adb_input"}
         return {"success": False, "error": f"Unsupported fallback action: {cmd}"}
 
-    def dump_compact_ui(self, *, max_elements: int = 60) -> dict[str, Any]:
+    def find_element(self, selector: str, *, max_elements: int = 120) -> dict[str, Any] | None:
+        """Locate a UI element on screen by index (#3), exact text/desc/id, or case-insensitive substring."""
+        sel = selector.strip()
+        ui = self.dump_compact_ui(max_elements=max_elements)
+        elements = ui.get("elements") or []
+
+        # 1. Match by element index (#3 or plain integer if 1..len)
+        idx_str = sel[1:] if sel.startswith("#") else sel
+        if idx_str.isdigit():
+            target_id = int(idx_str)
+            for el in elements:
+                if el.get("id") == target_id:
+                    return el
+
+        sel_lower = sel.lower()
+        # 2. Exact match on label, desc, or resource_id
+        for el in elements:
+            for field in ("label", "desc", "resource_id"):
+                val = str(el.get(field) or "").strip()
+                if val and val.lower() == sel_lower:
+                    return el
+
+        # 3. Case-insensitive substring match
+        for el in elements:
+            for field in ("label", "desc", "resource_id"):
+                val = str(el.get(field) or "").strip()
+                if val and sel_lower in val.lower():
+                    return el
+
+        return None
+
+    def tap_element(self, selector: str, *, timeout: float = 8.0) -> dict[str, Any]:
+        """Wait up to timeout for an element matching selector (text, id, #index) and tap its center."""
+        deadline = time.monotonic() + max(0.5, timeout)
+        while True:
+            el = self.find_element(selector)
+            if el is not None:
+                cx, cy = el["center"]
+                res = self.action("tap", x=float(cx), y=float(cy))
+                return {
+                    "success": bool(res.get("success", True)),
+                    "selector": selector,
+                    "matched_element": el,
+                    "center": [cx, cy],
+                }
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
+        return {
+            "success": False,
+            "selector": selector,
+            "error": f"Element matching {selector!r} not found on screen",
+        }
+
+    def fill_element(self, selector: str, text: str, *, submit: bool = False) -> dict[str, Any]:
+        """Tap an input field matching selector, enter text, and optionally press ENTER."""
+        tap_res = self.tap_element(selector, timeout=6.0)
+        if not tap_res.get("success"):
+            return tap_res
+        time.sleep(0.25)
+        type_res = self.action("type", text=text, append=False)
+        if submit:
+            time.sleep(0.15)
+            self.action("global", action="ENTER")
+        return {
+            "success": bool(type_res.get("success", True)),
+            "selector": selector,
+            "text": text,
+            "matched_element": tap_res.get("matched_element"),
+        }
+
+    def scroll(self, direction: str = "down") -> dict[str, Any]:
+        """Perform a directional scroll gesture on the screen."""
+        d = direction.strip().lower()
+        if d == "down":
+            return self.action("swipe", x1=540, y1=1450, x2=540, y2=450, duration=350)
+        if d == "up":
+            return self.action("swipe", x1=540, y1=450, x2=540, y2=1450, duration=350)
+        if d == "left":
+            return self.action("swipe", x1=900, y1=960, x2=180, y2=960, duration=300)
+        if d == "right":
+            return self.action("swipe", x1=180, y1=960, x2=900, y2=960, duration=300)
+        return {"success": False, "error": f"Unknown scroll direction: {direction!r}"}
+
+    def scroll_to_text(self, text_needle: str, *, max_scrolls: int = 8, direction: str = "down") -> dict[str, Any]:
+        """Scroll until an element matching text_needle becomes visible on screen."""
+        for attempt in range(max_scrolls + 1):
+            el = self.find_element(text_needle)
+            if el is not None:
+                return {"success": True, "found": True, "scrolls": attempt, "element": el}
+            if attempt < max_scrolls:
+                self.scroll(direction)
+                time.sleep(0.5)
+        return {
+            "success": False,
+            "found": False,
+            "scrolls": max_scrolls,
+            "error": f"Text {text_needle!r} not found after {max_scrolls} scrolls",
+        }
+
+    def dump_compact_ui(self, *, max_elements: int = 80) -> dict[str, Any]:
         """Return a token-efficient compact list of interactive/labelled UI elements on screen."""
         xml_str = ""
         backend = "helper"

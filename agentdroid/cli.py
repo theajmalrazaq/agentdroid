@@ -16,7 +16,7 @@ from agentdroid.adb import AdbDevice
 from agentdroid.artemis_bridge import ArtemisBridge
 from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.installer import install_agent_skills_and_rules, run_one_command_setup
-from agentdroid.pipeline import CompoundPipeline, PipelineSpec
+from agentdroid.pipeline import CompoundPipeline, PipelineSpec, parse_do_step
 from agentdroid.watcher import LiveWatcher
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -122,6 +122,26 @@ def _print_output(data: dict[str, Any], *, as_json: bool) -> None:
 
 def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
+
+    # Compact semantic --do strings like 'click:Login', 'fill:Email=test@example.com', 'scroll-to:Save'
+    for raw_do in getattr(args, "do_steps", None) or []:
+        actions.append(parse_do_step(raw_do))
+
+    # Dedicated semantic flags
+    for sel in getattr(args, "click_targets", None) or []:
+        actions.append({"type": "click", "selector": sel})
+    for fill_spec in getattr(args, "fill_targets", None) or []:
+        if "=" in fill_spec:
+            sel, txt = fill_spec.split("=", 1)
+            actions.append({"type": "fill", "selector": sel.strip(), "text": txt})
+        else:
+            actions.append({"type": "type", "text": fill_spec})
+    for dir_spec in getattr(args, "scroll_dirs", None) or []:
+        actions.append({"type": "scroll", "direction": dir_spec})
+    for scroll_needle in getattr(args, "scroll_to_targets", None) or []:
+        actions.append({"type": "scroll_to", "text": scroll_needle})
+
+    # Coordinate & raw gesture flags
     for coord in getattr(args, "tap", None) or []:
         parts = [p.strip() for p in coord.split(",")]
         if len(parts) != 2:
@@ -989,37 +1009,73 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         help="Read and return active device notifications (OTP codes, messages, status) in output.",
     )
 
-    # Pre/Post deterministic actions
+    # Compound Semantic & Coordinate UI actions (Zero API key needed!)
+    p.add_argument(
+        "-d",
+        "--do",
+        dest="do_steps",
+        action="append",
+        metavar="VERB:ARG",
+        help="Execute semantic action step in order (e.g. 'click:Login', 'fill:Email=user@test.com', 'scroll-to:Submit', 'key:HOME', 'sleep:1', repeatable).",
+    )
+    p.add_argument(
+        "--click",
+        dest="click_targets",
+        action="append",
+        metavar="TEXT_OR_ID",
+        help="Click/tap element by text, description, or #index (repeatable).",
+    )
+    p.add_argument(
+        "--fill",
+        dest="fill_targets",
+        action="append",
+        metavar="SELECTOR=TEXT",
+        help="Fill input field matching SELECTOR with TEXT (repeatable).",
+    )
+    p.add_argument(
+        "--scroll",
+        dest="scroll_dirs",
+        action="append",
+        metavar="DIRECTION",
+        help="Scroll screen direction: 'down', 'up', 'left', 'right' (repeatable).",
+    )
+    p.add_argument(
+        "--scroll-to",
+        dest="scroll_to_targets",
+        action="append",
+        metavar="TEXT",
+        help="Scroll down until TEXT is visible on screen (repeatable).",
+    )
     p.add_argument(
         "--pre-shell",
         action="append",
         metavar="CMD",
-        help="Run root ADB shell command before AI goals (repeatable).",
+        help="Run root ADB shell command before UI steps (repeatable).",
     )
     p.add_argument(
         "--tap",
         action="append",
         metavar="X,Y",
-        help="Tap coordinates X,Y before AI goals (repeatable).",
+        help="Tap coordinates X,Y (repeatable).",
     )
     p.add_argument(
         "--type",
         dest="type_text",
         action="append",
         metavar="TEXT",
-        help="Type text into focused field before AI goals (repeatable).",
+        help="Type text into focused field (repeatable).",
     )
     p.add_argument(
         "--swipe",
         action="append",
         metavar="X1,Y1,X2,Y2[,MS]",
-        help="Swipe coordinates before AI goals (repeatable).",
+        help="Swipe coordinates (repeatable).",
     )
     p.add_argument(
         "--key",
         action="append",
         metavar="KEY",
-        help="Send global key action (HOME, BACK, ENTER, RECENTS) before AI goals (repeatable).",
+        help="Send global key action (HOME, BACK, ENTER, RECENTS, TAB, repeatable).",
     )
     p.add_argument(
         "--wait-text",
