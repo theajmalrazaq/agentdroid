@@ -15,12 +15,15 @@ from typing import Any
 from agentdroid.adb import AdbDevice
 from agentdroid.artemis_bridge import ArtemisBridge
 from agentdroid.helper import AccessibilityHelperClient
-from agentdroid.pipeline import CompoundPipeline, PipelineSpec
+from agentdroid.installer import install_agent_skills_and_rules, run_one_command_setup
+from agentdroid.pipeline import CompoundPipeline, PipelineSpec, parse_do_step
 from agentdroid.watcher import LiveWatcher
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 KNOWN_SUBCOMMANDS = {
+    "setup",
+    "init",
     "run",
     "watch",
     "up",
@@ -119,6 +122,26 @@ def _print_output(data: dict[str, Any], *, as_json: bool) -> None:
 
 def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
+
+    # Compact semantic --do strings like 'click:Login', 'fill:Email=test@example.com', 'scroll-to:Save'
+    for raw_do in getattr(args, "do_steps", None) or []:
+        actions.append(parse_do_step(raw_do))
+
+    # Dedicated semantic flags
+    for sel in getattr(args, "click_targets", None) or []:
+        actions.append({"type": "click", "selector": sel})
+    for fill_spec in getattr(args, "fill_targets", None) or []:
+        if "=" in fill_spec:
+            sel, txt = fill_spec.split("=", 1)
+            actions.append({"type": "fill", "selector": sel.strip(), "text": txt})
+        else:
+            actions.append({"type": "type", "text": fill_spec})
+    for dir_spec in getattr(args, "scroll_dirs", None) or []:
+        actions.append({"type": "scroll", "direction": dir_spec})
+    for scroll_needle in getattr(args, "scroll_to_targets", None) or []:
+        actions.append({"type": "scroll_to", "text": scroll_needle})
+
+    # Coordinate & raw gesture flags
     for coord in getattr(args, "tap", None) or []:
         parts = [p.strip() for p in coord.split(",")]
         if len(parts) != 2:
@@ -169,6 +192,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         headless=headless_mode,
         watch=watch_mode,
         watch_web=bool(args.watch_web),
+        watch_width=getattr(args, "window_width", 412),
+        watch_height=getattr(args, "window_height", 892),
+        always_on_top=not getattr(args, "no_always_on_top", False),
+        watch_borderless=bool(getattr(args, "borderless", False)),
+        watch_interactive=bool(getattr(args, "interactive", False)),
         auto_provision=not args.no_provision,
         install_apks=list(args.install or []),
         grant_all_permissions=not args.no_grant,
@@ -257,6 +285,10 @@ def cmd_watch(args: argparse.Namespace) -> int:
         watch=True,
         prefer_web=bool(args.web),
         interactive_control=bool(args.interactive),
+        always_on_top=not getattr(args, "no_always_on_top", False),
+        window_width=getattr(args, "window_width", 412),
+        window_height=getattr(args, "window_height", 892),
+        borderless=bool(getattr(args, "borderless", False)),
     )
     info = watcher.start(session_id=args.session_id)
     print(
@@ -305,7 +337,16 @@ def cmd_up(args: argparse.Namespace) -> int:
 
     watcher_info = None
     if args.watch:
-        watcher = LiveWatcher(adb.serial, watch=True, prefer_web=bool(args.watch_web))
+        watcher = LiveWatcher(
+            adb.serial,
+            watch=True,
+            prefer_web=bool(args.watch_web),
+            interactive_control=bool(getattr(args, "interactive", False)),
+            always_on_top=not getattr(args, "no_always_on_top", False),
+            window_width=getattr(args, "window_width", 412),
+            window_height=getattr(args, "window_height", 892),
+            borderless=bool(getattr(args, "borderless", False)),
+        )
         watcher_info = watcher.start()
 
     out = {
@@ -615,6 +656,41 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 1
 
 
+def cmd_setup(args: argparse.Namespace) -> int:
+    if getattr(args, "agents_only", False):
+        mounted = install_agent_skills_and_rules()
+        if args.json:
+            print(json.dumps({"ok": True, **mounted}, indent=2))
+        else:
+            print("✅ Mounted AgentRedroid skills & rules into your AI coding assistants:")
+            for p in mounted["skills_installed"] + mounted["rules_installed"]:
+                print(f"  • {p}")
+        return 0
+
+    res = run_one_command_setup(
+        api_key=args.api_key,
+        start_stack=not args.no_start,
+        build_images=bool(args.build),
+        watch=bool(args.watch),
+    )
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"✅ Global CLI installed at: {res['cli_binary']}")
+        print(f"✅ Environment configured:  {res['env_file']}")
+        skills_cnt = len(res["ai_agents_configured"]["skills_installed"])
+        rules_cnt = len(res["ai_agents_configured"]["rules_installed"])
+        print(f"✅ AI Agents configured:    {skills_cnt} skill locations, {rules_cnt} global rule files")
+        st = res.get("stack", {})
+        if st.get("started"):
+            print("✅ Silent Android Device + Artemis Controller stack is up and provisioned!")
+        elif st.get("skipped"):
+            print("ℹ Stack startup skipped (--no-start). Run 'agentdroid up' when ready.")
+        elif st.get("error"):
+            print(f"ℹ Stack note: {st['error']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentdroid",
@@ -628,6 +704,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version="agentdroid 0.2.0")
     subparsers = parser.add_subparsers(dest="subcommand")
+
+    # --- setup / init ---
+    for setup_name in ("setup", "init"):
+        setup_p = subparsers.add_parser(
+            setup_name,
+            help="One-command setup: install global CLI, configure API key, mount skills/rules into all AI agents, and boot the silent Android device.",
+        )
+        setup_p.add_argument("--api-key", help="LLM API Key (Gemini, OpenAI, Anthropic, or OpenRouter).")
+        setup_p.add_argument("--no-start", action="store_true", help="Configure CLI and AI agent rules without starting Docker containers.")
+        setup_p.add_argument("--agents-only", action="store_true", help="Only install/update AI agent skills & rules.")
+        setup_p.add_argument("--build", action="store_true", help="Build Docker images when starting stack.")
+        setup_p.add_argument("-w", "--watch", action="store_true", help="Open live viewer after starting stack.")
+        setup_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
+        setup_p.set_defaults(func=cmd_setup)
 
     # --- run ---
     run_p = subparsers.add_parser(
@@ -662,6 +752,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow mouse/keyboard input inside the scrcpy watch window.",
     )
+    watch_p.add_argument(
+        "--window-width",
+        type=int,
+        default=412,
+        help="Width of the floating simulator watch window in pixels (default: 412).",
+    )
+    watch_p.add_argument(
+        "--window-height",
+        type=int,
+        default=892,
+        help="Height of the floating simulator watch window in pixels (default: 892).",
+    )
+    watch_p.add_argument(
+        "--no-always-on-top",
+        action="store_true",
+        help="Do not keep the simulator watch window floating on top.",
+    )
+    watch_p.add_argument(
+        "--borderless",
+        action="store_true",
+        help="Display the mobile simulator window borderless.",
+    )
     watch_p.set_defaults(func=cmd_watch)
 
     # --- up ---
@@ -676,6 +788,10 @@ def build_parser() -> argparse.ArgumentParser:
     up_p.add_argument("--headless", action="store_true", default=True, help="Run silently in background (default).")
     up_p.add_argument("-w", "--watch", action="store_true", help="Open live scrcpy/web viewer once booted.")
     up_p.add_argument("--watch-web", action="store_true", help="Open Artemis Web Console when used with --watch.")
+    up_p.add_argument("--window-width", type=int, default=412, help="Width of the simulator watch window.")
+    up_p.add_argument("--window-height", type=int, default=892, help="Height of the simulator watch window.")
+    up_p.add_argument("--no-always-on-top", action="store_true", help="Do not keep simulator window on top.")
+    up_p.add_argument("--borderless", action="store_true", help="Display simulator window borderless.")
     up_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     up_p.set_defaults(func=cmd_up)
 
@@ -840,12 +956,39 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "-w",
         "--watch",
         action="store_true",
-        help="Show live what the AI agent is doing via scrcpy + real-time terminal step stream.",
+        help="Show live what the AI agent is doing via a floating mobile simulator overlay window (like macOS iOS Simulator).",
     )
     p.add_argument(
         "--watch-web",
         action="store_true",
         help="Open the Artemis Web Console live stream instead of scrcpy when watching.",
+    )
+    p.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Allow mouse/keyboard input inside the watch window.",
+    )
+    p.add_argument(
+        "--window-width",
+        type=int,
+        default=412,
+        help="Width of the floating simulator watch window (default: 412, phone simulator).",
+    )
+    p.add_argument(
+        "--window-height",
+        type=int,
+        default=892,
+        help="Height of the floating simulator watch window (default: 892, phone simulator).",
+    )
+    p.add_argument(
+        "--no-always-on-top",
+        action="store_true",
+        help="Do not keep the simulator watch window floating on top.",
+    )
+    p.add_argument(
+        "--borderless",
+        action="store_true",
+        help="Display the simulator window borderless.",
     )
     p.add_argument(
         "--no-provision",
@@ -937,37 +1080,73 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         help="Read and return active device notifications (OTP codes, messages, status) in output.",
     )
 
-    # Pre/Post deterministic actions
+    # Compound Semantic & Coordinate UI actions (Zero API key needed!)
+    p.add_argument(
+        "-d",
+        "--do",
+        dest="do_steps",
+        action="append",
+        metavar="VERB:ARG",
+        help="Execute semantic action step in order (e.g. 'click:Login', 'fill:Email=user@test.com', 'scroll-to:Submit', 'key:HOME', 'sleep:1', repeatable).",
+    )
+    p.add_argument(
+        "--click",
+        dest="click_targets",
+        action="append",
+        metavar="TEXT_OR_ID",
+        help="Click/tap element by text, description, or #index (repeatable).",
+    )
+    p.add_argument(
+        "--fill",
+        dest="fill_targets",
+        action="append",
+        metavar="SELECTOR=TEXT",
+        help="Fill input field matching SELECTOR with TEXT (repeatable).",
+    )
+    p.add_argument(
+        "--scroll",
+        dest="scroll_dirs",
+        action="append",
+        metavar="DIRECTION",
+        help="Scroll screen direction: 'down', 'up', 'left', 'right' (repeatable).",
+    )
+    p.add_argument(
+        "--scroll-to",
+        dest="scroll_to_targets",
+        action="append",
+        metavar="TEXT",
+        help="Scroll down until TEXT is visible on screen (repeatable).",
+    )
     p.add_argument(
         "--pre-shell",
         action="append",
         metavar="CMD",
-        help="Run root ADB shell command before AI goals (repeatable).",
+        help="Run root ADB shell command before UI steps (repeatable).",
     )
     p.add_argument(
         "--tap",
         action="append",
         metavar="X,Y",
-        help="Tap coordinates X,Y before AI goals (repeatable).",
+        help="Tap coordinates X,Y (repeatable).",
     )
     p.add_argument(
         "--type",
         dest="type_text",
         action="append",
         metavar="TEXT",
-        help="Type text into focused field before AI goals (repeatable).",
+        help="Type text into focused field (repeatable).",
     )
     p.add_argument(
         "--swipe",
         action="append",
         metavar="X1,Y1,X2,Y2[,MS]",
-        help="Swipe coordinates before AI goals (repeatable).",
+        help="Swipe coordinates (repeatable).",
     )
     p.add_argument(
         "--key",
         action="append",
         metavar="KEY",
-        help="Send global key action (HOME, BACK, ENTER, RECENTS) before AI goals (repeatable).",
+        help="Send global key action (HOME, BACK, ENTER, RECENTS, TAB, repeatable).",
     )
     p.add_argument(
         "--wait-text",

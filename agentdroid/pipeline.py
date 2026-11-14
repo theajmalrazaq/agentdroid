@@ -1,9 +1,8 @@
 """Compound single-call execution pipeline for general-purpose AI agent Android tasks.
 
-Chains device provisioning, app search/installation (local APK, URL, or F-Droid),
-permission granting, file push/pull, URL/deep-link opening, clipboard sync,
-multi-step Artemis natural-language goals, notification reading, and diagnostics
-into a single token-efficient execution.
+Designed so the host AI agent on the user's system (Claude Code, Antigravity, Codex,
+Cursor, Windsurf) IS the brain and drives the silent Android device directly via the
+on-device Artemis Accessibility Helper — requiring ZERO separate .env or API keys.
 """
 
 from __future__ import annotations
@@ -11,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import sys
 import time
 from typing import Any
 
@@ -31,6 +31,13 @@ class PipelineSpec:
     watch_web: bool = False
     auto_provision: bool = True
 
+    # Watcher / Mobile Simulator Overlay styling (iOS Simulator look & feel)
+    watch_width: int = 412
+    watch_height: int = 892
+    always_on_top: bool = True
+    watch_borderless: bool = False
+    watch_interactive: bool = False
+
     # App setup & on-demand installation (local APK, URL, or fdroid:<query_or_pkg>)
     install_apks: list[str] = field(default_factory=list)
     grant_all_permissions: bool = True
@@ -47,14 +54,14 @@ class PipelineSpec:
     get_clipboard: bool = False
     read_notifications: bool = False
 
-    # Deterministic fast actions before/after AI goals
+    # Compound UI & Shell Actions (executed directly via Artemis Accessibility Helper — zero API key!)
     pre_shell: list[str] = field(default_factory=list)
     ui_actions: list[dict[str, Any]] = field(default_factory=list)
     post_shell: list[str] = field(default_factory=list)
     wait_for_text: list[str] = field(default_factory=list)
     assert_texts: list[str] = field(default_factory=list)
 
-    # AI Agent (Artemis) natural-language goals
+    # Optional external Artemis daemon natural-language goals (if running Artemis server)
     goals: list[str] = field(default_factory=list)
     combine_goals: bool = True
     profile: str = "flash"
@@ -66,12 +73,12 @@ class PipelineSpec:
     max_attempts: int = 1
     timeout: float = 900.0
 
-    # Diagnostics & outputs
+    # Diagnostics & outputs (dump_ui defaults to True so the host AI agent always gets screen state)
     check_crashes: bool = True
     collect_logs: bool = False
     log_lines: int = 60
     screenshot_path: str | None = None
-    dump_ui: bool = False
+    dump_ui: bool = True
 
     @classmethod
     def from_file(cls, path: str | Path) -> PipelineSpec:
@@ -83,6 +90,46 @@ class PipelineSpec:
         valid_fields = {f for f in cls.__dataclass_fields__}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered)
+
+
+def parse_do_step(step_str: str) -> dict[str, Any]:
+    """Parse a compact `--do` step string like 'click:Login', 'fill:Email=a@b.com', 'scroll-to:Save'."""
+    raw = step_str.strip()
+    if ":" not in raw:
+        return {"type": "click", "selector": raw}
+    verb, arg = raw.split(":", 1)
+    v = verb.strip().lower()
+    arg = arg.strip()
+
+    if v in ("click", "tap-text", "tap_text"):
+        return {"type": "click", "selector": arg}
+    if v == "tap":
+        parts = [p.strip() for p in arg.split(",")]
+        return {"type": "tap", "x": float(parts[0]), "y": float(parts[1])}
+    if v in ("fill", "input"):
+        if "=" in arg:
+            sel, txt = arg.split("=", 1)
+            return {"type": "fill", "selector": sel.strip(), "text": txt}
+        return {"type": "type", "text": arg}
+    if v == "type":
+        return {"type": "type", "text": arg}
+    if v == "scroll":
+        return {"type": "scroll", "direction": arg or "down"}
+    if v in ("scroll-to", "scroll_to"):
+        return {"type": "scroll_to", "text": arg}
+    if v in ("wait", "wait-text", "wait_text"):
+        return {"type": "wait_text", "text": arg}
+    if v == "key":
+        return {"type": "key", "key": arg}
+    if v in ("open", "url", "open-url"):
+        return {"type": "open_url", "uri": arg}
+    if v == "launch":
+        return {"type": "launch", "package": arg}
+    if v == "shell":
+        return {"type": "shell", "cmd": arg}
+    if v == "sleep":
+        return {"type": "sleep", "seconds": float(arg or 1.0)}
+    return {"type": "click", "selector": raw}
 
 
 class CompoundPipeline:
@@ -98,6 +145,10 @@ class CompoundPipeline:
             default_profile=spec.profile,
         )
 
+    def _log_watch(self, watch_enabled: bool, msg: str) -> None:
+        if watch_enabled:
+            print(f"[agentdroid:watch] {msg}", file=sys.stderr)
+
     def run(self) -> dict[str, Any]:
         started = time.monotonic()
         spec = self.spec
@@ -108,6 +159,11 @@ class CompoundPipeline:
             artemis_url=self.artemis.base_url,
             watch=watch_enabled,
             prefer_web=spec.watch_web,
+            interactive_control=spec.watch_interactive,
+            always_on_top=spec.always_on_top,
+            window_width=spec.watch_width,
+            window_height=spec.watch_height,
+            borderless=spec.watch_borderless,
         )
 
         report: dict[str, Any] = {
@@ -153,7 +209,7 @@ class CompoundPipeline:
                     report["errors"].append(f"Device provisioning failed: {prov}")
                     return report
 
-            # Start live watcher (opens scrcpy or web viewer if --watch was passed)
+            # Start live watcher (opens scrcpy if --watch was passed)
             watcher.start()
 
             if spec.check_crashes or spec.collect_logs:
@@ -165,6 +221,7 @@ class CompoundPipeline:
                     local_p, remote_p = push_item.rsplit(":", 1)
                 else:
                     local_p, remote_p = push_item, "/sdcard/Download/"
+                self._log_watch(watch_enabled, f"Pushing {local_p} -> {remote_p}")
                 pushed = self.adb.push_file(local_p, remote_p)
                 report["pushed_files"].append(pushed)
 
@@ -176,6 +233,7 @@ class CompoundPipeline:
             # 4. Install APKs (from local file, URL, or F-Droid query/package) & auto-grant permissions
             primary_package: str | None = spec.locked_app_package
             for apk_src in spec.install_apks:
+                self._log_watch(watch_enabled, f"Installing {apk_src} (auto-granting permissions)...")
                 info: InstalledAppInfo = self.adb.install_apk(
                     apk_src,
                     grant_permissions=spec.grant_all_permissions,
@@ -211,26 +269,38 @@ class CompoundPipeline:
                     primary_package if spec.launch_target == "auto" else spec.launch_target
                 )
                 if target_launch:
+                    self._log_watch(watch_enabled, f"Launching {target_launch}...")
                     launch_res = self.adb.launch_app(target_launch)
                     report["launched_app"] = launch_res
                     if not launch_res.get("launched"):
                         report["errors"].append(f"Failed to launch {target_launch}")
+                    time.sleep(0.5)
 
             # 8. Open URLs / deep links if requested
             for uri in spec.open_urls:
+                self._log_watch(watch_enabled, f"Opening URI {uri}...")
                 opened = self.adb.open_url(uri, package=spec.locked_app_package)
                 report["opened_urls"].append(opened)
+                time.sleep(0.5)
 
             # 9. Pre-shell commands
             for cmd in spec.pre_shell:
                 out = self.adb.shell(cmd)
                 report["pre_shell_outputs"].append({"cmd": cmd, "output": out})
 
-            # 10. Fast deterministic UI actions (tap, type, swipe, key)
-            for act in spec.ui_actions:
+            # 10. Compound Semantic & Coordinate UI actions (via Artemis Accessibility Helper)
+            for idx, act in enumerate(spec.ui_actions, 1):
                 act_type = str(act.get("type") or act.get("cmd") or "").lower()
+                self._log_watch(watch_enabled, f"[Step {idx}] {act_type}: {act}")
                 res = self._execute_ui_action(act_type, act)
-                report["ui_actions_executed"].append({"action": act, "result": res})
+                report["ui_actions_executed"].append({"step": idx, "action": act, "result": res})
+                if not res.get("success", True):
+                    report["ok"] = False
+                    report["errors"].append(
+                        res.get("error") or f"UI action {act_type} failed at step {idx}"
+                    )
+                    break
+                time.sleep(0.35)
 
             # 11. Wait for text on screen if specified
             for text_needle in spec.wait_for_text:
@@ -242,7 +312,7 @@ class CompoundPipeline:
                     report["ok"] = False
                     report["errors"].append(f"Timed out waiting for text on screen: {text_needle!r}")
 
-            # 12. Execute AI Agent (Artemis) natural-language goals
+            # 12. Optional Artemis natural-language goals (when using an external Artemis daemon)
             if spec.goals:
                 goals_to_run: list[str]
                 if spec.combine_goals and len(spec.goals) > 1:
@@ -339,7 +409,7 @@ class CompoundPipeline:
                 saved = self.adb.screenshot(spec.screenshot_path)
                 report["screenshot"] = saved
 
-            # 20. Compact UI hierarchy summary
+            # 20. Compact UI hierarchy summary (enabled by default so host AI agent sees current screen)
             if spec.dump_ui:
                 report["ui_summary"] = self.helper.dump_compact_ui()
 
@@ -357,6 +427,14 @@ class CompoundPipeline:
         return report
 
     def _execute_ui_action(self, act_type: str, act: dict[str, Any]) -> dict[str, Any]:
+        if act_type in ("click", "tap_text"):
+            return self.helper.tap_element(str(act["selector"]))
+        if act_type == "fill":
+            return self.helper.fill_element(
+                str(act["selector"]),
+                str(act["text"]),
+                submit=bool(act.get("submit", False)),
+            )
         if act_type == "tap":
             return self.helper.action("tap", x=act["x"], y=act["y"])
         if act_type == "type":
@@ -370,8 +448,24 @@ class CompoundPipeline:
                 y2=act["y2"],
                 duration=act.get("duration", 300),
             )
+        if act_type == "scroll":
+            return self.helper.scroll(str(act.get("direction", "down")))
+        if act_type == "scroll_to":
+            return self.helper.scroll_to_text(str(act["text"]))
+        if act_type == "wait_text":
+            ok = self._wait_for_text(str(act["text"]), timeout=float(act.get("timeout", 15.0)))
+            return {"success": ok, "text": act["text"]}
         if act_type == "key":
             return self.helper.action("global", action=act["key"])
+        if act_type == "open_url":
+            res = self.adb.open_url(str(act["uri"]))
+            return {"success": bool(res.get("opened", True)), **res}
+        if act_type == "launch":
+            res = self.adb.launch_app(str(act["package"]))
+            return {"success": bool(res.get("launched", True)), **res}
+        if act_type == "shell":
+            out = self.adb.shell(str(act["cmd"]))
+            return {"success": True, "output": out}
         if act_type == "sleep":
             secs = float(act.get("seconds", 1.0))
             time.sleep(secs)
