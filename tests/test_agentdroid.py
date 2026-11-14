@@ -163,6 +163,43 @@ class TestCompoundPipelineExecution(unittest.TestCase):
         self.assertFalse(report["crashes"]["has_crashes"])
         self.assertEqual(report["ui_summary"]["element_count"], 1)
 
+    def test_semantic_ui_actions_zero_env(self) -> None:
+        spec = PipelineSpec(
+            serial="127.0.0.1:5555",
+            headless=True,
+            auto_provision=False,
+            launch_target="com.android.settings",
+            ui_actions=[
+                {"type": "click", "selector": "Display"},
+                {"type": "fill", "selector": "Search", "text": "Dark theme"},
+                {"type": "scroll", "direction": "down"},
+            ],
+            dump_ui=True,
+        )
+        pipeline = CompoundPipeline(spec)
+        pipeline.adb.connect = MagicMock(return_value=True)
+        pipeline.adb.clear_logs = MagicMock()
+        pipeline.adb.launch_app = MagicMock(return_value={"launched": True, "package": "com.android.settings"})
+        pipeline.helper.tap_element = MagicMock(return_value={"success": True, "selector": "Display"})
+        pipeline.helper.fill_element = MagicMock(return_value={"success": True, "selector": "Search"})
+        pipeline.helper.scroll = MagicMock(return_value={"success": True, "direction": "down"})
+        pipeline.adb.collect_crashes = MagicMock(return_value=CrashReport(has_crashes=False))
+        pipeline.helper.dump_compact_ui = MagicMock(
+            return_value={
+                "backend": "helper",
+                "element_count": 2,
+                "elements": [
+                    {"id": 1, "label": "Display", "class": "TextView", "center": [200, 300]},
+                    {"id": 2, "label": "Dark theme", "class": "Switch", "center": [500, 300]},
+                ],
+            }
+        )
+
+        report = pipeline.run()
+        self.assertTrue(report["ok"])
+        self.assertEqual(len(report["ui_actions_executed"]), 3)
+        self.assertEqual(report["ui_summary"]["element_count"], 2)
+
     def test_until_output_retries_with_screen_recovery_context(self) -> None:
         bridge = ArtemisBridge(base_url="http://127.0.0.1:8000", device_serial="127.0.0.1:5555")
         call_goals: list[str] = []

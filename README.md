@@ -42,8 +42,8 @@ git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
 
 What `./install.sh` (and `agentdroid setup`) does automatically:
 1. **Host & Kernel Modules**: Installs `adb` and `scrcpy` if missing, and loads/persists Linux kernel modules (`binder_linux`, `ashmem_linux`).
-2. **Global CLI**: Links `agentdroid` (and `agentsredroid`) into `~/.local/bin` and `/usr/local/bin`.
-3. **LLM Credentials**: Auto-detects `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPEN_ROUTER_API_KEY` (or prompts once if interactive) and writes `.env`.
+2. **Global CLI**: Links `agentdroid` (and `agentsredroid`) into `~/.local/bin` and `/usr/local/bin` so it runs anywhere.
+3. **Zero API Keys / Zero `.env` Required**: Your host AI agent (Claude Code, Antigravity, Codex, Cursor, etc.) **is already the brain**. `agentdroid` gives it eyes (compact screen UI dumps in ~150 tokens) and hands (`--click`, `--fill`, `--scroll`, `--do`) directly over ADB and the on-device Artemis Accessibility Helper.
 4. **AI Agent Skill & Rule Mounting**: Automatically installs [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md) and [`AGENTS.md`](AGENTS.md) into:
    - **Antigravity / Gemini**: `~/.gemini/jetski/skills/agentdroid/SKILL.md` & `~/.gemini/GEMINI.md`
    - **Claude Code**: `~/.claude/skills/agentdroid/SKILL.md` & `~/.claude/rules/agentdroid.md`
@@ -115,26 +115,41 @@ agentdroid \
   --json
 ```
 
-### 2. Search & Install Tools/Apps On the Fly (F-Droid, URL, or Local APK)
-
-If the AI agent needs an app or tool (a browser, PDF reader, markdown editor, terminal, QR scanner, or custom APK), it can search F-Droid or install directly by name/URL/path with all permissions auto-granted:
+### 1. General Task: Install App, Push File, Open & Edit via Semantic Actions
+You can install any tool/app on the fly (from F-Droid, HTTPS URL, or APK), push workspace files, launch, and execute semantic UI actions:
 
 ```bash
-# Search F-Droid for any open-source Android tool
-agentdroid app search "markdown editor" --json
-
-# Install directly from F-Droid (or HTTPS URL / local path), push a file, use the app, and pull the result!
+# Example: Install Markor from F-Droid, push notes.md, edit, save, and pull back!
 agentdroid \
   --headless \
   --install "fdroid:net.gsantner.markor" \
-  --push ./draft.md:/sdcard/Download/draft.md \
+  --push ./notes.md:/sdcard/Download/notes.md \
   --launch \
-  --step "Open draft.md from Downloads, format the headings, and export/save the file" \
-  --pull /sdcard/Download/draft.md:./artifacts/final.md \
-  --expect "confirmation that file was saved" \
-  --until-output \
+  --click "Open from storage" \
+  --click "notes.md" \
+  --click "Edit" \
+  --type "Updated by AI Agent" \
+  --click "Save" \
+  --pull /sdcard/Download/notes.md:./artifacts/notes_updated.md \
+  --notifications \
   --json
 ```
+
+### 2. Multi-Step Sequential UI Chains with `-d` / `--do`
+AI agents can chain multiple sequential actions in strict order:
+
+```bash
+agentdroid \
+  --headless \
+  --launch "com.android.settings" \
+  --do "scroll-to:About" \
+  --do "click:About" \
+  --do "scroll-to:Android version" \
+  --assert-text "Android" \
+  --json
+```
+
+Supported `--do` verbs: `click:<text_or_#id>`, `fill:<sel>=<text>`, `scroll:down|up`, `scroll-to:<text>`, `key:<HOME|BACK|ENTER>`, `tap:x,y`, `type:<text>`, `sleep:<sec>`.
 
 ### 3. Read Notifications (2FA/OTP Codes, Messages) & Clipboard
 
@@ -149,10 +164,12 @@ agentdroid device clipboard "text to paste on phone"
 ```bash
 agentdroid \
   --watch \
-  --goal "Open Settings, check battery and storage usage, then open the browser and search for Weather"
+  --launch "com.android.settings" \
+  --do "click:Display" \
+  --do "click:Dark theme"
 ```
 
-### 5. Fast Deterministic Gestures + Compact ~150-Token UI Dump (No LLM Needed)
+### 5. Fast Deterministic Gestures + Compact ~150-Token UI Dump
 
 ```bash
 # Inspect all visible interactive/labelled elements on screen via Artemis Accessibility Helper (~30ms)
