@@ -1,4 +1,4 @@
-# Silent AI Agent Android System Properties for Redroid
+# Silent AI Agent Android System Properties for Redroid (Android 16)
 # Enables root ADB without confirmation prompts, disables setup wizards, and silences audio.
 
 ro.secure=0
@@ -6,6 +6,14 @@ ro.adb.secure=0
 ro.debuggable=1
 persist.sys.usb.config=adb
 service.adb.tcp.port=5555
+
+# Modern UI/UX defaults (Android 16 dark theme, high DPI, gesture-ready)
+persist.sys.theme=dark
+persist.sys.night_mode=2
+ro.sf.lcd_density=440
+persist.sys.timezone=UTC
+persist.sys.language=en
+persist.sys.country=US
 
 # Disable first-run setup wizard & provisioning screens
 ro.setupwizard.mode=DISABLED

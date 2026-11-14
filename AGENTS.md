@@ -64,8 +64,9 @@ Supported `--do` verbs:
 
 2. **`--watch` (`-w` — Live Visual Mode for the User)**:
    - Pass `--watch` whenever the user asks to **see** or **watch** what you are doing on the Android device.
-   - Automatically launches a live `scrcpy` window (or `--watch-web` for the Artemis Web Console stream at `http://127.0.0.1:8000`) and streams real-time step-by-step actions in the terminal.
-   - Standalone live viewer: `agentdroid watch` (opens `scrcpy` + live stream) or `agentdroid watch --headless` (streams background JSONL telemetry).
+   - Automatically launches a **sleek floating mobile phone overlay window** (`412×892`, `--always-on-top`, like macOS iOS Simulator) that stays docked next to the user's terminal/editor instead of taking over the full display.
+   - Streams real-time step-by-step actions and telemetry in the terminal.
+   - Standalone live viewer: `agentdroid watch` (opens floating phone simulator overlay + live stream) or `agentdroid watch --headless` (streams background JSONL telemetry).
 
 ---
 

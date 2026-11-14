@@ -1,4 +1,4 @@
-ARG REDROID_IMAGE=redroid/redroid:12.0.0_64only-latest
+ARG REDROID_IMAGE=redroid/redroid:16.0.0_64only-latest
 FROM ${REDROID_IMAGE}
 
 # Bundle Artemis Accessibility Helper APK inside the image for instant provisioning

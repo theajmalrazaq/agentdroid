@@ -89,6 +89,21 @@ adb_s shell '
     settings put global transition_animation_scale 0.0
     settings put global animator_duration_scale 0.0
 
+    # Modern Android 16 UI/UX: System-wide Dark Theme (no blinding white screen)
+    cmd uimode night yes >/dev/null 2>&1 || true
+    settings put secure ui_night_mode 2 >/dev/null 2>&1 || true
+
+    # Modern Gesture Navigation (replaces legacy 3-button navigation bar)
+    cmd overlay enable com.android.internal.systemui.navbar.gestural >/dev/null 2>&1 || true
+    settings put secure navigation_mode 2 >/dev/null 2>&1 || true
+
+    # Clean UI/UX: disable touch vibrations, haptic feedback, and camera/lock sounds
+    settings put system haptic_feedback_enabled 0 >/dev/null 2>&1 || true
+    settings put system sound_effects_enabled 0 >/dev/null 2>&1 || true
+    settings put system lockscreen_sounds_enabled 0 >/dev/null 2>&1 || true
+    settings put system font_scale 1.0 >/dev/null 2>&1 || true
+    settings put system time_12_24 24 >/dev/null 2>&1 || true
+
     # Mark device as provisioned & skip first-run setup wizards
     settings put global device_provisioned 1
     settings put secure user_setup_complete 1
