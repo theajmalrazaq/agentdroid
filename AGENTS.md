@@ -82,40 +82,31 @@ Supported `--do` verbs:
 | **Read notifications (2FA/OTP codes, messages)** | `agentdroid device notifications --json` *(or `--notifications` flag on `run`)* |
 | **Read / write Android clipboard** | `agentdroid device clipboard "text to copy"` / `agentdroid device clipboard --json` |
 | **Run while showing live screen to user** | `agentdroid --watch --launch "com.android.settings" -d "click:Display"` |
-| **Cloud REST API & Web Playground** | `agentdroid serve --port 8080` / `POST /api/v1/run` |
+| **Cloud server (HTTP + AI SDK tools)** | `cd server && npm start` / `docker compose up -d` |
 
 ---
 
 ## Cloud Deployment & Vercel AI SDK Integration
 
-AgentDroid can be deployed on any Linux cloud host (`docker compose up -d` or `agentdroid serve --port 8080`).
-Web apps and AI agents using the **Vercel AI SDK** can import `@agentdroid/sdk` and drive the cloud Android device directly with **zero secondary LLM API keys on the server**:
+There is ONE central server: [`server/`](server/) (TypeScript). Deploy with `docker compose up -d` (needs a strong `AGENTDROID_API_KEY`). Web apps use the Vercel AI SDK tools; no LLM keys live on the server:
 
 ```typescript
-import { generateText, tool } from "ai";
+import { generateText, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { createAgentDroidTools } from "@agentdroid/sdk";
+import { createAgentDroidTools } from "@agentdroid/server/tools";
 
-const agentdroid = createAgentDroidTools({ endpoint: "http://your-cloud-ip:8080" });
 const { text } = await generateText({
   model: openai("gpt-4o"),
-  prompt: "Open Hacker News on Android, read top stories, and tell me the summary",
-  tools: {
-    runAndroidWorkflow: tool(agentdroid.runAndroidWorkflow),
-    inspectScreenUI: tool(agentdroid.inspectScreenUI),
-    performSemanticAction: tool(agentdroid.performSemanticAction),
-  },
+  tools: createAgentDroidTools({ endpoint: "https://your-host", apiKey: process.env.AGENTDROID_API_KEY }),
+  stopWhen: stepCountIs(10),
+  prompt: "Open Hacker News on Android and summarize the top stories",
 });
 ```
 
----
+## Server Security Guardrails
 
-## Web & Cloud Security Guardrails
-
-When connecting to an AgentDroid instance over HTTP / cloud endpoints:
-- **SSRF Protection**: Metadata endpoints (`169.254.169.254`, `metadata.google.internal`) and private ranges are blocked by default.
-- **Path Traversal Defense**: Access to sensitive files (`.env`, `.ssh`, `/etc/shadow`, `/etc/passwd`) is denied.
-- **Shell Command Blocking**: Arbitrary shell commands (`pre_shell`, `post_shell`, `--do shell:`) are blocked in web mode to prevent remote code execution or system tampering.
-- **Rate Limiting**: Requests are metered per client IP (default 60 rpm) to prevent denial-of-service floods.
-- **Local Freedom**: When working locally on your dev machine via the `agentdroid` CLI, you retain full developer permissions and zero restriction.
-
+- Refuses to start off-loopback without a strong API key; keys only via `X-API-Key` / Bearer.
+- SSRF: DNS-resolved URL checks block private, loopback, link-local and metadata addresses, including across redirects.
+- No shell execution exists in the server. Host files are confined to `AGENTDROID_DATA_DIR`.
+- Rate limit, 1 MB body limit, and one device operation at a time.
+- The local `agentdroid` CLI is unrestricted; the server is not.

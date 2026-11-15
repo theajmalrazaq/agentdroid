@@ -14,7 +14,7 @@
 #   4. Configures .env (auto-detects or prompts for GEMINI_API_KEY / LLM key)
 #   5. Injects `agentdroid` skills & rules into Antigravity, Claude Code, Codex,
 #      Cursor, Windsurf, and ~/.agents so your AI agent immediately knows how to use it
-#   6. Starts the silent Redroid + Artemis stack (`agentdroid up --headless`)
+#   6. Starts the silent Redroid stack + central server (`agentdroid up --headless`)
 # ==============================================================================
 
 set -euo pipefail

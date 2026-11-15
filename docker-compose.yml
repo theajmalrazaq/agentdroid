@@ -1,7 +1,5 @@
 services:
-  # ---------------------------------------------------------------------------
-  # 1. Headless Redroid Android Device (Pre-configured for Silent AI Agents)
-  # ---------------------------------------------------------------------------
+  # Headless Android device (Redroid). Never expose the ADB port publicly.
   redroid:
     build:
       context: .
@@ -22,80 +20,33 @@ services:
       - androidboot.redroid_dpi=${REDROID_DPI:-440}
       - androidboot.redroid_fps=${REDROID_FPS:-60}
       - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
-      - androidboot.use_memfd=${REDROID_USE_MEMFD:-true}
+      - androidboot.use_memfd=true
       - ro.secure=0
       - ro.adb.secure=0
       - ro.debuggable=1
       - ro.setupwizard.mode=DISABLED
       - ro.audio.silent=1
 
-  # ---------------------------------------------------------------------------
-  # 2. Google Artemis Autonomous Android Agent Controller & Live Stream Server
-  # ---------------------------------------------------------------------------
-  artemis:
+  # The one central server: HTTP API + backend for the AI SDK tools.
+  server:
     build:
       context: .
-      dockerfile: docker/artemis/Dockerfile
-      args:
-        ARTEMIS_REPO: ${ARTEMIS_REPO:-https://github.com/google/artemis.git}
-        ARTEMIS_REF: ${ARTEMIS_REF:-main}
-    image: agentdroid/artemis-controller:latest
-    container_name: agentdroid-artemis
+      dockerfile: docker/server/Dockerfile
+    image: agentdroid/server:latest
+    container_name: agentdroid-server
     restart: unless-stopped
     depends_on:
       - redroid
-    env_file:
-      - path: .env
-        required: false
     environment:
       - REDROID_ADDR=redroid:5555
-      - ADB_DEVICE_SERIAL=redroid:5555
-      - ARTEMIS_KEEP_DEVICE_AWAKE=true
-      - ARTEMIS_HIERARCHY_BACKEND=${ARTEMIS_HIERARCHY_BACKEND:-auto}
-      - ARTEMIS_HELPER_AUTO_INSTALL=true
-      - ARTEMIS_DEFAULT_PROFILE=${ARTEMIS_DEFAULT_PROFILE:-flash}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY:-}
-      - PORT=8000
-    ports:
-      - "127.0.0.1:${ARTEMIS_PORT:-8000}:8000"
-    volumes:
-      - ./apks:/workspace/apks
-      - ./artifacts:/workspace/artifacts
-      - ./traces:/app/traces
-
-  # ---------------------------------------------------------------------------
-  # 3. AgentDroid Cloud HTTP REST API & Web Playground Server
-  # ---------------------------------------------------------------------------
-  api:
-    build:
-      context: .
-      dockerfile: docker/artemis/Dockerfile
-    image: agentdroid/artemis-controller:latest
-    container_name: agentdroid-api
-    restart: unless-stopped
-    depends_on:
-      - redroid
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      - REDROID_ADDR=redroid:5555
-      - ADB_DEVICE_SERIAL=redroid:5555
-      - AGENTDROID_PORT=8080
-      - AGENTDROID_HOST=0.0.0.0
-      - AGENTDROID_API_KEY=${AGENTDROID_API_KEY:-}
-      - ARTEMIS_BASE_URL=http://artemis:8000
+      # Required: the server refuses to start on 0.0.0.0 without a key.
+      - AGENTDROID_API_KEY=${AGENTDROID_API_KEY:?set AGENTDROID_API_KEY in .env}
+      - AGENTDROID_CORS_ORIGIN=${AGENTDROID_CORS_ORIGIN:-}
+      - AGENTDROID_TRUST_PROXY=${AGENTDROID_TRUST_PROXY:-false}
     ports:
       - "${AGENTDROID_PORT:-8080}:8080"
     volumes:
-      - ./apks:/workspace/apks
-      - ./artifacts:/workspace/artifacts
-    command: ["agentdroid", "serve", "--host", "0.0.0.0", "--port", "8080"]
+      - ./data:/data
 
 volumes:
   redroid-data:
-

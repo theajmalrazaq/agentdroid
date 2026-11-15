@@ -1,535 +1,114 @@
-English | [简体中文](README.zh-cn.md)
+# AgentDroid
 
-# AgentDroid (`agentdroid`) — Silent General-Purpose Android Computer for AI Agents
+A silent, headless **Android computer for AI agents**, built on [Redroid](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis).
 
-**AgentDroid** combines [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis) into a **silent, headless-by-default Android device** that any AI agent can use as a general-purpose mobile computer — searching & installing apps on the fly, browsing the web, opening deep links, pushing/pulling files, reading OTP/notification messages, automating real-world mobile workflows, or testing APKs.
+- **Local:** your coding agent (Claude Code, Antigravity, Codex, Cursor, …) drives it through the `agentdroid` CLI.
+- **Cloud / web:** deploy **one central server** (TypeScript) and drive it from any app through the **Vercel AI SDK** tools or plain HTTP.
 
-Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, screenshot, tap, screenshot...), AI agents drive the phone through **one compound CLI tool (`agentdroid`)** that chains setup, file transfers, app installation, multi-step UI execution (until the required output is obtained), and data extraction into a single command.
-
-- **One-Command Install & Auto AI-Agent Setup (`./install.sh`)**: Installs host dependencies & kernel modules, puts `agentdroid` on `PATH`, boots the silent Android container, and automatically mounts the `agentdroid` skill & rules into **Antigravity, Claude Code, Codex, Cursor, and Windsurf**.
-- **Silent & Headless by Default (`--headless`)**: Runs in the background with zero GUI windows, muted audio streams, root ADB (`ro.secure=0`), disabled animations (`0.0`), skipped setup wizards, and pre-installed **Artemis Accessibility Helper** (`com.artemis.helper`).
-- **Latest Android 16 & Modern Native UI/UX**: Defaults to **Android 16** (`redroid/redroid:16.0.0_64only-latest`), crisp **440 DPI**, **60 FPS**, modern **1080×2400 (20:9)** phone ratio, system-wide **Dark Theme**, and **Gesture Navigation** (no ugly retro 3-button bar).
-- **Floating Mobile Simulator Watch Mode (`--watch`)**: Opens a sleek, floating phone overlay (`412×892`, `--always-on-top`) styled like macOS iOS Simulator — sits right next to your terminal/editor instead of taking over the full display!
-- **Drastically More Lightweight than Android Studio**: Runs directly as a container sharing the host Linux kernel (~1.2 GB RAM, 5s boot) instead of QEMU full-system hardware emulation (4–8 GB RAM, 60s boot).
-
----
-
-## Table of Contents
-- [One-Command Install & Setup](#one-command-install--setup)
-- [How to Prompt Your AI Agent](#how-to-prompt-your-ai-agent)
-- [Is Redroid More Lightweight than Android Studio?](#is-redroid-more-lightweight-than-android-studios-emulator)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [General-Purpose Compound CLI (`agentdroid`)](#general-purpose-compound-cli-agentdroid)
-- [Cloud REST API & Vercel AI SDK Integration](#cloud-deployment-rest-api--vercel-ai-sdk)
-- [Cloud & Web Security Guardrails](#cloud--web-security-guardrails)
-- [CLI Reference (`agentdroid`)](#cli-reference-agentdroid)
-- [Headless vs. Watch Mode (Floating Mobile Simulator)](#headless-vs-watch-mode-floating-mobile-simulator)
-- [Silent Device Provisioning & Modern UI/UX](#silent-device-provisioning--modern-uiux)
-- [Redroid Base Configuration & Kernel Modules](#redroid-base-configuration--kernel-modules)
-- [Native Bridge & GMS Support](#native-bridge--gms-support)
-- [Troubleshooting](#troubleshooting)
-- [Acknowledgements & Credits](#acknowledgements--credits)
-- [License](#license)
-
----
-
-## One-Command Install & Setup
-
-Run **one command** to install host tools (`adb`, `scrcpy`, Redroid kernel modules), link `agentdroid` globally on your `PATH`, mount the `agentdroid` skill & operating rules into all your AI coding assistants, and start the silent Android device:
-
-```bash
-# Option A: One-liner from anywhere
-curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentdroid/main/install.sh | bash
-
-# Option B: From a local clone
-git clone https://github.com/theajmalrazaq/agentdroid.git && cd agentdroid
-./install.sh
-```
-
-What `./install.sh` (and `agentdroid setup`) does automatically:
-1. **Host & Kernel Modules**: Installs `adb` and `scrcpy` if missing, and loads/persists Linux kernel modules (`binder_linux`, `ashmem_linux`).
-2. **Global CLI**: Links `agentdroid` into `~/.local/bin` and `/usr/local/bin` so it runs anywhere.
-3. **Zero API Keys / Zero `.env` Required**: Your host AI agent (Claude Code, Antigravity, Codex, Cursor, etc.) **is already the brain**. `agentdroid` gives it eyes (compact screen UI dumps in ~150 tokens) and hands (`--click`, `--fill`, `--scroll`, `--do`) directly over ADB and the on-device Artemis Accessibility Helper.
-4. **AI Agent Skill & Rule Mounting**: Automatically installs [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md) and [`AGENTS.md`](AGENTS.md) into:
-   - **Antigravity / Gemini**: `~/.gemini/jetski/skills/agentdroid/SKILL.md` & `~/.gemini/GEMINI.md`
-   - **Claude Code**: `~/.claude/skills/agentdroid/SKILL.md` & `~/.claude/rules/agentdroid.md`
-   - **Codex CLI**: `~/.codex/skills/agentdroid/SKILL.md` & `~/.codex/AGENTS.md`
-   - **Cursor**: `~/.cursor/rules/agentdroid.mdc`
-   - **Windsurf**: `~/.codeium/windsurf/memories/global_rules.md`
-   - **Universal Agents**: `~/.agents/skills/agentdroid/SKILL.md`
-5. **Silent Android Boot**: Starts the Docker Compose stack (`agentdroid-device` + `agentdroid-artemis`) and provisions the Android instance for silent background operation.
-
----
-
-## How to Prompt Your AI Agent
-
-Once `./install.sh` finishes, open **Antigravity, Claude Code, Codex, Cursor, or Windsurf** in any workspace and ask it to use `agentdroid` for any task:
-
-- **General Android Tasks (Silent Background)**:
-  > *"Use `agentdroid` to open Hacker News in the browser, read the top 5 stories, and save a summary."*
-- **Install Tools On the Fly & Process Files**:
-  > *"Use `agentdroid` to find and install a markdown or PDF app on Android, push `./report.md` to the device, format and export it, and pull the result back."*
-- **Read 2FA / Notifications / Messages**:
-  > *"Use `agentdroid` to sign into the app, read the verification code from Android notifications, complete login, and return the dashboard state."*
-- **Build & Test an Android App**:
-  > *"Build the debug APK, use `agentdroid` to install it with all permissions, test the onboarding and settings screens, check for crashes, and return a screenshot."*
-- **Watch Live While the AI Works (`--watch`)**:
-  > *"Use `agentdroid --watch` to open YouTube and play a lofi stream so I can watch what you're doing on the screen."*
-
----
-
-## Is Redroid More Lightweight Than Android Studio's Emulator?
-
-**Yes — Redroid is dramatically lighter, faster, and more resource-efficient than Android Studio's Android Emulator (AVD).**
-
-### 1. Architectural Difference: Containerization vs. Full-System Emulation
-
-- **Android Studio AVD (Heavyweight QEMU Hypervisor)**:
-  Android Studio's emulator boots a **complete guest operating system inside a QEMU virtual machine**. It runs an isolated Linux guest kernel, virtualizes hardware controllers (memory controllers, virtual NICs, virtual disks, CPU instruction translations), and requires a dedicated guest memory heap.
-- **Redroid (Lightweight AIC - Android in Cloud Container)**:
-  Redroid uses **native Linux containerization (cgroups + namespaces)**. It shares the **host Linux kernel directly** via native IPC kernel modules (`binder_linux`, `memfd`/`ashmem`). There is **zero virtualization overhead, no guest kernel, and no QEMU hardware emulation**. Android processes run directly as native processes on your host CPU.
-
-### 2. Side-by-Side Comparison
-
-| Metric | AgentDroid (`agentdroid`) | Android Studio AVD (Emulator) | Why Redroid Wins |
-| :--- | :--- | :--- | :--- |
-| **RAM Footprint** | **~1.2 GB – 1.8 GB** | **4 GB – 8 GB+** *(+ 4–6 GB for Android Studio IDE)* | Redroid only runs Android system services; no guest VM memory allocation. |
-| **Boot Time** | **5 – 10 seconds** | **30 – 90+ seconds** *(cold boot)* | Starting container processes vs. booting an entire virtual machine kernel. |
-| **CPU Overhead** | **Near-zero idle CPU (~1–2%)** | **High CPU spikes (15–40% idle)** | Native Linux process execution vs. QEMU instruction translation traps. |
-| **Disk Size** | **~1.5 GB** compressed container image | **15 GB – 30 GB** per virtual device | Layered Docker image vs. full virtual disk images (`system.img`, `userdata.img`). |
-| **Concurrent Instances** | **5 to 10+ instances** on a modest server/laptop | **1 to 2 instances max** before host thrashing | AIC containers share host memory pages; QEMU locks exclusive RAM per VM. |
-| **Headless Automation** | **100% silent by default** (`--headless`) | Complex setup (`-no-window -no-audio`) | Redroid is built from the ground up for cloud & autonomous agent workloads. |
-| **GPU Requirement** | **Runs anywhere** (software `guest` or GPU `host`) | Often crashes on VPS/cloud without GPU passthrough | Pure software rendering fallback works out-of-the-box on every cloud VM. |
-
----
+No LLM keys are needed anywhere. The model in your agent or app is the brain. AgentDroid provides the eyes (a compact ~150-token screen dump) and the hands (click, fill, scroll, install, open URL).
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ AI Agent (Antigravity / Claude Code / Codex / Cursor / Custom Agent)    │
-└───────────────────────────────────┬─────────────────────────────────────┘
-                                    │ Single compound CLI call (`agentdroid`)
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ `agentdroid` Compound Pipeline (`--headless` silent bg | `--watch` UI)  │
-│  1. Silent Provisioning Check   4. Artemis Multi-Step Goal Execution    │
-│  2. App Search/Install & Grant  5. Until-Output Autonomous Recovery     │
-│  3. File Push / URL / Clipboard 6. File Pull / Notifications / JSON     │
-└───────────────┬───────────────────────────────────┬─────────────────────┘
-                │ ADB + Port 18888 Tunnel           │ HTTP / SSE (:8000)
-                ▼                                   ▼
-┌───────────────────────────────────┐ ┌───────────────────────────────────┐
-│ `agentdroid-device` (Redroid)     │ │ `agentdroid-artemis` Controller   │
-│ • Android 11–16 in Docker         │◄┤ • Google Artemis Flash / Pro Loop │
-│ • Root ADB (`ro.secure=0`)        │ │ • Planner + Safety Net + Checker  │
-│ • Animations=0, Audio=SILENT      │ │ • Live MJPEG & SSE Step Stream    │
-│ • ArtemisAccessibilityHelper.apk  │ └───────────────────────────────────┘
-└───────────────────────────────────┘
+ Coding agent ──CLI──► agentdroid (Python) ──┐
+                                             ├──► adb ──► Redroid Android (Docker)
+ Your web app ──AI SDK tools / HTTP──► server (TypeScript, one process) ─┘
 ```
 
----
+| Path | What it is |
+| :--- | :--- |
+| [`server/`](server/) | **The one central server**: HTTP API, AI SDK tools, typed client, security guardrails. Node ≥ 22.18, zero runtime dependencies. |
+| [`agentdroid/`](agentdroid/) | Local CLI for coding agents (compound `run`, `watch`, `up`/`down`, `doctor`, …). |
+| [`docker/`](docker/), [`docker-compose.yml`](docker-compose.yml) | Redroid device image and the 2-service stack (`redroid` + `server`). |
+| [`scripts/provision-device.sh`](scripts/provision-device.sh) | Silent root ADB, dark theme, gesture nav, animations off. |
+| [`skills/`](skills/), [`AGENTS.md`](AGENTS.md) | Skill and rules mounted into coding agents by `install.sh`. |
 
-## Project Structure
-
-The repository is organized into cleanly separated, categorized directories:
-
-agentdroid/
-├── bin/                          # Standalone CLI executables (`agentdroid`)
-├── api/                          # Cloud REST API & Multi-Language SDKs
-│   ├── go/                       # High-performance modular Go API server & Go SDK
-│   │   ├── cmd/agentdroid-server # Go server entrypoint (zero external deps)
-│   │   ├── pkg/api/              # Modular handlers (router, health, run, do, ui, device)
-│   │   └── pkg/client/           # Typed Go client SDK
-│   ├── rust/                     # Ultra-fast native Rust engine & CLI (`agentdroid-rs`)
-│   │   └── src/                  # Adb transport, compact UI parser, and client
-│   └── ts/                       # TypeScript SDK & Vercel AI SDK tools (`@agentdroid/sdk`)
-│       ├── src/client.ts         # AgentDroid TypeScript HTTP client
-│       └── src/vercel-ai.ts      # Vercel AI SDK tool definitions (zero secondary API keys)
-├── agentdroid/                   # Core Python automation engine & library
-│   ├── adb.py                    # General-purpose ADB, F-Droid & device manager
-│   ├── artemis_bridge.py         # Autonomous Artemis agent bridge & retry loop
-│   ├── cli.py                    # Unified CLI parser & subcommand handlers
-│   ├── helper.py                 # Sub-second compact UI tree dumps (~150 tokens)
-│   ├── installer.py              # Environment installer & agent skills mounter
-│   ├── pipeline.py               # Compound single-call workflow execution engine
-│   ├── server.py                 # Built-in cloud REST API & Web Playground server
-│   └── watcher.py                # Headless background vs floating overlay watcher
-├── docker/                       # Multi-container Docker definitions
-│   ├── redroid/                  # Silent Android device image & system properties
-│   └── artemis/                  # Artemis controller image & entrypoint
-├── packages/                     # On-device APK packages
-│   └── artemis-accessibility-helper/  # ArtemisAccessibilityHelper.apk & manifest
-├── scripts/                      # Host & container automation scripts
-│   └── provision-device.sh       # Silent root ADB & modern Android 16 provisioner
-├── skills/                       # Host AI agent skills
-│   └── agentdroid/SKILL.md       # Mounted skill for Claude Code, Antigravity, Cursor, etc.
-├── examples/                     # Declarative pipeline workflow specifications
-│   └── app-test-pipeline.json    # Sample multi-step workflow JSON
-├── tests/                        # Automated unit tests
-│   └── test_agentdroid.py        # Comprehensive test suite (CLI, cloud API, pipeline)
-├── docker-compose.yml            # Multi-container device + controller + API stack
-├── install.sh                    # Universal one-command installer
-├── AGENTS.md                     # Direct operating rules for AI coding agents
-├── pyproject.toml                # Python packaging specification
-└── .env.example                  # Environment configuration template
-```
-
----
-
-## General-Purpose Compound CLI (`agentdroid`)
-
-AI agents can use `agentdroid` as a complete mobile computer — chaining app search/installation, file push/pull, URL/deep-link opening, clipboard/notification reading, and multi-step natural-language tasks into **one single command**:
-
-### 1. Do Any General Task (Web Research, App Workflows, Data Extraction)
+## Quick start (local, with your coding agent)
 
 ```bash
-agentdroid \
-  --headless \
-  --open-url "https://news.ycombinator.com" \
-  --goal "Read the top 5 front-page stories and extract their titles and points" \
-  --expect "JSON array of {title, points}" \
-  --until-output \
-  --json
+git clone https://github.com/theajmalrazaq/agentdroid.git && cd agentdroid
+./install.sh          # host tools, kernel modules, `agentdroid` on PATH, agent skills, device up
 ```
 
-### 1. General Task: Install App, Push File, Open & Edit via Semantic Actions
-You can install any tool/app on the fly (from F-Droid, HTTPS URL, or APK), push workspace files, launch, and execute semantic UI actions:
+Then just ask your agent: *"Use agentdroid to open Hacker News and summarize the top 5 stories."*
 
 ```bash
-# Example: Install Markor from F-Droid, push notes.md, edit, save, and pull back!
-agentdroid \
-  --headless \
-  --install "fdroid:net.gsantner.markor" \
-  --push ./notes.md:/sdcard/Download/notes.md \
-  --launch \
-  --click "Open from storage" \
-  --click "notes.md" \
-  --click "Edit" \
-  --type "Updated by AI Agent" \
-  --click "Save" \
-  --pull /sdcard/Download/notes.md:./artifacts/notes_updated.md \
-  --notifications \
-  --json
+agentdroid --headless --open-url "https://news.ycombinator.com" \
+  --do "scroll:down" --assert-text "Hacker News" --json
+agentdroid --watch --launch com.android.settings    # floating iOS-Simulator-style phone window
 ```
 
-### 2. Multi-Step Sequential UI Chains with `-d` / `--do`
-AI agents can chain multiple sequential actions in strict order:
+## Deploy to the cloud (one server)
 
 ```bash
-agentdroid \
-  --headless \
-  --launch "com.android.settings" \
-  --do "scroll-to:About" \
-  --do "click:About" \
-  --do "scroll-to:Android version" \
-  --assert-text "Android" \
-  --json
+cp .env.example .env
+# set a strong key:  AGENTDROID_API_KEY=$(openssl rand -hex 24)
+docker compose up -d        # redroid + server on :8080
 ```
 
-Supported `--do` verbs: `click:<text_or_#id>`, `fill:<sel>=<text>`, `scroll:down|up`, `scroll-to:<text>`, `key:<HOME|BACK|ENTER>`, `tap:x,y`, `type:<text>`, `sleep:<sec>`.
+The server **refuses to start** on a non-loopback address without a strong `AGENTDROID_API_KEY`. Put it behind HTTPS (Caddy, nginx, or a cloud load balancer).
 
-### 3. Read Notifications (2FA/OTP Codes, Messages) & Clipboard
+Run it without Docker next to an existing ADB device:
 
 ```bash
-# Read active device notifications or clipboard in a compound run or standalone
-agentdroid device notifications --json
-agentdroid device clipboard "text to paste on phone"
+cd server && npm install && AGENTDROID_API_KEY=... npm start
 ```
 
-### 4. Run with `--watch` so You Can Watch the AI Agent Live
+## Use it from an AI SDK app
 
-```bash
-agentdroid \
-  --watch \
-  --launch "com.android.settings" \
-  --do "click:Display" \
-  --do "click:Dark theme"
-```
-
-### 5. Fast Deterministic Gestures + Compact ~150-Token UI Dump
-
-```bash
-# Inspect all visible interactive/labelled elements on screen via Artemis Accessibility Helper (~30ms)
-agentdroid ui dump --json
-
-# Chain fast deterministic gestures and dump the resulting screen state in one call
-agentdroid --tap 540,1200 --type "hello@example.com" --key ENTER --dump-ui --json
-```
-
----
-
-## CLI Reference (`agentdroid`)
-
-| Subcommand | Description | Example |
-| :--- | :--- | :--- |
-| `agentdroid setup` | One-command setup: link CLI, write `.env`, mount AI agent skills/rules, boot stack | `agentdroid setup --api-key $GEMINI_API_KEY` |
-| `agentdroid [run] ...` | Execute compound workflow (install, push/pull, open URL, AI goals, crash/UI check) | `agentdroid -i app.apk --launch -g "Log in" -u --json` |
-| `agentdroid watch` | Watch live via `scrcpy`/Web (`--watch`) or stream background JSONL (`--headless`) | `agentdroid watch` / `agentdroid watch --headless` |
-| `agentdroid app` | `search`, `install` (APK/URL/`fdroid:`), `grant`, `launch`, `stop`, `clear`, `list` | `agentdroid app search "browser" --json` |
-| `agentdroid device` | `push`, `pull`, `open` (URLs/deep links), `clipboard`, `notifications`, `shell` | `agentdroid device notifications --json` |
-| `agentdroid ui` | Sub-second `dump`, `tap`, `type`, `swipe`, `key`, `screenshot` via A11y Helper | `agentdroid ui dump --json` |
-| `agentdroid pipeline` | Execute declarative multi-step JSON pipeline file | `agentdroid pipeline examples/app-test-pipeline.json --json` |
-| `agentdroid up` / `down` | Start or stop the Redroid + Artemis Docker Compose stack | `agentdroid up --headless` / `agentdroid down` |
-| `agentdroid provision` | Apply silent AI agent settings & install/bind Artemis Accessibility Helper | `agentdroid provision --force` |
-| `agentdroid doctor` | Full health check of host tools, `binder`, root ADB, A11y Helper, and Artemis | `agentdroid doctor --json` |
-| `agentdroid serve` | Start cloud HTTP REST API & Web Playground server | `agentdroid serve --port 8080` |
-
----
-
-## Self-Hosted Cloud Deployment & Multi-Language APIs
-
-You can deploy AgentDroid on any Linux cloud server (AWS EC2, Hetzner, DigitalOcean, GCP, Bare Metal) so that websites, web applications, SaaS backends, and autonomous AI agents can talk to it over HTTP.
-
-> **Zero Secondary LLM Keys or `.env` Required on AgentDroid**:
-> When using tools like the **Vercel AI SDK**, **LangChain**, or direct API calls from your web app, **your web app's LLM (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro) is already the brain!**
-> AgentDroid serves as your cloud Android computer — perceiving the screen in ~150 tokens and executing actions with zero token waste.
-
-### 1. Deploying on a Cloud Server (One Command)
-
-```bash
-# Clone and boot the complete stack (Redroid + Artemis + Cloud API)
-git clone https://github.com/theajmalrazaq/agentdroid.git
-cd agentdroid
-docker compose up -d
-```
-
-The stack exposes:
-- **Cloud REST API & Web Playground**: `http://<cloud-ip>:8080`
-- **Artemis Web Stream Console**: `http://<cloud-ip>:8000`
-- **ADB Port**: `5555`
-
-Or run standalone without Docker:
-```bash
-agentdroid serve --host 0.0.0.0 --port 8080
-# Or using the high-performance Go server:
-cd api/go && go run ./cmd/agentdroid-server --port 8080
-```
-
----
-
-### 2. Vercel AI SDK (Next.js / Node.js / React)
-
-Drive your cloud Android device directly from Next.js using `@agentdroid/sdk`:
-
-```typescript
-import { generateText, tool } from "ai";
+```ts
+import { generateText, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { createAgentDroidTools } from "@agentdroid/sdk";
+import { createAgentDroidTools } from "@agentdroid/server/tools";
 
-// 1. Point to your self-hosted AgentDroid cloud instance
-const agentdroid = createAgentDroidTools({
-  endpoint: process.env.AGENTDROID_URL || "http://your-server-ip:8080",
-  apiKey: process.env.AGENTDROID_API_KEY, // optional
-});
-
-// 2. Drive Android autonomously using your LLM!
 const { text } = await generateText({
   model: openai("gpt-4o"),
-  prompt: "Open Hacker News on Android, scroll down, click Past, and tell me the top story.",
-  tools: {
-    runAndroidWorkflow: tool(agentdroid.runAndroidWorkflow),
-    inspectScreenUI: tool(agentdroid.inspectScreenUI),
-    performSemanticAction: tool(agentdroid.performSemanticAction),
-    readNotifications: tool(agentdroid.readNotifications),
-  },
-  maxSteps: 5,
+  tools: createAgentDroidTools({ endpoint: process.env.AGENTDROID_URL!, apiKey: process.env.AGENTDROID_API_KEY }),
+  stopWhen: stepCountIs(10),
+  prompt: "Open Hacker News on Android, scroll down, and tell me the top story.",
 });
-
-console.log(text);
 ```
 
----
+Tools: `runAndroidWorkflow`, `inspectScreenUI`, `performSemanticAction`, `readNotifications`, `screenshot`. Requires `ai` ≥ 5 and `zod`. The server itself holds no model credentials.
 
-### 3. Modular Go REST API Server & Typed Go SDK
+## HTTP API
 
-The Go implementation is modularized across domain handlers in [`api/go/pkg/api/`](api/go/pkg/api/):
-- `router.go`: CORS middleware (`*`), authentication (`X-API-Key`, `Bearer`), and route multiplexing.
-- `health.go`: `/health`, `/api/v1/health`, `/api/v1/doctor` checks.
-- `run.go`: `/api/v1/run` compound single-call pipeline execution.
-- `do.go`: `/api/v1/do` sequential semantic UI actions.
-- `ui.go`: `/api/v1/ui/dump` (~150-token tree), `/api/v1/ui/tap`, `/api/v1/ui/type`, `/api/v1/ui/key`.
-- `device.go`: `/api/v1/device/clipboard`, `/api/v1/device/notifications`, `/api/v1/device/open-url`, `/api/v1/apps`.
-- `playground.go`: Embedded modern developer Web Playground at `GET /` and `GET /playground`.
+All routes except `/health` need `X-API-Key: <key>` or `Authorization: Bearer <key>`. Keys in query strings are rejected.
 
-Using the Go SDK:
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"github.com/theajmalrazaq/agentdroid/api/go/pkg/client"
-)
-
-func main() {
-	c := client.NewClient("http://cloud-ip:8080", "")
-
-	// Run compound workflow in one call
-	report, err := c.Run(context.Background(), &client.RunRequest{
-		OpenURL: "https://news.ycombinator.com",
-		Do:      []string{"scroll:down", "click:Past"},
-	})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Device report: %v in %vs\n", report.OK, report.DurationSec)
-}
-```
-
----
-
-### 4. Native Rust Engine & CLI (`agentdroid-rs`)
-
-For ultra-low latency and zero-overhead native execution:
-```bash
-cd api/rust
-cargo build --release
-./target/release/agentdroid-rs --help
-```
-
-Commands:
-- `agentdroid-rs health`: Check ADB device connectivity.
-- `agentdroid-rs tap 500 800`: Direct coordinate tap.
-- `agentdroid-rs type "Hello Android"`: Direct text input.
-- `agentdroid-rs key HOME`: Hardware key navigation.
-- `agentdroid-rs do "click:About"`: Semantic action via API.
-- `agentdroid-rs run ./pipeline.json`: Compound workflow execution.
-
----
-
-### 5. HTTP / REST API Reference (Any Language / cURL)
-
-| Method | Endpoint | Description |
+| Method | Path | Purpose |
 | :--- | :--- | :--- |
-| `GET` | `/health` / `/api/v1/health` | Health & device connectivity check |
-| `GET` | `/` / `/playground` | Embedded interactive Web Playground & Dashboard |
-| `POST` | `/api/v1/run` | Execute compound multi-step Android pipeline in one call |
-| `POST` | `/api/v1/do` | Execute sequential semantic UI steps (`click:<text>`, `fill:<sel>=<txt>`, `key:<k>`) |
-| `GET` | `/api/v1/ui/dump` | Compact token-efficient visible UI elements (~150 tokens) |
-| `POST` | `/api/v1/ui/tap` | Tap screen coordinates (`{"x": 500, "y": 800}`) |
-| `POST` | `/api/v1/ui/type` | Type text into focused field (`{"text": "Hello"}`) |
-| `POST` | `/api/v1/ui/key` | Send hardware/navigation key (`{"key": "HOME"}`) |
-| `GET` | `/api/v1/ui/screenshot` | Capture screenshot (`image/png` or `?format=base64`) |
-| `GET`/`POST` | `/api/v1/device/clipboard` | Read or set device clipboard |
-| `GET` | `/api/v1/device/notifications` | Read active notifications (2FA / OTP codes) |
-| `POST` | `/api/v1/device/open-url` | Open URL or deep link in Android |
-| `GET` | `/api/v1/apps` | List installed third-party apps |
-| `POST` | `/api/v1/app/install` | Install APK from URL, local path, or F-Droid |
+| `GET` | `/health` | Server and device status |
+| `POST` | `/api/v1/run` | Compound call: `install[]`, `open_url`, `launch`, `do[]`, `assert_text[]`, `notifications` |
+| `POST` | `/api/v1/do` | `{ "steps": ["click:Login", "fill:Email=a@b.c", "scroll-to:About", "key:BACK"] }` |
+| `GET` | `/api/v1/ui/dump?max=80` | Compact element list and foreground package |
+| `POST` | `/api/v1/ui/tap` · `/ui/type` · `/ui/key` | Direct input |
+| `GET` | `/api/v1/ui/screenshot[?format=base64]` | PNG screenshot |
+| `GET` | `/api/v1/device/notifications` | Notifications (OTP, messages) |
+| `POST` | `/api/v1/device/open-url` | Open URL or deep link |
+| `GET` | `/api/v1/apps` | Installed third-party apps |
+| `POST` | `/api/v1/app/install` | `{ "source": "fdroid:<pkg>" \| "https://…apk" \| "<file in data dir>" }` |
 
----
+Step verbs: `click`, `fill`, `scroll`, `scroll-to`, `key`, `tap`, `type`, `sleep`. Arbitrary shell steps do not exist in the server.
 
-### 6. Cloud & Web Security Guardrails
+## Security (server)
 
-When AgentDroid is deployed in the cloud or exposed over HTTP (`agentdroid serve`, Docker, or the Go REST API), it automatically enforces strict security guardrails (`AGENTDROID_SECURITY_MODE=web`) so remote clients or prompt-injected LLMs cannot compromise the host environment:
+- **Auth required off-loopback**; weak keys rejected; constant-time comparison; no query-string keys.
+- **SSRF:** URLs are DNS-resolved and rejected if they point to private, loopback, link-local or cloud-metadata addresses. Downloads re-check every redirect hop. Only `http(s)`, `market`, `geo`, `tel` and `mailto` are allowed. `AGENTDROID_ALLOW_PRIVATE_NETWORKS=true` opts out.
+- **No shell:** there is no shell execution endpoint or step. This is the real protection, not a blocklist.
+- **Filesystem allowlist:** host files used for installs are confined to `AGENTDROID_DATA_DIR` (`./data`).
+- **Abuse limits:** per-client rate limit (`AGENTDROID_RATE_LIMIT_RPM`, default 120), 1 MB body limit, and one device operation at a time (the phone is serialized).
+- **CORS** is off unless `AGENTDROID_CORS_ORIGIN` is set. `X-Forwarded-For` is trusted only with `AGENTDROID_TRUST_PROXY=true`.
+- Keep the Redroid ADB port on loopback (the compose file does). The device is rooted and must never be exposed.
+- For stronger isolation, add an egress firewall for the device container; Android makes its own network requests.
 
-1. **SSRF & Cloud Metadata Protection**:
-   - Blocks all requests targeting cloud instance metadata endpoints (`169.254.169.254`, `metadata.google.internal`, link-local ranges).
-   - Blocks requests targeting private subnets (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1`) unless explicitly opted in via `AGENTDROID_ALLOW_PRIVATE_NETWORKS=true`.
-   - Restricts URL schemes to safe web and mobile protocols (`http`, `https`, `market`, `geo`, `tel`).
-2. **Host Path Traversal & Sensitive File Defense**:
-   - Blocks path traversal attempts (`..`, `~`, `/proc`, `/sys`).
-   - Prevents reading, writing, or pushing sensitive host secrets (`.env`, `.ssh`, `.git`, `/etc/shadow`, `/etc/passwd`).
-3. **Destructive Shell Command Prevention**:
-   - In web mode, arbitrary shell execution (`pre_shell`, `post_shell`, `--do shell:`) is blocked by default (`AGENTDROID_ALLOW_WEB_SHELL=false`).
-   - Hard blocks destructive primitives: recursive filesystem wipes (`rm -rf /`), fork bombs, system reboots (`reboot`, `shutdown`, `setenforce 0`), reverse shells (`nc -e`, `/dev/tcp/`), and untrusted pipe execution (`curl | bash`).
-4. **Adaptive Rate Limiting**:
-   - Sliding-window rate limiter per client IP (default: 60 rpm, configurable via `AGENTDROID_RATE_LIMIT_RPM`).
-5. **Frictionless Local Developer Experience**:
-   - Local CLI execution (`agentdroid run`, `agentdroid app install`, etc.) runs in local mode (`AGENTDROID_SECURITY_MODE=local`), preserving complete developer freedom and zero friction on developer machines.
+## Why Redroid instead of the Android Studio emulator?
 
----
-
-## Headless vs. Watch Mode (Floating Mobile Simulator)
-
-`agentdroid` includes a built-in mobile watcher designed for both silent background AI agents and human inspection:
-
-| Command / Flag | Behavior |
-| :--- | :--- |
-| `agentdroid run --headless ...` *(default)* | **Silent Background Mode**: Executes 100% silently in the background. No GUI windows open, audio is muted, animations are 0.0, and a single structured JSON result is returned. |
-| `agentdroid run --watch ...` (`-w`) | **Floating Phone Simulator Overlay**: Opens a sleek, floating phone simulator window (`412×892`, `--always-on-top`) styled like macOS iOS Simulator — stays docked next to your terminal/code without taking over your screen! Streams real-time step telemetry. |
-| `agentdroid run --watch --borderless` | **Borderless Screen Overlay**: Floats the phone screen borderless without window chrome. |
-| `agentdroid run --watch --interactive` | **Interactive Control**: Allows mouse clicks and keyboard typing directly inside the simulator watch window. |
-| `agentdroid run --watch-web ...` | **Web Console Stream**: Opens the Artemis Live Web Console (`http://127.0.0.1:8000`) with MJPEG screen streaming and step replay. |
-| `agentdroid watch` | **Standalone Live Viewer**: Attaches the floating mobile simulator window to the running Android device at any time. |
-| `agentdroid watch --headless` | **Telemetry Stream**: Streams live agent step events and foreground app changes as background JSONL without opening any GUI window. |
-
----
-
-## Silent Device Provisioning & Modern UI/UX
-
-When `agentdroid up` or `agentdroid provision` runs (via [`scripts/provision-device.sh`](scripts/provision-device.sh)), it automatically configures the Android container for zero-friction AI automation and polished native UI/UX:
-
-1. **Modern Android 16 Native UI/UX**:
-   - **System-wide Dark Theme by default**: `cmd uimode night yes` / `ui_night_mode=2` (eliminates blinding white screens).
-   - **Gesture Navigation**: `com.android.internal.systemui.navbar.gestural` / `navigation_mode=2` (eliminates the bulky retro 3-button navigation bar).
-   - **Clean Phone Haptics & Audio**: Mutes all sounds (`volume=0`, `ro.audio.silent=1`), disables touch vibrations (`haptic_feedback_enabled=0`), and disables camera/lock clicks.
-   - **Crisp Density & 60 FPS**: Rendered at **440 DPI** and **60 FPS** on a modern **1080×2400 (20:9)** mobile viewport.
-2. **Root ADB without prompts**: `ro.secure=0`, `ro.adb.secure=0`, `ro.debuggable=1`
-3. **Zero UI animations**: `window_animation_scale=0.0`, `transition_animation_scale=0.0`, `animator_duration_scale=0.0`
-4. **No setup wizards or lockscreen**: `device_provisioned=1`, `user_setup_complete=1`, `ro.setupwizard.mode=DISABLED`, `locksettings set-disabled true`, `stay_on_while_plugged_in=7`
-5. **No blocking system popups**: `hide_error_dialogs=1`, `package_verifier_enable=0`, `verifier_verify_adb_installs=0`, `heads_up_notifications_enabled=0`
-6. **Pre-installed Artemis Accessibility Helper**: [`packages/artemis-accessibility-helper/ArtemisAccessibilityHelper.apk`](packages/artemis-accessibility-helper/ArtemisAccessibilityHelper.apk) is pre-installed and bound in `enabled_accessibility_services` so UI tree dumps (~150 tokens) and gestures execute in ~30ms without cold-start delay.
-7. **Auto-granted runtime permissions & AppOps**: Every APK installed via `agentdroid` has all `android.permission.*` runtime permissions and special AppOps (`SYSTEM_ALERT_WINDOW`, `MANAGE_EXTERNAL_STORAGE`, `POST_NOTIFICATIONS`, `WRITE_SETTINGS`) automatically granted.
-
----
-
-## Redroid Base Configuration & Kernel Modules
-
-Supported Redroid images (defaults to **Android 16**, configurable via `REDROID_IMAGE` in `.env`):
-- **Android 16 (`redroid/redroid:16.0.0_64only-latest`, `redroid/redroid:16.0.0-latest`) — Default**
-- Android 15 (`redroid/redroid:15.0.0-latest`, `redroid/redroid:15.0.0_64only-latest`)
-- Android 14 (`redroid/redroid:14.0.0-latest`, `redroid/redroid:14.0.0_64only-latest`)
-- Android 13 (`redroid/redroid:13.0.0-latest`, `redroid/redroid:13.0.0_64only-latest`)
-- Android 12 (`redroid/redroid:12.0.0-latest`, `redroid/redroid:12.0.0_64only-latest`)
-- Android 11 (`redroid/redroid:11.0.0-latest`)
-
-| Boot Param | Description | Default in `docker-compose.yml` |
-| --- | --- | --- |
-| `androidboot.redroid_width` | Display width | `1080` |
-| `androidboot.redroid_height` | Display height (modern 20:9 ratio) | `2400` |
-| `androidboot.redroid_dpi` | Display DPI (crisp flagship density) | `440` |
-| `androidboot.redroid_fps` | Display FPS | `60` |
-| `androidboot.redroid_gpu_mode` | `auto`, `host` (GPU accelerated), or `guest` (software rendering) | `guest` |
-| `androidboot.use_memfd` | Use `memfd` instead of deprecated `ashmem` | `true` |
-| `ro.secure=0` | Root ADB shell provided by default | `0` |
-
-Kernel modules (`binder_linux`, `memfd`/`ashmem`) are automatically verified and loaded by `./install.sh`. On standard Linux systems, `install.sh` ensures `binder_linux` is active via `modprobe` or DKMS.
-
----
-
-## Native Bridge & GMS Support
-
-- **ARM apps on x86_64**: Published `redroid` images include `libndk_translation`. See [@zhouziyang/libndk_translation](https://github.com/zhouziyang/libndk_translation) for details.
-- **GMS (Google Mobile Services)**: Can be added via Open GApps, MicroG, or MindTheGapps if required for proprietary Google services.
-
----
+Redroid runs Android as a container on the host kernel (no QEMU VM), so it typically needs far less RAM and boots in seconds. Figures vary by host; measure on yours.
 
 ## Troubleshooting
 
-- Run `agentdroid doctor` (or `agentdroid doctor --json`) to inspect host tools, kernel `binder` support, ADB root status, silent device settings, Artemis Accessibility Helper reachability, and the Artemis Controller daemon.
-- Inspect container logs directly with `docker compose logs agentdroid-device` or `docker compose logs agentdroid-controller`.
+`agentdroid doctor` checks adb, binder, device and helper status. Logs: `docker compose logs redroid server`.
 
----
+## Credits
 
-## Acknowledgements & Credits
-
-AgentDroid stands on the shoulders of two foundational open-source projects:
-
-### 1. [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc)
-Created and maintained by the **Remote-Android team** ([@remote-android](https://github.com/remote-android)).
-- Redroid provides the core multi-arch, GPU-accelerated Android In Cloud (AIC) container runtime that shares the host Linux kernel directly via `binder_linux` and `memfd`.
-- AgentDroid builds upon Redroid’s lightweight containerization, kernel driver architecture, and root ADB environment to make Android accessible as an ultra-fast, native computer for AI agents.
-
-### 2. [Google Artemis](https://github.com/google/artemis)
-Created and open-sourced by **Google** ([@google/artemis](https://github.com/google/artemis)).
-- Artemis provides an autonomous agent framework for Android designed for perceptual reasoning, safety net verification, and goal-directed UI execution.
-- AgentDroid integrates Artemis's high-performance Accessibility Helper (`ArtemisAccessibilityHelper.apk`), token-efficient screen representations (~150 tokens per screen), and autonomous verification loops to enable zero-token-waste AI workflows.
-
----
-
-## License
-
-- **AgentDroid**, **Redroid**, and **Google Artemis** components are licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-- Redroid kernel modules are licensed under [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+Built on [Redroid](https://github.com/remote-android/redroid-doc) (Remote-Android team) for the Android-in-container runtime, and [Google Artemis](https://github.com/google/artemis) for the accessibility helper APK and agent design. Both are Apache-2.0; Redroid kernel modules are GPL-2.0. AgentDroid is Apache-2.0.

@@ -18,7 +18,7 @@ apks/*.apk
 
 # Rust & Node artifacts
 target/
-api/rust/target/
 node_modules/
-api/ts/node_modules/
 
+server/data/
+data/

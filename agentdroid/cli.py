@@ -34,7 +34,6 @@ KNOWN_SUBCOMMANDS = {
     "ui",
     "pipeline",
     "doctor",
-    "serve",
     "-h",
     "--help",
     "--version",
@@ -664,30 +663,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 1
 
 
-def cmd_serve(args: argparse.Namespace) -> int:
-    from agentdroid.server import AgentDroidServer
-
-    host = getattr(args, "host", None) or os.environ.get("AGENTDROID_HOST") or "0.0.0.0"
-    port = int(getattr(args, "port", None) or os.environ.get("AGENTDROID_PORT") or 8080)
-    api_key = getattr(args, "api_key", None) or os.environ.get("AGENTDROID_API_KEY")
-    serial = getattr(args, "serial", None) or os.environ.get("REDROID_ADDR") or "127.0.0.1:5555"
-    artemis_url = getattr(args, "artemis_url", None) or os.environ.get("ARTEMIS_BASE_URL") or "http://127.0.0.1:8000"
-
-    server = AgentDroidServer(
-        host=host,
-        port=port,
-        api_key=api_key,
-        serial=serial,
-        artemis_url=artemis_url,
-    )
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[agentdroid:server] Stopping server...", file=sys.stderr)
-        server.server_close()
-    return 0
-
-
 def cmd_setup(args: argparse.Namespace) -> int:
     if getattr(args, "agents_only", False):
         mounted = install_agent_skills_and_rules()
@@ -966,31 +941,6 @@ def build_parser() -> argparse.ArgumentParser:
     doc_p.add_argument("--artemis-url", help="Artemis daemon URL.")
     doc_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     doc_p.set_defaults(func=cmd_doctor)
-
-    # --- serve ---
-    srv_p = subparsers.add_parser(
-        "serve",
-        help="Start the AgentDroid cloud HTTP REST API & Web Playground server for website integrations.",
-    )
-    srv_p.add_argument(
-        "--host",
-        default=os.environ.get("AGENTDROID_HOST", "0.0.0.0"),
-        help="Host IP to bind (default: 0.0.0.0).",
-    )
-    srv_p.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("AGENTDROID_PORT", "8080")),
-        help="HTTP port to listen on (default: 8080).",
-    )
-    srv_p.add_argument(
-        "--api-key",
-        default=os.environ.get("AGENTDROID_API_KEY"),
-        help="Optional API key required via X-API-Key, Bearer token, or ?api_key= query param.",
-    )
-    srv_p.add_argument("-s", "--serial", help="Target Android device serial (default: 127.0.0.1:5555).")
-    srv_p.add_argument("--artemis-url", help="Artemis controller daemon URL (default: http://127.0.0.1:8000).")
-    srv_p.set_defaults(func=cmd_serve)
 
     return parser
 
