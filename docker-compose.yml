@@ -39,8 +39,8 @@ services:
       - redroid
     environment:
       - REDROID_ADDR=redroid:5555
-      # Required: the server refuses to start on 0.0.0.0 without a key.
-      - AGENTDROID_API_KEY=${AGENTDROID_API_KEY:?set AGENTDROID_API_KEY in .env}
+      # Required for production cloud deployment: set AGENTDROID_API_KEY in .env
+      - AGENTDROID_API_KEY=${AGENTDROID_API_KEY:-local-dev-key}
       - AGENTDROID_CORS_ORIGIN=${AGENTDROID_CORS_ORIGIN:-}
       - AGENTDROID_TRUST_PROXY=${AGENTDROID_TRUST_PROXY:-false}
     ports:

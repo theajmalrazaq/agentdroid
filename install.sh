@@ -112,6 +112,14 @@ if command -v uv >/dev/null 2>&1; then
     uv tool install --force -e "${REPO_ROOT}" >/dev/null 2>&1 || true
 fi
 
+# 4. Initialize .env from template if missing
+if [[ ! -f "${REPO_ROOT}/.env" && -f "${REPO_ROOT}/.env.example" ]]; then
+    cp "${REPO_ROOT}/.env.example" "${REPO_ROOT}/.env"
+    if command -v docker >/dev/null 2>&1 && docker image inspect redroid/redroid:11.0.0-latest >/dev/null 2>&1; then
+        sed -i 's|REDROID_IMAGE=.*|REDROID_IMAGE=redroid/redroid:11.0.0-latest|' "${REPO_ROOT}/.env"
+    fi
+fi
+
 # 5. Run `agentdroid setup` to configure CLI, mount AI agent skills/rules into AI coding agents, and boot the silent device
 SETUP_ARGS=("setup")
 if [[ "${SKIP_STACK}" == "1" ]]; then

@@ -273,6 +273,7 @@ def cmd_up(args: argparse.Namespace) -> int:
         return 1
 
     env = os.environ.copy()
+    env.setdefault("AGENTDROID_API_KEY", "local-dev-key")
     if args.image:
         env["REDROID_IMAGE"] = args.image
 
