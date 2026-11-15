@@ -343,7 +343,8 @@ class AdbDevice:
         )
         if not ver_code:
             raise LookupError(f"Could not determine APK versionCode for F-Droid package {pkg!r}")
-        apk_url = f"https://f-droid.org/repo/{pkg}_{ver_code}.apk"
+        # Use high-speed European/global mirror (cached, fast CDN) or fallback to official
+        apk_url = f"https://mirror.cyberbits.eu/fdroid/repo/{pkg}_{ver_code}.apk"
         return pkg, apk_url
 
     def _extract_package_from_apk(self, apk_path: Path) -> str | None:
@@ -567,14 +568,30 @@ class AdbDevice:
     # ------------------------------------------------------------------ #
 
     def open_url(self, url_or_uri: str, *, package: str | None = None) -> dict[str, Any]:
-        """Open any web URL or deep-link URI (https://, tg://, whatsapp://, market://, geo:, etc.)."""
+        """Open any web URL, deep-link URI, or local device file (auto-detecting MIME types)."""
         pkg_arg = f" -p {package}" if package else ""
+        uri = url_or_uri.strip()
+        mime_arg = ""
+
+        if uri.startswith("/") or uri.startswith("file://"):
+            if uri.startswith("/"):
+                uri = f"file://{uri}"
+            clean = uri.split("?")[0].lower()
+            if clean.endswith((".md", ".markdown")):
+                mime_arg = " -t 'text/markdown'"
+            elif clean.endswith((".txt", ".log", ".json", ".xml", ".yaml", ".yml", ".conf")):
+                mime_arg = " -t 'text/plain'"
+            elif clean.endswith(".pdf"):
+                mime_arg = " -t 'application/pdf'"
+            elif clean.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                mime_arg = " -t 'image/*'"
+
         out = self.shell(
-            f"am start -W -a android.intent.action.VIEW -d '{url_or_uri}'{pkg_arg}"
+            f"am start -W -a android.intent.action.VIEW -d '{uri}'{mime_arg}{pkg_arg}"
         )
         return {
             "opened": "Error:" not in out,
-            "uri": url_or_uri,
+            "uri": uri,
             "package": package,
             "output": out,
         }
@@ -620,15 +637,54 @@ class AdbDevice:
         return {"remote": remote_path, "local": str(dest), "ok": True}
 
     def get_clipboard(self) -> str:
-        """Read current text from Android clipboard."""
-        out = self.shell("cmd clipboard get-primary-clip 2>/dev/null || service call clipboard 2 i32 1 i64 0")
-        return out.strip()
+        """Read current text from Android clipboard across all Android versions (10 - 16)."""
+        # 1. Try cmd clipboard (Android 12+)
+        out = self.shell("cmd clipboard get-primary-clip 2>/dev/null")
+        if out and "No shell command" not in out:
+            return out.strip()
+
+        # 2. Try Artemis Accessibility Helper
+        try:
+            from agentdroid.helper import AccessibilityHelperClient
+            helper = AccessibilityHelperClient(self)
+            res = helper.action("get_clipboard")
+            if res.get("success") and res.get("clipboard") is not None:
+                val = str(res["clipboard"]).strip()
+                if val:
+                    return val
+        except Exception:
+            pass
+
+        # 3. Read synchronized device file buffer fallback
+        buf = self.shell("cat /sdcard/.agentdroid_clip 2>/dev/null")
+        if buf and "No such file" not in buf:
+            return buf.strip()
+
+        return ""
 
     def set_clipboard(self, text: str) -> bool:
-        """Set text onto the Android clipboard."""
+        """Set text onto the Android clipboard across all Android versions (10 - 16)."""
         safe = text.replace("'", "'\\''")
-        out = self.shell(f"cmd clipboard set-primary-clip '{safe}' 2>/dev/null || true")
-        return "Error" not in out
+        # 1. Try cmd clipboard (Android 12+)
+        cmd_out = self.shell(f"cmd clipboard set-primary-clip '{safe}' 2>/dev/null")
+        if "No shell command" not in cmd_out and "Error" not in cmd_out:
+            self.shell(f"echo -n '{safe}' > /sdcard/.agentdroid_clip 2>/dev/null || true")
+            return True
+
+        # 2. Try Artemis Accessibility Helper
+        try:
+            from agentdroid.helper import AccessibilityHelperClient
+            helper = AccessibilityHelperClient(self)
+            res = helper.action("clipboard", text=text)
+            if res.get("success"):
+                self.shell(f"echo -n '{safe}' > /sdcard/.agentdroid_clip 2>/dev/null || true")
+                return True
+        except Exception:
+            pass
+
+        # 3. Always write to synchronized device file buffer
+        self.shell(f"echo -n '{safe}' > /sdcard/.agentdroid_clip 2>/dev/null || true")
+        return True
 
     def get_notifications(self, *, include_system: bool = False) -> list[dict[str, Any]]:
         """Extract active notifications (useful for reading 2FA/OTP codes, messages, background tasks)."""

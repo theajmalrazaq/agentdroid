@@ -148,24 +148,31 @@ class AndroidEngine:
         ui["formatted_text"] = "\n".join(formatted_lines)
         return ui
 
-    def auto_dismiss_dialogs(self) -> dict[str, Any]:
-        """Detect and dismiss common system permission dialogs, crash alerts, or ANRs."""
-        ui = self.helper.dump_compact_ui(max_elements=40)
+    def auto_dismiss_dialogs(self, max_attempts: int = 6) -> dict[str, Any]:
+        """Detect and dismiss common system permission dialogs, crash alerts, ANRs, and intro slides."""
         dismissed = []
-        for target in SYSTEM_DIALOG_DISMISS_TARGETS:
-            el = self.helper.find_element(target, max_elements=40)
-            if el is not None:
-                cx, cy = el["center"]
-                res = self.helper.action("tap", x=float(cx), y=float(cy))
-                if res.get("success", True):
-                    dismissed.append({"target": target, "center": [cx, cy]})
-                    time.sleep(0.3)
-                    break
+        last_fg = None
+        for _ in range(max_attempts):
+            ui = self.helper.dump_compact_ui(max_elements=40)
+            last_fg = ui.get("foreground")
+            hit = False
+            for target in SYSTEM_DIALOG_DISMISS_TARGETS:
+                el = self.helper.find_element(target, max_elements=40)
+                if el is not None:
+                    cx, cy = el["center"]
+                    res = self.helper.action("tap", x=float(cx), y=float(cy))
+                    if res.get("success", True):
+                        dismissed.append({"target": target, "center": [cx, cy]})
+                        hit = True
+                        time.sleep(0.35)
+                        break
+            if not hit:
+                break
 
         return {
             "dismissed": dismissed,
             "count": len(dismissed),
-            "foreground": ui.get("foreground"),
+            "foreground": last_fg,
         }
 
     def tap(
