@@ -35,6 +35,28 @@ When driving Android:
 
 ---
 
+## How to Translate Natural User Requests into AgentDroid Commands
+
+When the user tells you what to do in plain English, **YOU are the brain** that compiles their intent into a single compound execution:
+
+| User's Natural Request | How You (the AI) Compile It |
+| :--- | :--- |
+| **"Create a file, edit it in Markor, and save it"** | `agentdroid --push ./file.md:/sdcard/Download/file.md -i "fdroid:net.gsantner.markor" --open-url "file:///sdcard/Download/file.md" -d "click:Edit" -d "type:\n- [x] Done\n" -d "click:Save" --pull /sdcard/Download/file.md:./artifacts/out.md --json` |
+| **"Open website X and search / read"** | `agentdroid --open-url "https://example.com" -d "click:Search" -d "type:query" -d "key:ENTER" --json` |
+| **"Check Android version / Wi-Fi in Settings"** | `agentdroid --launch "com.android.settings" -d "scroll-to:About" -d "click:About" --json` |
+| **"Show me what you are doing" / "Let me see"** | Add `--watch` to the command so the live floating phone overlay window pops up for the user. |
+| **"Install app X from F-Droid"** | `agentdroid -i "fdroid:<package>" --launch --json` |
+| **"Check verification code / 2FA / notification"** | `agentdroid device notifications --json` (or add `--notifications` to any command) |
+
+### The "Maximum 2-Turn Rule" for Unknown Screens
+If you are dealing with a new, unfamiliar screen where you cannot guess the button names in advance:
+1. **Turn 1 (Launch & Inspect)**: Run `agentdroid --launch <pkg> --json` (or `mobile_run_workflow`). Auto-dismiss clears onboarding wizards, and `ui_summary` immediately returns all numbered elements (`[#1]`, `[#2]`).
+2. **Turn 2 (Execute Entire Action Burst)**: Do **NOT** tap one button per turn! Now that you see the screen, execute all remaining steps together in ONE compound action burst:
+   `-d "click:#2" -d "type:query" -d "key:ENTER" -d "click:#5" --pull ... --json`
+3. **NEVER ping-pong**: Never do `dump -> tap -> dump -> tap` over 10 separate turns.
+
+---
+
 ## Core Principle: Single-Call Compound Execution (Zero Token Waste)
 
 Do **not** issue 15 separate tool calls to install an app, grant permissions, push a file, launch an activity, tap coordinates, take screenshots, and pull results one by one.
@@ -49,12 +71,10 @@ agentdroid \
   --headless \
   --install "fdroid:net.gsantner.markor" \
   --push ./draft.md:/sdcard/Download/draft.md \
-  --launch \
-  --click "Open from storage" \
-  --click "draft.md" \
-  --click "Edit" \
-  --type "Completed by AI Agent" \
-  --click "Save" \
+  --open-url "file:///sdcard/Download/draft.md" \
+  -d "click:Edit" \
+  -d "type:\nCompleted by AI Agent\n" \
+  -d "click:Save" \
   --pull /sdcard/Download/draft.md:./artifacts/draft_edited.md \
   --notifications \
   --json
