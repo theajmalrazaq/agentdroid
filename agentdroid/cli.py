@@ -33,6 +33,7 @@ KNOWN_SUBCOMMANDS = {
     "ui",
     "pipeline",
     "doctor",
+    "mcp",
     "-h",
     "--help",
     "--version",
@@ -640,8 +641,21 @@ def cmd_setup(args: argparse.Namespace) -> int:
             print("✅ Silent Android device is up and provisioned!")
         elif st.get("skipped"):
             print("ℹ Stack startup skipped (--no-start). Run 'agentdroid up' when ready.")
-        elif st.get("error"):
-            print(f"ℹ Stack note: {st['error']}")
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from agentdroid.mcp import McpServer, install_mcp_config
+
+    if getattr(args, "install", False):
+        res = install_mcp_config(getattr(args, "target", "all"))
+        if getattr(args, "json", False):
+            print(json.dumps({"ok": True, **res}, indent=2))
+        else:
+            print("✅ Installed AgentDroid MCP Server into AI agent configurations:")
+            for p in res.get("installed", []):
+                print(f"  • {p}")
+        return 0
+
+    server = McpServer(serial=getattr(args, "serial", None))
+    server.run_stdio()
     return 0
 
 
@@ -882,6 +896,26 @@ def build_parser() -> argparse.ArgumentParser:
     doc_p.add_argument("-s", "--serial", help="Target Android device serial.")
     doc_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     doc_p.set_defaults(func=cmd_doctor)
+
+    # --- mcp ---
+    mcp_p = subparsers.add_parser(
+        "mcp",
+        help="Run or install Model Context Protocol (MCP) server for Claude Code, Codex, Antigravity, and Cursor.",
+    )
+    mcp_p.add_argument("-s", "--serial", help="Target device serial.")
+    mcp_p.add_argument(
+        "--install",
+        action="store_true",
+        help="Configure MCP in Claude Code, Codex, Antigravity, and Cursor config files.",
+    )
+    mcp_p.add_argument(
+        "--target",
+        choices=["all", "claude", "codex", "antigravity", "cursor"],
+        default="all",
+        help="Target AI assistant to configure (default: all).",
+    )
+    mcp_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
+    mcp_p.set_defaults(func=cmd_mcp)
 
     return parser
 

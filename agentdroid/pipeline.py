@@ -453,7 +453,9 @@ class CompoundPipeline:
             return {"success": bool(res.get("launched", True)), **res}
         if act_type == "shell":
             out = self.adb.shell(str(act["cmd"]))
-            return {"success": True, "output": out}
+        if act_type in ("dismiss", "auto_dismiss"):
+            from agentdroid.engine import AndroidEngine
+            return {"success": True, **AndroidEngine(self.adb).auto_dismiss_dialogs()}
         if act_type == "sleep":
             secs = float(act.get("seconds", 1.0))
             time.sleep(secs)

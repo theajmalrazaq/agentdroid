@@ -4,7 +4,33 @@ This repository provides a **silent, general-purpose Android computer** (powered
 
 > **No Separate LLM API Keys or `.env` Required**:
 > **You (the host AI agent — Claude Code, Antigravity, Codex, Cursor, etc.) are already the brain!**
-> You don't need a secondary API key to run tasks. `agentdroid` lets you perceive the screen (in ~150 tokens) and chain compound actions directly in single CLI calls.
+> Artemis's proven mobile driving engine (numbered indexed perception, action bursts, dynamic-first coordinate fallback, and dialog auto-dismissal) is embedded directly into `agentdroid` via **Model Context Protocol (MCP)** and compound CLI commands.
+
+---
+
+## Direct Agent Integration via MCP (Claude Code, Codex, Antigravity, Cursor)
+
+Run once to mount AgentDroid's MCP tools into all your AI coding assistants:
+```bash
+agentdroid mcp --install
+```
+
+Your AI assistant can then directly call:
+- `mobile_get_device_state(view_type="hierarchy"|"screenshot")`: Read compact numbered UI elements (`[#1] Button 'Sign In' | Center: (540, 960)`).
+- `mobile_perform_action(action="click", target="#1")`: Dynamic-first element click or coordinate tap.
+- `mobile_action_burst(actions=["click:#1", "type:user", "key:ENTER"])`: High-speed chained gestures without round-trip LLM latency.
+- `mobile_auto_dismiss_dialogs()`: Detect and auto-clear Android permission popups or ANR/crash alerts.
+- `mobile_launch_app`, `mobile_install_app`, `mobile_open_url`, `mobile_read_notifications`, `mobile_clipboard`.
+
+---
+
+## Artemis Driving Mindset: The "Dynamic-First, Coordinate-Fallback" Rule
+
+When driving Android:
+1. **Always observe first**: Inspect screen hierarchy before clicking.
+2. **Prefer numbered index (`#id`)**: Targeting by index `#3` is faster and more reliable than fuzzy text matching.
+3. **Coordinate Fallback**: If an element is within a Canvas or Flutter surface where the accessibility node is non-interactive, tap its center coordinates `(x, y)` directly.
+4. **Action Bursts**: Execute multi-step sequences together so menus and popups don't close between LLM turns.
 
 ---
 

@@ -21,7 +21,7 @@ class TestCliNormalizationAndParsing(unittest.TestCase):
         self.assertIn("--headless", normalized)
 
     def test_known_subcommands_preserved(self) -> None:
-        for sub in ("run", "watch", "up", "down", "provision", "app", "device", "ui", "pipeline", "doctor"):
+        for sub in ("run", "watch", "up", "down", "provision", "app", "device", "ui", "pipeline", "doctor", "mcp"):
             self.assertEqual(normalize_argv(["agentdroid", sub])[1], sub)
 
     def test_parse_compound_run_flags(self) -> None:
@@ -226,6 +226,83 @@ class TestLiveWatcherSimulatorOverlay(unittest.TestCase):
         self.assertIn("--no-audio", cmd)
         self.assertIn("--no-control", cmd)
 
+
+
+class TestArtemisEngineAndMcp(unittest.TestCase):
+    def test_engine_screen_data_formatting(self) -> None:
+        from agentdroid.engine import AndroidEngine
+
+        engine = AndroidEngine()
+        engine.helper.dump_compact_ui = MagicMock(
+            return_value={
+                "backend": "helper",
+                "foreground": "com.android.settings",
+                "element_count": 2,
+                "elements": [
+                    {"id": 1, "label": "Network & internet", "class": "TextView", "center": [540, 400]},
+                    {"id": 2, "label": "Connected devices", "class": "TextView", "center": [540, 600]},
+                ],
+            }
+        )
+        res = engine.get_screen_data()
+        self.assertIn("[#1]", res["formatted_text"])
+        self.assertIn("Network & internet", res["formatted_text"])
+        self.assertIn("Center: (540, 400)", res["formatted_text"])
+        self.assertIn("[#2]", res["formatted_text"])
+
+    def test_engine_action_burst_execution(self) -> None:
+        from agentdroid.engine import AndroidEngine
+
+        engine = AndroidEngine()
+        engine.helper.tap_element = MagicMock(return_value={"success": True, "selector": "#1"})
+        engine.helper.action = MagicMock(return_value={"success": True})
+
+        burst = ["click:#1", "sleep:0.1", "key:BACK"]
+        results = engine.execute_action_burst(burst)
+        self.assertEqual(len(results), 3)
+        self.assertTrue(results[0]["result"]["success"])
+
+    def test_mcp_server_protocol_initialize_and_tools(self) -> None:
+        from agentdroid.mcp import McpServer
+
+        server = McpServer()
+        # 1. Initialize
+        init_resp = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+        self.assertEqual(init_resp["result"]["serverInfo"]["name"], "agentdroid")
+
+        # 2. Tools list
+        tools_resp = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        tools = tools_resp["result"]["tools"]
+        tool_names = [t["name"] for t in tools]
+        self.assertIn("mobile_get_device_state", tool_names)
+        self.assertIn("mobile_perform_action", tool_names)
+        self.assertIn("mobile_action_burst", tool_names)
+        self.assertIn("mobile_auto_dismiss_dialogs", tool_names)
+
+        # 3. Tool call
+        server.engine.helper.dump_compact_ui = MagicMock(
+            return_value={"foreground": "com.android.settings", "element_count": 1, "elements": []}
+        )
+        call_resp = server.handle_request({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "mobile_get_device_state", "arguments": {"view_type": "hierarchy"}},
+        })
+        self.assertFalse(call_resp["result"]["isError"])
+        self.assertIn("com.android.settings", call_resp["result"]["content"][0]["text"])
+
+    def test_mcp_install_configs_idempotent(self) -> None:
+        from agentdroid.mcp import install_mcp_config
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(Path, "home", return_value=Path(tmp)):
+                res = install_mcp_config("all")
+                self.assertGreaterEqual(len(res["installed"]), 3)
+                # Verify .claude.json was written
+                claude_file = Path(tmp) / ".claude.json"
+                self.assertTrue(claude_file.is_file())
+                self.assertIn("agentdroid", claude_file.read_text())
 
 
 if __name__ == "__main__":

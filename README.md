@@ -1,42 +1,51 @@
 # AgentDroid
 
-A silent, headless **Android computer for AI agents**, built on [Redroid](https://github.com/remote-android/redroid-doc), using the accessibility helper from [Google Artemis](https://github.com/google/artemis).
+A silent, headless **Android computer for AI agents**, built on [Redroid](https://github.com/remote-android/redroid-doc), powered by the **Google Artemis mobile driving engine**.
 
-- **Local:** your coding agent (Claude Code, Antigravity, Codex, Cursor, …) drives it through the `agentdroid` CLI.
-- **Cloud / web:** deploy **one central server** (TypeScript) and drive it from any app through the **Vercel AI SDK** tools or plain HTTP.
+- **Local AI Agents (Claude Code, Antigravity, Codex, Cursor):** Drive Android directly via **native Model Context Protocol (MCP)** or compound CLI calls.
+- **Cloud / Web:** Deploy **one central server** (TypeScript) and drive it from web apps through the **Vercel AI SDK** tools or plain HTTP.
 
-**No LLM keys, no `.env`, no Artemis agent daemon.** Claude Code, Codex, Antigravity and Cursor use the Android device directly; the model in your agent or app is the brain. AgentDroid provides the eyes (a compact ~150-token screen dump) and the hands (click, fill, scroll, install, open URL).
+**No secondary LLM keys, no `.env`, no external agent daemon.** Claude Code, Codex, Antigravity and Cursor use the Android device directly. AgentDroid embeds Artemis's driving engine (numbered indexed perception `[#1]`, action bursts, dynamic-first coordinate fallback, and system dialog auto-dismissal) so your coding agent has total control over Android.
 
 ## Architecture
 
 ```
- Coding agent ──CLI──► agentdroid (Python) ──┐
-                                             ├──► adb ──► Redroid Android (Docker)
- Your web app ──AI SDK tools / HTTP──► server (TypeScript, one process) ─┘
+ Claude / Codex / Antigravity ──MCP (stdio) / CLI──► agentdroid (Python) ──┐
+                                                                           ├──► adb ──► Redroid Android
+ Your web app ─────────────AI SDK tools / HTTP──────────► server (Node) ───┘
 ```
 
 | Path | What it is |
 | :--- | :--- |
-| [`server/`](server/) | **The one central server**: HTTP API, AI SDK tools, typed client, security guardrails. Node ≥ 22.18, zero runtime dependencies. |
-| [`agentdroid/`](agentdroid/) | Local CLI for coding agents (compound `run`, `watch`, `up`/`down`, `doctor`, …). |
+| [`agentdroid/`](agentdroid/) | Local automation engine, Artemis driving core, and native Model Context Protocol (MCP) server. |
+| [`server/`](server/) | **The one central cloud server**: HTTP API, AI SDK tools, typed client, security guardrails. Node ≥ 22.18, zero runtime dependencies. |
 | [`docker/`](docker/), [`docker-compose.yml`](docker-compose.yml) | Redroid device image and the 2-service stack (`redroid` + `server`). |
 | [`scripts/provision-device.sh`](scripts/provision-device.sh) | Silent root ADB, dark theme, gesture nav, animations off. |
-| [`skills/`](skills/), [`AGENTS.md`](AGENTS.md) | Skill and rules mounted into coding agents by `install.sh`. |
+| [`skills/`](skills/), [`AGENTS.md`](AGENTS.md) | Skill and rules mounted into coding assistants by `install.sh`. |
 
-## Quick start (local, with your coding agent)
+## Quick start (local, with your AI coding agent)
 
 ```bash
 git clone https://github.com/theajmalrazaq/agentdroid.git && cd agentdroid
 ./install.sh          # host tools, kernel modules, `agentdroid` on PATH, agent skills, device up
 ```
 
-Then just ask your agent: *"Use agentdroid to open Hacker News and summarize the top 5 stories."*
+### 1. Drive via Model Context Protocol (MCP) in Claude Code / Codex / Antigravity / Cursor
+```bash
+agentdroid mcp --install   # automatically configures Claude, Codex, Antigravity, and Cursor
+```
+Your agent gets native mobile tools (`mobile_get_device_state`, `mobile_perform_action`, `mobile_action_burst`, `mobile_auto_dismiss_dialogs`, etc.).
+
+### 2. Drive via Terminal CLI
+Ask your agent: *"Use agentdroid to open Hacker News and summarize the top 5 stories."*
 
 ```bash
+# Silent background mode (inspects screen in ~150 tokens, chains clicks/fills):
 agentdroid --headless --open-url "https://news.ycombinator.com" \
   --do "scroll:down" --assert-text "Hacker News" --json
-agentdroid --watch --launch com.android.settings    # floating iOS-Simulator-style phone window
-```
+
+# Floating iOS-Simulator-style phone window to watch in real time:
+agentdroid --watch --launch com.android.settings
 
 ## Deploy to the cloud (one server)
 
