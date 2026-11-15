@@ -200,9 +200,11 @@ class AccessibilityHelperClient:
             self.adb.shell(f"input swipe {x} {y} {x} {y} {dur}")
             return {"success": True, "backend": "adb_input", "center": [x, y]}
         if c == "swipe":
-            x1, y1 = int(params["x1"]), int(params["y1"])
-            x2, y2 = int(params["x2"]), int(params["y2"])
-            dur = int(params.get("duration", 300))
+            x1 = int(params.get("x1") or params.get("start_x") or params.get("startX", 0))
+            y1 = int(params.get("y1") or params.get("start_y") or params.get("startY", 0))
+            x2 = int(params.get("x2") or params.get("end_x") or params.get("endX", 0))
+            y2 = int(params.get("y2") or params.get("end_y") or params.get("endY", 0))
+            dur = int(params.get("duration") or params.get("duration_ms", 300))
             self.adb.shell(f"input swipe {x1} {y1} {x2} {y2} {dur}")
             return {"success": True, "backend": "adb_input"}
         if c == "type":
