@@ -80,6 +80,17 @@ class PipelineSpec:
             val = data.pop("install")
             data["install_apks"] = [val] if isinstance(val, str) else list(val)
 
+        if "push" in data and "push_files" not in data:
+            val = data.pop("push")
+            data["push_files"] = [val] if isinstance(val, str) else list(val)
+
+        if "pull" in data and "pull_files" not in data:
+            val = data.pop("pull")
+            data["pull_files"] = [val] if isinstance(val, str) else list(val)
+
+        if "screenshot" in data and "screenshot_path" not in data:
+            data["screenshot_path"] = data.pop("screenshot")
+
         if "launch" in data and "launch_target" not in data:
             data["launch_target"] = data.pop("launch")
 

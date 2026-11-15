@@ -104,14 +104,73 @@ def _print_output(data: dict[str, Any], *, as_json: bool) -> None:
         print(f"  ❌ Error: {err}", file=sys.stderr)
 
 
-def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
-    actions: list[dict[str, Any]] = []
+class _OrderedUIAction(argparse.Action):
+    """Custom argparse Action to preserve the exact interleaving order of UI action flags on the command line."""
 
-    # Compact semantic --do strings like 'click:Login', 'fill:Email=test@example.com', 'scroll-to:Save'
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        if not hasattr(namespace, "ordered_ui_actions"):
+            namespace.ordered_ui_actions = []
+        namespace.ordered_ui_actions.append((self.dest, values))
+
+        # Maintain standard dest attribute for backwards compatibility
+        current = getattr(namespace, self.dest, None) or []
+        setattr(namespace, self.dest, current + [values])
+
+
+def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
+    ordered = getattr(args, "ordered_ui_actions", None)
+    if ordered:
+        actions: list[dict[str, Any]] = []
+        for dest, val in ordered:
+            if dest == "do_steps":
+                actions.append(parse_do_step(val))
+            elif dest == "click_targets":
+                actions.append({"type": "click", "selector": val})
+            elif dest == "fill_targets":
+                if "=" in val:
+                    sel, txt = val.split("=", 1)
+                    actions.append({"type": "fill", "selector": sel.strip(), "text": txt})
+                else:
+                    actions.append({"type": "type", "text": val})
+            elif dest == "scroll_dirs":
+                actions.append({"type": "scroll", "direction": val})
+            elif dest == "scroll_to_targets":
+                actions.append({"type": "scroll_to", "text": val})
+            elif dest == "tap":
+                parts = [p.strip() for p in val.split(",")]
+                if len(parts) != 2:
+                    raise ValueError(f"--tap requires 'x,y' coordinates, got {val!r}")
+                actions.append({"type": "tap", "x": float(parts[0]), "y": float(parts[1])})
+            elif dest == "type_text":
+                actions.append({"type": "type", "text": val})
+            elif dest == "swipe":
+                parts = [p.strip() for p in val.split(",")]
+                if len(parts) not in (4, 5):
+                    raise ValueError(f"--swipe requires 'x1,y1,x2,y2[,duration_ms]', got {val!r}")
+                actions.append(
+                    {
+                        "type": "swipe",
+                        "x1": float(parts[0]),
+                        "y1": float(parts[1]),
+                        "x2": float(parts[2]),
+                        "y2": float(parts[3]),
+                        "duration": int(parts[4]) if len(parts) == 5 else 300,
+                    }
+                )
+            elif dest == "key":
+                actions.append({"type": "key", "key": val})
+        return actions
+
+    # Fallback if ordered_ui_actions is absent (e.g. manually constructed Namespace in unit tests)
+    actions: list[dict[str, Any]] = []
     for raw_do in getattr(args, "do_steps", None) or []:
         actions.append(parse_do_step(raw_do))
-
-    # Dedicated semantic flags
     for sel in getattr(args, "click_targets", None) or []:
         actions.append({"type": "click", "selector": sel})
     for fill_spec in getattr(args, "fill_targets", None) or []:
@@ -124,8 +183,6 @@ def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
         actions.append({"type": "scroll", "direction": dir_spec})
     for scroll_needle in getattr(args, "scroll_to_targets", None) or []:
         actions.append({"type": "scroll_to", "text": scroll_needle})
-
-    # Coordinate & raw gesture flags
     for coord in getattr(args, "tap", None) or []:
         parts = [p.strip() for p in coord.split(",")]
         if len(parts) != 2:
@@ -1058,35 +1115,35 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "-d",
         "--do",
         dest="do_steps",
-        action="append",
+        action=_OrderedUIAction,
         metavar="VERB:ARG",
         help="Execute semantic action step in order (e.g. 'click:Login', 'fill:Email=user@test.com', 'scroll-to:Submit', 'key:HOME', 'sleep:1', repeatable).",
     )
     p.add_argument(
         "--click",
         dest="click_targets",
-        action="append",
+        action=_OrderedUIAction,
         metavar="TEXT_OR_ID",
         help="Click/tap element by text, description, or #index (repeatable).",
     )
     p.add_argument(
         "--fill",
         dest="fill_targets",
-        action="append",
+        action=_OrderedUIAction,
         metavar="SELECTOR=TEXT",
         help="Fill input field matching SELECTOR with TEXT (repeatable).",
     )
     p.add_argument(
         "--scroll",
         dest="scroll_dirs",
-        action="append",
+        action=_OrderedUIAction,
         metavar="DIRECTION",
         help="Scroll screen direction: 'down', 'up', 'left', 'right' (repeatable).",
     )
     p.add_argument(
         "--scroll-to",
         dest="scroll_to_targets",
-        action="append",
+        action=_OrderedUIAction,
         metavar="TEXT",
         help="Scroll down until TEXT is visible on screen (repeatable).",
     )
@@ -1098,26 +1155,26 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
     )
     p.add_argument(
         "--tap",
-        action="append",
+        action=_OrderedUIAction,
         metavar="X,Y",
         help="Tap coordinates X,Y (repeatable).",
     )
     p.add_argument(
         "--type",
         dest="type_text",
-        action="append",
+        action=_OrderedUIAction,
         metavar="TEXT",
         help="Type text into focused field (repeatable).",
     )
     p.add_argument(
         "--swipe",
-        action="append",
+        action=_OrderedUIAction,
         metavar="X1,Y1,X2,Y2[,MS]",
         help="Swipe coordinates (repeatable).",
     )
     p.add_argument(
         "--key",
-        action="append",
+        action=_OrderedUIAction,
         metavar="KEY",
         help="Send global key action (HOME, BACK, ENTER, RECENTS, TAB, repeatable).",
     )

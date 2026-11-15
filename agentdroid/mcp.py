@@ -24,6 +24,76 @@ SERVER_VERSION = "0.3.0"
 
 TOOL_DEFINITIONS = [
     {
+        "name": "mobile_run_workflow",
+        "description": (
+            "RECOMMENDED: Run a complete, compound Android task in ONE single call (zero token waste, "
+            "no turn-by-turn latency). Handles app installation (F-Droid/URL/APK), pushing files, "
+            "opening URLs/files, launching activities, executing chained UI steps ('click:#1', "
+            "'fill:field=text', 'scroll:down', 'key:ENTER'), asserting text, taking screenshots, "
+            "setting/reading clipboard, and pulling files back to the host machine. Returns structured "
+            "JSON report with compact UI hierarchy."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "install": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "APKs or F-Droid package refs to install (e.g. ['fdroid:net.gsantner.markor']).",
+                },
+                "push": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Files to push in 'LOCAL:REMOTE' format (e.g. ['./test.md:/sdcard/Download/test.md']).",
+                },
+                "open_url": {
+                    "type": "string",
+                    "description": "URL, deep link, or local file to open (e.g. 'file:///sdcard/Download/test.md').",
+                },
+                "launch": {
+                    "type": "string",
+                    "description": "App package or component to launch (e.g. 'net.gsantner.markor').",
+                },
+                "do": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Ordered UI action steps: 'click:<target|#id>', 'fill:<target>=<text>', 'scroll:down', 'scroll-to:<text>', 'type:<text>', 'key:<KEY>', 'tap:x,y', 'sleep:<sec>'.",
+                },
+                "pull": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Files to pull back in 'REMOTE:LOCAL' format.",
+                },
+                "set_clipboard": {
+                    "type": "string",
+                    "description": "Text to write to the Android clipboard.",
+                },
+                "get_clipboard": {
+                    "type": "boolean",
+                    "description": "Whether to return the Android clipboard contents.",
+                },
+                "screenshot": {
+                    "type": "string",
+                    "description": "Local host path to save the final screenshot.",
+                },
+                "assert_text": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Text strings that must be visible on screen before finishing.",
+                },
+                "notifications": {
+                    "type": "boolean",
+                    "description": "Whether to read active Android notifications.",
+                },
+                "watch": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "If True, opens the live floating simulator overlay window for user viewing.",
+                },
+            },
+        },
+    },
+    {
         "name": "mobile_get_device_state",
         "description": (
             "Retrieve real-time Android device state: either a token-efficient numbered "
@@ -239,6 +309,13 @@ class McpServer:
         return None
 
     def _call_tool(self, name: str, args: dict[str, Any]) -> str:
+        if name == "mobile_run_workflow":
+            from agentdroid.pipeline import CompoundPipeline, PipelineSpec
+            spec = PipelineSpec.from_dict(args)
+            pipeline = CompoundPipeline(spec)
+            report = pipeline.run()
+            return json.dumps(report, indent=2, ensure_ascii=False)
+
         if name == "mobile_get_device_state":
             vtype = args.get("view_type", "hierarchy")
             max_el = int(args.get("max_elements", 80))

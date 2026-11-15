@@ -16,18 +16,19 @@ agentdroid mcp --install
 ```
 
 Your AI assistant can then directly call:
+- `mobile_run_workflow(...)`: **RECOMMENDED PRIMARY TOOL**. Run complete Android tasks (install, push, open, do, click, fill, screenshot, clipboard, pull) in ONE tool call.
 - `mobile_get_device_state(view_type="hierarchy"|"screenshot")`: Read compact numbered UI elements (`[#1] Button 'Sign In' | Center: (540, 960)`).
-- `mobile_perform_action(action="click", target="#1")`: Dynamic-first element click or coordinate tap.
 - `mobile_action_burst(actions=["click:#1", "type:user", "key:ENTER"])`: High-speed chained gestures without round-trip LLM latency.
-- `mobile_auto_dismiss_dialogs()`: Detect and auto-clear Android permission popups or ANR/crash alerts.
+- `mobile_perform_action(action="click", target="#1")`: Dynamic-first element click or coordinate tap.
+- `mobile_auto_dismiss_dialogs()`: Detect and auto-clear Android permission popups, intro wizards, or ANR/crash alerts.
 - `mobile_launch_app`, `mobile_install_app`, `mobile_open_url`, `mobile_read_notifications`, `mobile_clipboard`.
 
 ---
 
-## Artemis Driving Mindset: The "Dynamic-First, Coordinate-Fallback" Rule
+## Artemis Driving Mindset: The "Compound-First, Numbered-Index" Rule
 
 When driving Android:
-1. **Always observe first**: Inspect screen hierarchy before clicking.
+1. **Compound Single-Call First**: Execute multi-step tasks in ONE call (`mobile_run_workflow` or compound CLI). Never make 10-15 turn-by-turn tool calls.
 2. **Prefer numbered index (`#id`)**: Targeting by index `#3` is faster and more reliable than fuzzy text matching.
 3. **Coordinate Fallback**: If an element is within a Canvas or Flutter surface where the accessibility node is non-interactive, tap its center coordinates `(x, y)` directly.
 4. **Action Bursts**: Execute multi-step sequences together so menus and popups don't close between LLM turns.

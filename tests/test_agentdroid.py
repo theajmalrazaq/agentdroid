@@ -52,6 +52,38 @@ class TestCliNormalizationAndParsing(unittest.TestCase):
         self.assertTrue(args.dump_ui)
         self.assertTrue(args.json)
 
+    def test_interleaved_ui_actions_preserve_exact_order(self) -> None:
+        from agentdroid.cli import _parse_ui_actions, build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "run",
+                "--click",
+                "Open from storage",
+                "--click",
+                "notes.md",
+                "--click",
+                "Edit",
+                "--type",
+                "Appended text\n",
+                "--click",
+                "Save",
+                "-d",
+                "key:BACK",
+            ]
+        )
+        actions = _parse_ui_actions(args)
+        expected = [
+            {"type": "click", "selector": "Open from storage"},
+            {"type": "click", "selector": "notes.md"},
+            {"type": "click", "selector": "Edit"},
+            {"type": "type", "text": "Appended text\n"},
+            {"type": "click", "selector": "Save"},
+            {"type": "key", "key": "BACK"},
+        ]
+        self.assertEqual(actions, expected)
+
 
 class TestCompoundPipelineExecution(unittest.TestCase):
     def test_compound_general_purpose_pipeline_single_call(self) -> None:
@@ -275,6 +307,7 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         tools_resp = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         tools = tools_resp["result"]["tools"]
         tool_names = [t["name"] for t in tools]
+        self.assertIn("mobile_run_workflow", tool_names)
         self.assertIn("mobile_get_device_state", tool_names)
         self.assertIn("mobile_perform_action", tool_names)
         self.assertIn("mobile_action_burst", tool_names)

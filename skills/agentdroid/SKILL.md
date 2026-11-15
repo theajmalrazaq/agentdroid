@@ -22,18 +22,19 @@ agentdroid mcp --install
 ```
 
 Once connected, your agent receives these native tools:
-- `mobile_get_device_state(view_type="hierarchy"|"screenshot")`: Returns numbered indexed elements `[#1] Button "Settings" | Center: (540, 960)` in ~150 tokens.
-- `mobile_perform_action(action="click"|"tap"|"fill"|"type"|"key"|"scroll"|"swipe", target="...")`: Artemis dynamic-first targeting (`#1`, text, or coordinates).
+- `mobile_run_workflow(install=[...], push=[...], open_url="...", launch="...", do=[...], pull=[...], screenshot="...", set_clipboard="...")`: **RECOMMENDED PRIMARY TOOL**. Runs a complete multi-step Android task in ONE call with zero token waste and zero round-trip latency.
+- `mobile_get_device_state(view_type="hierarchy"|"screenshot")`: Read compact numbered UI elements (`[#1] Button "Settings" | Center: (540, 960)`).
 - `mobile_action_burst(actions=[...])`: High-speed sequence of rapid actions without LLM latency between steps.
-- `mobile_auto_dismiss_dialogs()`: Auto-detects and clears runtime permission prompts or crash/ANR alerts.
+- `mobile_perform_action(action="click"|"tap"|"fill"|"type"|"key"|"scroll"|"swipe", target="...")`: Artemis dynamic-first targeting (`#1`, text, or coordinates).
+- `mobile_auto_dismiss_dialogs()`: Auto-detects and clears runtime permission prompts, intro wizards, or crash alerts.
 - `mobile_launch_app`, `mobile_install_app`, `mobile_open_url`, `mobile_read_notifications`, `mobile_clipboard`, `mobile_diagnose`.
 
 ---
 
 ## 2. Artemis Mobile Driving Mindset (Best Practices)
 
-1. **Observe Before Acting**:
-   Always call `mobile_get_device_state` (or `agentdroid ui dump`) to view the current screen before issuing clicks.
+1. **Compound Single-Call First (Primary Rule)**:
+   Always prefer executing the entire workflow in ONE call (`mobile_run_workflow` or `agentdroid` CLI with chained actions). Do **not** issue 10-15 separate tool calls or step-by-step dumps and screenshots for standard tasks.
 2. **Target by Numbered Index (`#id`)**:
    Elements are tagged with `#1`, `#2`, `#3`... Clicking by index (`click:#3`) is dramatically faster and more reliable than fuzzy text matching.
 3. **The "Dynamic-First, Coordinate-Fallback" Rule**:
