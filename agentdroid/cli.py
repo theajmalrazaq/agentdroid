@@ -1172,8 +1172,9 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
     )
     p.add_argument(
         "--dump-ui",
-        action="store_true",
-        help="Include compact token-efficient UI element hierarchy in output.",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include compact token-efficient UI element hierarchy in output (default: True).",
     )
     p.add_argument(
         "-j",
