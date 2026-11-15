@@ -146,17 +146,11 @@ agentdroid/
 │   └── watcher.py                # Headless background vs floating overlay watcher
 ├── docker/                       # Multi-container Docker definitions
 │   ├── redroid/                  # Silent Android device image & system properties
-│   ├── artemis/                  # Artemis controller image & entrypoint
-│   └── builder/                  # AOSP custom image build environment & Dockerfile
-├── docs/                         # Categorized documentation & distro guides
-│   ├── deploy/                   # Linux distro guides (Ubuntu, Debian, Arch, WSL, K8s, LXC)
-│   ├── assets/                   # Architectural diagrams & screenshots
-│   └── README.zh-cn.md           # Chinese documentation
+│   └── artemis/                  # Artemis controller image & entrypoint
 ├── packages/                     # On-device APK packages
 │   └── artemis-accessibility-helper/  # ArtemisAccessibilityHelper.apk & manifest
 ├── scripts/                      # Host & container automation scripts
-│   ├── provision-device.sh       # Silent root ADB & modern Android 16 provisioner
-│   └── debug.sh                  # Container log & kernel module diagnostics
+│   └── provision-device.sh       # Silent root ADB & modern Android 16 provisioner
 ├── skills/                       # Host AI agent skills
 │   └── agentdroid/SKILL.md       # Mounted skill for Claude Code, Antigravity, Cursor, etc.
 ├── examples/                     # Declarative pipeline workflow specifications
@@ -325,21 +319,21 @@ Supported Redroid images (defaults to **Android 16**, configurable via `REDROID_
 | `androidboot.use_memfd` | Use `memfd` instead of deprecated `ashmem` | `true` |
 | `ro.secure=0` | Root ADB shell provided by default | `0` |
 
-See [docs/deploy/README.md](docs/deploy/README.md) for distro-specific kernel module instructions (Ubuntu, Debian, Fedora, Arch, CentOS, WSL, Kubernetes, LXC).
+Kernel modules (`binder_linux`, `memfd`/`ashmem`) are automatically verified and loaded by `./install.sh`. On standard Linux systems, `install.sh` ensures `binder_linux` is active via `modprobe` or DKMS.
 
 ---
 
 ## Native Bridge & GMS Support
 
 - **ARM apps on x86_64**: Published `redroid` images include `libndk_translation`. See [@zhouziyang/libndk_translation](https://github.com/zhouziyang/libndk_translation) for details.
-- **GMS (Google Mobile Services)**: Can be added via Open GApps, MicroG, or MindTheGapps. See [docker/builder](./docker/builder) for custom AOSP image building.
+- **GMS (Google Mobile Services)**: Can be added via Open GApps, MicroG, or MindTheGapps if required for proprietary Google services.
 
 ---
 
 ## Troubleshooting
 
 - Run `agentdroid doctor` (or `agentdroid doctor --json`) to inspect host tools, kernel `binder` support, ADB root status, silent device settings, Artemis Accessibility Helper reachability, and the Artemis Controller daemon.
-- Collect low-level Redroid container debug blobs with `./scripts/debug.sh agentdroid-device`.
+- Inspect container logs directly with `docker compose logs agentdroid-device` or `docker compose logs agentdroid-controller`.
 
 ---
 
