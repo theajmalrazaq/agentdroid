@@ -3,7 +3,7 @@ name: agentdroid
 description: General-purpose silent Android computer for AI agents (Redroid + Google Artemis). Use Android for any task in a single token-efficient CLI call — search & install apps on the fly (F-Droid, URLs, APKs), browse URLs/deep links, push/pull files, read notifications/OTP/clipboard, or drive UI with semantic actions (zero API keys or .env needed!). Supports silent --headless background mode and live --watch visual mode.
 ---
 
-# AgentRedroid (`agentdroid`) Skill
+# AgentDroid (`agentdroid`) Skill
 
 `agentdroid` gives you a full, root-privileged, silent Android device that you can use as a general-purpose environment for **any task**.
 

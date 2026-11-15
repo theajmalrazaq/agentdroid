@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# AgentRedroid (`agentdroid`) — One-Command Universal Installer & Setup
+# AgentDroid (`agentdroid`) — One-Command Universal Installer & Setup
 # ==============================================================================
 # Usage:
 #   ./install.sh
@@ -8,7 +8,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
 #
 # What this single command does:
-#   1. Clones/updates AgentRedroid (if not already running inside the repo)
+#   1. Clones/updates AgentDroid (if not already running inside the repo)
 #   2. Installs host tools (adb, scrcpy, docker, python3) & Redroid kernel modules
 #   3. Installs `agentdroid` globally on PATH (~/.local/bin & /usr/local/bin)
 #   4. Configures .env (auto-detects or prompts for GEMINI_API_KEY / LLM key)
@@ -48,10 +48,10 @@ else
     REPO_ROOT="${INSTALL_DIR}/repo"
     mkdir -p "${INSTALL_DIR}"
     if [[ -d "${REPO_ROOT}/.git" ]]; then
-        info "Updating existing AgentRedroid checkout at ${REPO_ROOT}..."
+        info "Updating existing AgentDroid checkout at ${REPO_ROOT}..."
         git -C "${REPO_ROOT}" pull --ff-only || true
     else
-        info "Cloning AgentRedroid into ${REPO_ROOT}..."
+        info "Cloning AgentDroid into ${REPO_ROOT}..."
         git clone --depth 1 "${REPO_URL}" "${REPO_ROOT}"
     fi
 fi
@@ -96,11 +96,9 @@ fi
 mkdir -p "${HOME}/.local/bin"
 chmod +x "${REPO_ROOT}/bin/agentdroid" "${REPO_ROOT}/scripts/provision-device.sh"
 ln -sf "${REPO_ROOT}/bin/agentdroid" "${HOME}/.local/bin/agentdroid"
-ln -sf "${REPO_ROOT}/bin/agentdroid" "${HOME}/.local/bin/agentsredroid"
 
 if [[ -w /usr/local/bin ]]; then
     ln -sf "${REPO_ROOT}/bin/agentdroid" /usr/local/bin/agentdroid || true
-    ln -sf "${REPO_ROOT}/bin/agentdroid" /usr/local/bin/agentsredroid || true
 fi
 
 for rc_file in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
@@ -134,7 +132,7 @@ fi
 "${REPO_ROOT}/bin/agentdroid" "${SETUP_ARGS[@]}"
 
 echo ""
-ok "AgentRedroid is installed and configured!"
+ok "AgentDroid is installed and configured!"
 printf "   • Global CLI:      \033[1magentdroid\033[0m\n"
 printf "   • AI Agent Skills: Mounted into Antigravity, Claude Code, Codex, Cursor & Windsurf\n"
 printf "   • Next Step:       Ask your AI agent:\n"

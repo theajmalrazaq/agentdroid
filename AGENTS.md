@@ -1,4 +1,4 @@
-# AgentRedroid (`agentdroid`) — AI Agent Operating Rules
+# AgentDroid (`agentdroid`) — AI Agent Operating Rules
 
 This repository provides a **silent, general-purpose Android computer** (powered by **Redroid** + **Google Artemis**) that AI agents can drive for **any task**.
 
