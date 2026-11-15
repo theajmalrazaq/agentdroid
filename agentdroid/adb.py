@@ -126,18 +126,32 @@ class AdbDevice:
         binary: bool = False,
     ) -> subprocess.CompletedProcess:
         cmd = [self.adb_bin, "-s", self.serial, *args]
-        return subprocess.run(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=not binary,
-            timeout=timeout,
-            check=False,
-        )
+        try:
+            return subprocess.run(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=not binary,
+                timeout=timeout,
+                check=False,
+            )
+        except Exception as e:
+            empty_out: Any = b"" if binary else ""
+            return subprocess.CompletedProcess(
+                cmd, returncode=127, stdout=empty_out, stderr=str(e)
+            )
 
     def shell(self, command: str, *, timeout: float = 30.0) -> str:
         res = self.run_adb(["shell", command], timeout=timeout)
         return (res.stdout or "").strip()
+
+    def is_connected(self) -> bool:
+        """Quick non-blocking check if device state is 'device'."""
+        try:
+            state = self.run_adb(["get-state"], timeout=3.0)
+            return state.returncode == 0 and (state.stdout or "").strip() == "device"
+        except Exception:
+            return False
 
     def connect(self, timeout: float = 30.0) -> bool:
         """Connect to TCP ADB device if needed and verify online state."""

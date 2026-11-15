@@ -34,6 +34,7 @@ KNOWN_SUBCOMMANDS = {
     "ui",
     "pipeline",
     "doctor",
+    "serve",
     "-h",
     "--help",
     "--version",
@@ -607,8 +608,8 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
     return 0 if report.get("ok") else 1
 
 
-def cmd_doctor(args: argparse.Namespace) -> int:
-    adb = AdbDevice(serial=args.serial)
+def _run_doctor_checks(serial: str | None = None, artemis_url: str | None = None) -> dict[str, Any]:
+    adb = AdbDevice(serial=serial)
     connected = adb.connect(timeout=5.0)
     is_root = adb.ensure_root() if connected else False
     silent_ok = adb.is_provisioned_silent() if connected else False
@@ -616,7 +617,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     helper = AccessibilityHelperClient(adb)
     helper_ping = helper.ping() if connected else None
 
-    bridge = ArtemisBridge(base_url=args.artemis_url, device_serial=adb.serial)
+    bridge = ArtemisBridge(base_url=artemis_url, device_serial=adb.serial)
     daemon_st = bridge.daemon_status()
 
     binder_ok = False
@@ -626,7 +627,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     except OSError:
         pass
 
-    report = {
+    return {
         "ok": bool(connected and silent_ok and helper_ping is not None),
         "host": {
             "adb_installed": bool(shutil.which("adb")),
@@ -645,15 +646,46 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         "artemis_daemon": daemon_st,
     }
 
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    report = _run_doctor_checks(serial=args.serial, artemis_url=args.artemis_url)
+    adb = AdbDevice(serial=args.serial)
+    helper_ping = report.get("accessibility_helper") or {}
+    daemon_st = report.get("artemis_daemon") or {}
+
     if args.json:
         print(json.dumps(report, indent=2))
     else:
         print(f"AgentDroid Doctor ({adb.serial})")
-        print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={binder_ok}")
-        print(f"  • Device Connected:   {connected} (root={is_root}, silent_provisioned={silent_ok})")
-        print(f"  • Artemis A11y APK:   {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping else 'not reachable'}")
-        print(f"  • Artemis Controller: {daemon_st.get('status')} ({bridge.base_url})")
+        print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={report['host']['kernel_binder_loaded']}")
+        print(f"  • Device Connected:   {report['device']['connected']} (root={report['device']['root_adb']}, silent_provisioned={report['device']['silent_provisioned']})")
+        print(f"  • Artemis A11y APK:   {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping.get('reachable') else 'not reachable'}")
+        print(f"  • Artemis Controller: {daemon_st.get('status')} ({daemon_st.get('base_url') or args.artemis_url or 'http://127.0.0.1:8000'})")
     return 0 if report["ok"] else 1
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    from agentdroid.server import AgentDroidServer
+
+    host = getattr(args, "host", None) or os.environ.get("AGENTDROID_HOST") or "0.0.0.0"
+    port = int(getattr(args, "port", None) or os.environ.get("AGENTDROID_PORT") or 8080)
+    api_key = getattr(args, "api_key", None) or os.environ.get("AGENTDROID_API_KEY")
+    serial = getattr(args, "serial", None) or os.environ.get("REDROID_ADDR") or "127.0.0.1:5555"
+    artemis_url = getattr(args, "artemis_url", None) or os.environ.get("ARTEMIS_BASE_URL") or "http://127.0.0.1:8000"
+
+    server = AgentDroidServer(
+        host=host,
+        port=port,
+        api_key=api_key,
+        serial=serial,
+        artemis_url=artemis_url,
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[agentdroid:server] Stopping server...", file=sys.stderr)
+        server.server_close()
+    return 0
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
@@ -934,6 +966,31 @@ def build_parser() -> argparse.ArgumentParser:
     doc_p.add_argument("--artemis-url", help="Artemis daemon URL.")
     doc_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     doc_p.set_defaults(func=cmd_doctor)
+
+    # --- serve ---
+    srv_p = subparsers.add_parser(
+        "serve",
+        help="Start the AgentDroid cloud HTTP REST API & Web Playground server for website integrations.",
+    )
+    srv_p.add_argument(
+        "--host",
+        default=os.environ.get("AGENTDROID_HOST", "0.0.0.0"),
+        help="Host IP to bind (default: 0.0.0.0).",
+    )
+    srv_p.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("AGENTDROID_PORT", "8080")),
+        help="HTTP port to listen on (default: 8080).",
+    )
+    srv_p.add_argument(
+        "--api-key",
+        default=os.environ.get("AGENTDROID_API_KEY"),
+        help="Optional API key required via X-API-Key, Bearer token, or ?api_key= query param.",
+    )
+    srv_p.add_argument("-s", "--serial", help="Target Android device serial (default: 127.0.0.1:5555).")
+    srv_p.add_argument("--artemis-url", help="Artemis controller daemon URL (default: http://127.0.0.1:8000).")
+    srv_p.set_defaults(func=cmd_serve)
 
     return parser
 

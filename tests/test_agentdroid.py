@@ -22,7 +22,7 @@ class TestCliNormalizationAndParsing(unittest.TestCase):
         self.assertIn("--headless", normalized)
 
     def test_known_subcommands_preserved(self) -> None:
-        for sub in ("run", "watch", "up", "down", "provision", "app", "device", "ui", "pipeline", "doctor"):
+        for sub in ("run", "watch", "up", "down", "provision", "app", "device", "ui", "pipeline", "doctor", "serve"):
             self.assertEqual(normalize_argv(["agentdroid", sub])[1], sub)
 
     def test_parse_compound_run_flags(self) -> None:
@@ -299,6 +299,133 @@ class TestLiveWatcherSimulatorOverlay(unittest.TestCase):
         self.assertIn("--no-control", cmd)
 
 
+class TestAgentDroidCloudServer(unittest.TestCase):
+    def test_pipeline_spec_from_dict_shorthands(self) -> None:
+        raw_dict = {
+            "open_url": "https://example.com",
+            "install": "fdroid:net.gsantner.markor",
+            "launch": "auto",
+            "do": ["scroll:down", "click:About"],
+            "assert_text": "About",
+            "notifications": True,
+            "clipboard": "cloud-test-text",
+        }
+        spec = PipelineSpec.from_dict(raw_dict)
+        self.assertEqual(spec.open_urls, ["https://example.com"])
+        self.assertEqual(spec.install_apks, ["fdroid:net.gsantner.markor"])
+        self.assertEqual(spec.launch_target, "auto")
+        self.assertEqual(len(spec.ui_actions), 2)
+        self.assertEqual(spec.ui_actions[0], {"type": "scroll", "direction": "down"})
+        self.assertEqual(spec.ui_actions[1], {"type": "click", "selector": "About"})
+        self.assertEqual(spec.assert_texts, ["About"])
+        self.assertTrue(spec.read_notifications)
+        self.assertEqual(spec.set_clipboard, "cloud-test-text")
+
+    def test_server_http_endpoints_and_auth(self) -> None:
+        import threading
+        import urllib.request
+        from agentdroid.server import AgentDroidServer
+
+        # Start server with an ephemeral port (port 0) and API Key
+        server = AgentDroidServer(host="127.0.0.1", port=0, api_key="secret-123")
+        port = server.server_port
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        base_url = f"http://127.0.0.1:{port}"
+
+        try:
+            # 1. GET /health (Public endpoint, CORS headers)
+            req = urllib.request.Request(f"{base_url}/health")
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                self.assertEqual(resp.status, 200)
+                self.assertEqual(resp.headers.get("Access-Control-Allow-Origin"), "*")
+                data = json.loads(resp.read().decode("utf-8"))
+                self.assertTrue(data.get("ok"))
+                self.assertEqual(data.get("service"), "agentdroid")
+
+            # 2. GET /playground (Public web developer dashboard)
+            with urllib.request.urlopen(f"{base_url}/playground", timeout=5.0) as resp:
+                self.assertEqual(resp.status, 200)
+                body = resp.read().decode("utf-8")
+                self.assertIn("AgentDroid", body)
+                self.assertIn("Live Device Control", body)
+
+            # 3. GET /api/v1/ui/dump WITHOUT auth -> 401 Unauthorized
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(f"{base_url}/api/v1/ui/dump", timeout=5.0)
+            self.assertEqual(ctx.exception.code, 401)
+
+            # 4. Mock helper and test GET /api/v1/ui/dump WITH X-API-Key
+            server._helper.dump_compact_ui = MagicMock(
+                return_value={
+                    "ok": True,
+                    "element_count": 2,
+                    "elements": [
+                        {"id": 1, "label": "Settings", "class": "android.widget.TextView", "center": [100, 200]},
+                        {"id": 2, "label": "Search", "class": "android.widget.Button", "center": [300, 400]},
+                    ],
+                }
+            )
+            req_auth = urllib.request.Request(
+                f"{base_url}/api/v1/ui/dump",
+                headers={"X-API-Key": "secret-123"},
+            )
+            with urllib.request.urlopen(req_auth, timeout=5.0) as resp:
+                self.assertEqual(resp.status, 200)
+                dump = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(dump["element_count"], 2)
+                self.assertEqual(dump["elements"][0]["label"], "Settings")
+
+            # 5. POST /api/v1/do WITH Authorization: Bearer <key>
+            server._helper.tap_element = MagicMock(return_value={"success": True, "selector": "Settings"})
+            post_req = urllib.request.Request(
+                f"{base_url}/api/v1/do",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer secret-123",
+                },
+                data=json.dumps({"action": "click:Settings"}).encode("utf-8"),
+                method="POST",
+            )
+            with urllib.request.urlopen(post_req, timeout=5.0) as resp:
+                self.assertEqual(resp.status, 200)
+                result = json.loads(resp.read().decode("utf-8"))
+                self.assertTrue(result.get("ok"))
+                self.assertEqual(len(result["steps"]), 1)
+                self.assertTrue(result["steps"][0]["success"])
+
+            # 6. POST /api/v1/run compound pipeline endpoint
+            with patch("agentdroid.server.CompoundPipeline") as mock_pipeline_cls:
+                mock_pipeline_inst = MagicMock()
+                mock_pipeline_inst.run.return_value = {
+                    "ok": True,
+                    "mode": "headless",
+                    "opened_urls": [{"uri": "https://example.com"}],
+                    "agent_runs": [],
+                }
+                mock_pipeline_cls.return_value = mock_pipeline_inst
+
+                run_req = urllib.request.Request(
+                    f"{base_url}/api/v1/run",
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-API-Key": "secret-123",
+                    },
+                    data=json.dumps({"open_url": "https://example.com"}).encode("utf-8"),
+                    method="POST",
+                )
+                with urllib.request.urlopen(run_req, timeout=5.0) as resp:
+                    self.assertEqual(resp.status, 200)
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    self.assertTrue(res_data.get("ok"))
+                    self.assertEqual(res_data["opened_urls"][0]["uri"], "https://example.com")
+        finally:
+            server.shutdown()
+            server.server_close()
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

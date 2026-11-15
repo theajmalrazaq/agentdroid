@@ -15,3 +15,10 @@ traces/
 artifacts/
 apks/*.apk
 *.tgz
+
+# Rust & Node artifacts
+target/
+api/rust/target/
+node_modules/
+api/ts/node_modules/
+

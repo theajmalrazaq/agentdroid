@@ -1,0 +1,9 @@
+[package]
+name = "agentdroid-rs"
+version = "0.2.0"
+edition = "2021"
+authors = ["AgentDroid Contributors"]
+description = "High-performance Rust native engine, CLI & client for AgentDroid"
+license = "Apache-2.0"
+
+[dependencies]

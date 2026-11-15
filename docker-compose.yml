@@ -67,5 +67,35 @@ services:
       - ./artifacts:/workspace/artifacts
       - ./traces:/app/traces
 
+  # ---------------------------------------------------------------------------
+  # 3. AgentDroid Cloud HTTP REST API & Web Playground Server
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/artemis/Dockerfile
+    image: agentdroid/artemis-controller:latest
+    container_name: agentdroid-api
+    restart: unless-stopped
+    depends_on:
+      - redroid
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - REDROID_ADDR=redroid:5555
+      - ADB_DEVICE_SERIAL=redroid:5555
+      - AGENTDROID_PORT=8080
+      - AGENTDROID_HOST=0.0.0.0
+      - AGENTDROID_API_KEY=${AGENTDROID_API_KEY:-}
+      - ARTEMIS_BASE_URL=http://artemis:8000
+    ports:
+      - "${AGENTDROID_PORT:-8080}:8080"
+    volumes:
+      - ./apks:/workspace/apks
+      - ./artifacts:/workspace/artifacts
+    command: ["agentdroid", "serve", "--host", "0.0.0.0", "--port", "8080"]
+
 volumes:
   redroid-data:
+

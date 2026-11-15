@@ -82,3 +82,28 @@ Supported `--do` verbs:
 | **Read notifications (2FA/OTP codes, messages)** | `agentdroid device notifications --json` *(or `--notifications` flag on `run`)* |
 | **Read / write Android clipboard** | `agentdroid device clipboard "text to copy"` / `agentdroid device clipboard --json` |
 | **Run while showing live screen to user** | `agentdroid --watch --launch "com.android.settings" -d "click:Display"` |
+| **Cloud REST API & Web Playground** | `agentdroid serve --port 8080` / `POST /api/v1/run` |
+
+---
+
+## Cloud Deployment & Vercel AI SDK Integration
+
+AgentDroid can be deployed on any Linux cloud host (`docker compose up -d` or `agentdroid serve --port 8080`).
+Web apps and AI agents using the **Vercel AI SDK** can import `@agentdroid/sdk` and drive the cloud Android device directly with **zero secondary LLM API keys on the server**:
+
+```typescript
+import { generateText, tool } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { createAgentDroidTools } from "@agentdroid/sdk";
+
+const agentdroid = createAgentDroidTools({ endpoint: "http://your-cloud-ip:8080" });
+const { text } = await generateText({
+  model: openai("gpt-4o"),
+  prompt: "Open Hacker News on Android, read top stories, and tell me the summary",
+  tools: {
+    runAndroidWorkflow: tool(agentdroid.runAndroidWorkflow),
+    inspectScreenUI: tool(agentdroid.inspectScreenUI),
+    performSemanticAction: tool(agentdroid.performSemanticAction),
+  },
+});
+```

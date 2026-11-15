@@ -81,15 +81,67 @@ class PipelineSpec:
     dump_ui: bool = True
 
     @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PipelineSpec:
+        """Create a PipelineSpec from a JSON-friendly dictionary with convenient API shorthands."""
+        data = dict(data)
+
+        if "open_url" in data and "open_urls" not in data:
+            val = data.pop("open_url")
+            data["open_urls"] = [val] if isinstance(val, str) else list(val)
+
+        if "install" in data and "install_apks" not in data:
+            val = data.pop("install")
+            data["install_apks"] = [val] if isinstance(val, str) else list(val)
+
+        if "launch" in data and "launch_target" not in data:
+            data["launch_target"] = data.pop("launch")
+
+        if "assert_text" in data and "assert_texts" not in data:
+            val = data.pop("assert_text")
+            data["assert_texts"] = [val] if isinstance(val, str) else list(val)
+
+        if "wait_text" in data and "wait_for_text" not in data:
+            val = data.pop("wait_text")
+            data["wait_for_text"] = [val] if isinstance(val, str) else list(val)
+
+        if "goal" in data and "goals" not in data:
+            val = data.pop("goal")
+            data["goals"] = [val] if isinstance(val, str) else list(val)
+
+        if "notifications" in data and "read_notifications" not in data:
+            data["read_notifications"] = bool(data.pop("notifications"))
+
+        if "clipboard" in data:
+            clip = data.pop("clipboard")
+            if isinstance(clip, str):
+                data["set_clipboard"] = clip
+            elif isinstance(clip, bool):
+                data["get_clipboard"] = clip
+
+        if "do" in data:
+            do_items = data.pop("do")
+            if isinstance(do_items, str):
+                do_items = [do_items]
+            ui_actions = list(data.get("ui_actions") or [])
+            for item in do_items:
+                if isinstance(item, str):
+                    ui_actions.append(parse_do_step(item))
+                elif isinstance(item, dict):
+                    ui_actions.append(item)
+            data["ui_actions"] = ui_actions
+
+        valid_fields = {f for f in cls.__dataclass_fields__}
+        filtered = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered)
+
+    @classmethod
     def from_file(cls, path: str | Path) -> PipelineSpec:
         p = Path(path).expanduser().resolve()
         raw = p.read_text(encoding="utf-8")
         data = json.loads(raw)
         if not isinstance(data, dict):
             raise ValueError(f"Pipeline file {p} must contain a JSON object")
-        valid_fields = {f for f in cls.__dataclass_fields__}
-        filtered = {k: v for k, v in data.items() if k in valid_fields}
-        return cls(**filtered)
+        return cls.from_dict(data)
 
 
 def parse_do_step(step_str: str) -> dict[str, Any]:

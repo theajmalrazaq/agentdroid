@@ -133,9 +133,18 @@ Once `./install.sh` finishes, open **Antigravity, Claude Code, Codex, Cursor, or
 
 The repository is organized into cleanly separated, categorized directories:
 
-```
 agentdroid/
 ├── bin/                          # Standalone CLI executables (`agentdroid`)
+├── api/                          # Cloud REST API & Multi-Language SDKs
+│   ├── go/                       # High-performance modular Go API server & Go SDK
+│   │   ├── cmd/agentdroid-server # Go server entrypoint (zero external deps)
+│   │   ├── pkg/api/              # Modular handlers (router, health, run, do, ui, device)
+│   │   └── pkg/client/           # Typed Go client SDK
+│   ├── rust/                     # Ultra-fast native Rust engine & CLI (`agentdroid-rs`)
+│   │   └── src/                  # Adb transport, compact UI parser, and client
+│   └── ts/                       # TypeScript SDK & Vercel AI SDK tools (`@agentdroid/sdk`)
+│       ├── src/client.ts         # AgentDroid TypeScript HTTP client
+│       └── src/vercel-ai.ts      # Vercel AI SDK tool definitions (zero secondary API keys)
 ├── agentdroid/                   # Core Python automation engine & library
 │   ├── adb.py                    # General-purpose ADB, F-Droid & device manager
 │   ├── artemis_bridge.py         # Autonomous Artemis agent bridge & retry loop
@@ -143,6 +152,7 @@ agentdroid/
 │   ├── helper.py                 # Sub-second compact UI tree dumps (~150 tokens)
 │   ├── installer.py              # Environment installer & agent skills mounter
 │   ├── pipeline.py               # Compound single-call workflow execution engine
+│   ├── server.py                 # Built-in cloud REST API & Web Playground server
 │   └── watcher.py                # Headless background vs floating overlay watcher
 ├── docker/                       # Multi-container Docker definitions
 │   ├── redroid/                  # Silent Android device image & system properties
@@ -156,8 +166,8 @@ agentdroid/
 ├── examples/                     # Declarative pipeline workflow specifications
 │   └── app-test-pipeline.json    # Sample multi-step workflow JSON
 ├── tests/                        # Automated unit tests
-│   └── test_agentdroid.py        # Comprehensive CLI, pipeline & overlay test suite
-├── docker-compose.yml            # Multi-container device + controller stack
+│   └── test_agentdroid.py        # Comprehensive test suite (CLI, cloud API, pipeline)
+├── docker-compose.yml            # Multi-container device + controller + API stack
 ├── install.sh                    # Universal one-command installer
 ├── AGENTS.md                     # Direct operating rules for AI coding agents
 ├── pyproject.toml                # Python packaging specification
@@ -262,6 +272,149 @@ agentdroid --tap 540,1200 --type "hello@example.com" --key ENTER --dump-ui --jso
 | `agentdroid up` / `down` | Start or stop the Redroid + Artemis Docker Compose stack | `agentdroid up --headless` / `agentdroid down` |
 | `agentdroid provision` | Apply silent AI agent settings & install/bind Artemis Accessibility Helper | `agentdroid provision --force` |
 | `agentdroid doctor` | Full health check of host tools, `binder`, root ADB, A11y Helper, and Artemis | `agentdroid doctor --json` |
+| `agentdroid serve` | Start cloud HTTP REST API & Web Playground server | `agentdroid serve --port 8080` |
+
+---
+
+## Self-Hosted Cloud Deployment & Multi-Language APIs
+
+You can deploy AgentDroid on any Linux cloud server (AWS EC2, Hetzner, DigitalOcean, GCP, Bare Metal) so that websites, web applications, SaaS backends, and autonomous AI agents can talk to it over HTTP.
+
+> **Zero Secondary LLM Keys or `.env` Required on AgentDroid**:
+> When using tools like the **Vercel AI SDK**, **LangChain**, or direct API calls from your web app, **your web app's LLM (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro) is already the brain!**
+> AgentDroid serves as your cloud Android computer — perceiving the screen in ~150 tokens and executing actions with zero token waste.
+
+### 1. Deploying on a Cloud Server (One Command)
+
+```bash
+# Clone and boot the complete stack (Redroid + Artemis + Cloud API)
+git clone https://github.com/theajmalrazaq/agentdroid.git
+cd agentdroid
+docker compose up -d
+```
+
+The stack exposes:
+- **Cloud REST API & Web Playground**: `http://<cloud-ip>:8080`
+- **Artemis Web Stream Console**: `http://<cloud-ip>:8000`
+- **ADB Port**: `5555`
+
+Or run standalone without Docker:
+```bash
+agentdroid serve --host 0.0.0.0 --port 8080
+# Or using the high-performance Go server:
+cd api/go && go run ./cmd/agentdroid-server --port 8080
+```
+
+---
+
+### 2. Vercel AI SDK (Next.js / Node.js / React)
+
+Drive your cloud Android device directly from Next.js using `@agentdroid/sdk`:
+
+```typescript
+import { generateText, tool } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { createAgentDroidTools } from "@agentdroid/sdk";
+
+// 1. Point to your self-hosted AgentDroid cloud instance
+const agentdroid = createAgentDroidTools({
+  endpoint: process.env.AGENTDROID_URL || "http://your-server-ip:8080",
+  apiKey: process.env.AGENTDROID_API_KEY, // optional
+});
+
+// 2. Drive Android autonomously using your LLM!
+const { text } = await generateText({
+  model: openai("gpt-4o"),
+  prompt: "Open Hacker News on Android, scroll down, click Past, and tell me the top story.",
+  tools: {
+    runAndroidWorkflow: tool(agentdroid.runAndroidWorkflow),
+    inspectScreenUI: tool(agentdroid.inspectScreenUI),
+    performSemanticAction: tool(agentdroid.performSemanticAction),
+    readNotifications: tool(agentdroid.readNotifications),
+  },
+  maxSteps: 5,
+});
+
+console.log(text);
+```
+
+---
+
+### 3. Modular Go REST API Server & Typed Go SDK
+
+The Go implementation is modularized across domain handlers in [`api/go/pkg/api/`](api/go/pkg/api/):
+- `router.go`: CORS middleware (`*`), authentication (`X-API-Key`, `Bearer`), and route multiplexing.
+- `health.go`: `/health`, `/api/v1/health`, `/api/v1/doctor` checks.
+- `run.go`: `/api/v1/run` compound single-call pipeline execution.
+- `do.go`: `/api/v1/do` sequential semantic UI actions.
+- `ui.go`: `/api/v1/ui/dump` (~150-token tree), `/api/v1/ui/tap`, `/api/v1/ui/type`, `/api/v1/ui/key`.
+- `device.go`: `/api/v1/device/clipboard`, `/api/v1/device/notifications`, `/api/v1/device/open-url`, `/api/v1/apps`.
+- `playground.go`: Embedded modern developer Web Playground at `GET /` and `GET /playground`.
+
+Using the Go SDK:
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"github.com/theajmalrazaq/agentdroid/api/go/pkg/client"
+)
+
+func main() {
+	c := client.NewClient("http://cloud-ip:8080", "")
+
+	// Run compound workflow in one call
+	report, err := c.Run(context.Background(), &client.RunRequest{
+		OpenURL: "https://news.ycombinator.com",
+		Do:      []string{"scroll:down", "click:Past"},
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Device report: %v in %vs\n", report.OK, report.DurationSec)
+}
+```
+
+---
+
+### 4. Native Rust Engine & CLI (`agentdroid-rs`)
+
+For ultra-low latency and zero-overhead native execution:
+```bash
+cd api/rust
+cargo build --release
+./target/release/agentdroid-rs --help
+```
+
+Commands:
+- `agentdroid-rs health`: Check ADB device connectivity.
+- `agentdroid-rs tap 500 800`: Direct coordinate tap.
+- `agentdroid-rs type "Hello Android"`: Direct text input.
+- `agentdroid-rs key HOME`: Hardware key navigation.
+- `agentdroid-rs do "click:About"`: Semantic action via API.
+- `agentdroid-rs run ./pipeline.json`: Compound workflow execution.
+
+---
+
+### 5. HTTP / REST API Reference (Any Language / cURL)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` / `/api/v1/health` | Health & device connectivity check |
+| `GET` | `/` / `/playground` | Embedded interactive Web Playground & Dashboard |
+| `POST` | `/api/v1/run` | Execute compound multi-step Android pipeline in one call |
+| `POST` | `/api/v1/do` | Execute sequential semantic UI steps (`click:<text>`, `fill:<sel>=<txt>`, `key:<k>`) |
+| `GET` | `/api/v1/ui/dump` | Compact token-efficient visible UI elements (~150 tokens) |
+| `POST` | `/api/v1/ui/tap` | Tap screen coordinates (`{"x": 500, "y": 800}`) |
+| `POST` | `/api/v1/ui/type` | Type text into focused field (`{"text": "Hello"}`) |
+| `POST` | `/api/v1/ui/key` | Send hardware/navigation key (`{"key": "HOME"}`) |
+| `GET` | `/api/v1/ui/screenshot` | Capture screenshot (`image/png` or `?format=base64`) |
+| `GET`/`POST` | `/api/v1/device/clipboard` | Read or set device clipboard |
+| `GET` | `/api/v1/device/notifications` | Read active notifications (2FA / OTP codes) |
+| `POST` | `/api/v1/device/open-url` | Open URL or deep link in Android |
+| `GET` | `/api/v1/apps` | List installed third-party apps |
+| `POST` | `/api/v1/app/install` | Install APK from URL, local path, or F-Droid |
 
 ---
 
