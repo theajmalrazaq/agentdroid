@@ -484,54 +484,51 @@ def cmd_device(args: argparse.Namespace) -> int:
 
 
 def cmd_ui(args: argparse.Namespace) -> int:
+    from agentdroid.engine import AndroidEngine
+
     adb = AdbDevice(serial=args.serial)
     if not adb.connect(timeout=15.0):
         print(f"Error: Could not connect to {adb.serial}", file=sys.stderr)
         return 1
-    helper = AccessibilityHelperClient(adb)
+    engine = AndroidEngine(adb)
     act = args.ui_action
 
     if act == "dump":
-        summary = helper.dump_compact_ui(max_elements=args.max_elements)
+        summary = engine.get_screen_data(max_elements=args.max_elements)
         if args.json:
             print(json.dumps(summary, indent=2, ensure_ascii=False))
         else:
             fg = summary.get("foreground", {}).get("component") or "unknown"
-            print(
-                f"Foreground: {fg} | Backend: {summary.get('backend')} | "
-                f"Elements: {summary.get('element_count')}"
-            )
-            for el in summary.get("elements", []):
-                print(f"  [{el['id']}] {el['label']} ({el['class']}) @{el['center']}")
+            print(f"Foreground: {fg} | Elements: {summary.get('element_count')}")
+            print(summary.get("formatted_text", ""))
         return 0
 
     if act == "tap":
-        res = helper.action("tap", x=float(args.x), y=float(args.y))
+        res = engine.tap(float(args.x), float(args.y))
         if args.json:
             print(json.dumps(res))
         return 0 if res.get("success") else 1
 
     if act == "type":
-        res = helper.action("type", text=args.text, append=bool(args.append))
+        res = engine.helper.action("type", text=args.text, append=bool(args.append))
         if args.json:
             print(json.dumps(res))
         return 0 if res.get("success") else 1
 
     if act == "swipe":
-        res = helper.action(
-            "swipe",
-            x1=float(args.x1),
-            y1=float(args.y1),
-            x2=float(args.x2),
-            y2=float(args.y2),
-            duration=int(args.duration),
+        res = engine.swipe(
+            float(args.x1),
+            float(args.y1),
+            float(args.x2),
+            float(args.y2),
+            duration_ms=int(args.duration),
         )
         if args.json:
             print(json.dumps(res))
         return 0 if res.get("success") else 1
 
     if act == "key":
-        res = helper.action("global", action=args.keycode)
+        res = engine.helper.action("global", action=args.keycode)
         if args.json:
             print(json.dumps(res))
         return 0 if res.get("success") else 1

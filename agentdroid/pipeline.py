@@ -15,6 +15,7 @@ import time
 from typing import Any
 
 from agentdroid.adb import AdbDevice, InstalledAppInfo
+from agentdroid.engine import AndroidEngine, parse_do_step
 from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.watcher import LiveWatcher
 
@@ -127,53 +128,14 @@ class PipelineSpec:
         return cls.from_dict(data)
 
 
-def parse_do_step(step_str: str) -> dict[str, Any]:
-    """Parse a compact `--do` step string like 'click:Login', 'fill:Email=a@b.com', 'scroll-to:Save'."""
-    raw = step_str.strip()
-    if ":" not in raw:
-        return {"type": "click", "selector": raw}
-    verb, arg = raw.split(":", 1)
-    v = verb.strip().lower()
-    arg = arg.strip()
-
-    if v in ("click", "tap-text", "tap_text"):
-        return {"type": "click", "selector": arg}
-    if v == "tap":
-        parts = [p.strip() for p in arg.split(",")]
-        return {"type": "tap", "x": float(parts[0]), "y": float(parts[1])}
-    if v in ("fill", "input"):
-        if "=" in arg:
-            sel, txt = arg.split("=", 1)
-            return {"type": "fill", "selector": sel.strip(), "text": txt}
-        return {"type": "type", "text": arg}
-    if v == "type":
-        return {"type": "type", "text": arg}
-    if v == "scroll":
-        return {"type": "scroll", "direction": arg or "down"}
-    if v in ("scroll-to", "scroll_to"):
-        return {"type": "scroll_to", "text": arg}
-    if v in ("wait", "wait-text", "wait_text"):
-        return {"type": "wait_text", "text": arg}
-    if v == "key":
-        return {"type": "key", "key": arg}
-    if v in ("open", "url", "open-url"):
-        return {"type": "open_url", "uri": arg}
-    if v == "launch":
-        return {"type": "launch", "package": arg}
-    if v == "shell":
-        return {"type": "shell", "cmd": arg}
-    if v == "sleep":
-        return {"type": "sleep", "seconds": float(arg or 1.0)}
-    return {"type": "click", "selector": raw}
-
-
 class CompoundPipeline:
     """Executes a complete multi-step Android workflow in one call to minimize AI agent token usage."""
 
     def __init__(self, spec: PipelineSpec) -> None:
         self.spec = spec
         self.adb = AdbDevice(serial=spec.serial)
-        self.helper = AccessibilityHelperClient(self.adb)
+        self.engine = AndroidEngine(self.adb)
+        self.helper = self.engine.helper
 
     def _log_watch(self, watch_enabled: bool, msg: str) -> None:
         if watch_enabled:
@@ -415,60 +377,7 @@ class CompoundPipeline:
         return report
 
     def _execute_ui_action(self, act_type: str, act: dict[str, Any]) -> dict[str, Any]:
-        if act_type in ("click", "tap_text"):
-            return self.helper.tap_element(str(act["selector"]))
-        if act_type == "fill":
-            return self.helper.fill_element(
-                str(act["selector"]),
-                str(act["text"]),
-                submit=bool(act.get("submit", False)),
-            )
-        if act_type == "tap":
-            return self.helper.action("tap", x=act["x"], y=act["y"])
-        if act_type == "type":
-            return self.helper.action("type", text=act["text"], append=bool(act.get("append", False)))
-        if act_type == "swipe":
-            return self.helper.action(
-                "swipe",
-                x1=act["x1"],
-                y1=act["y1"],
-                x2=act["x2"],
-                y2=act["y2"],
-                duration=act.get("duration", 300),
-            )
-        if act_type == "scroll":
-            return self.helper.scroll(str(act.get("direction", "down")))
-        if act_type == "scroll_to":
-            return self.helper.scroll_to_text(str(act["text"]))
-        if act_type == "wait_text":
-            ok = self._wait_for_text(str(act["text"]), timeout=float(act.get("timeout", 15.0)))
-            return {"success": ok, "text": act["text"]}
-        if act_type == "key":
-            return self.helper.action("global", action=act["key"])
-        if act_type == "open_url":
-            res = self.adb.open_url(str(act["uri"]))
-            return {"success": bool(res.get("opened", True)), **res}
-        if act_type == "launch":
-            res = self.adb.launch_app(str(act["package"]))
-            return {"success": bool(res.get("launched", True)), **res}
-        if act_type == "shell":
-            out = self.adb.shell(str(act["cmd"]))
-        if act_type in ("dismiss", "auto_dismiss"):
-            from agentdroid.engine import AndroidEngine
-            return {"success": True, **AndroidEngine(self.adb).auto_dismiss_dialogs()}
-        if act_type == "sleep":
-            secs = float(act.get("seconds", 1.0))
-            time.sleep(secs)
-            return {"success": True, "slept": secs}
-        return {"success": False, "error": f"Unknown ui_action type: {act_type}"}
+        return self.engine.execute_action(act)
 
     def _wait_for_text(self, text_needle: str, timeout: float = 15.0) -> bool:
-        needle = text_needle.lower()
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            ui = self.helper.dump_compact_ui(max_elements=100)
-            blob = json.dumps(ui.get("elements", []), ensure_ascii=False).lower()
-            if needle in blob:
-                return True
-            time.sleep(0.6)
-        return False
+        return self.engine._wait_for_text(text_needle, timeout=timeout)

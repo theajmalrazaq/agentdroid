@@ -264,28 +264,28 @@ class McpServer:
             target = args.get("target") or ""
             text = args.get("text") or ""
             direction = args.get("direction", "down")
-
-            if act == "click":
-                res = self.engine.helper.tap_element(target)
+            action_dict: dict[str, Any] = {"type": act}
+            if act in ("click", "fill"):
+                action_dict["selector"] = target
+                if text:
+                    action_dict["text"] = text
             elif act == "tap":
                 parts = [float(p.strip()) for p in target.split(",") if p.strip()]
-                res = self.engine.tap(parts[0], parts[1])
-            elif act == "fill":
-                res = self.engine.helper.fill_element(target, text)
+                if len(parts) >= 2:
+                    action_dict["x"], action_dict["y"] = parts[0], parts[1]
             elif act == "type":
-                res = self.engine.helper.action("type", text=text)
+                action_dict["text"] = text or target
             elif act == "key":
-                res = self.engine.helper.action("key", key=target)
-            elif act == "scroll":
-                res = self.engine.helper.scroll(direction=direction)
-            elif act == "scroll_to":
-                res = self.engine.scroll_and_find(target, direction=direction)
+                action_dict["key"] = target
+            elif act in ("scroll", "scroll_to"):
+                action_dict["direction"] = direction
+                action_dict["text"] = target
             elif act == "swipe":
                 pts = [float(p.strip()) for p in target.split(",") if p.strip()]
-                res = self.engine.swipe(pts[0], pts[1], pts[2], pts[3])
-            else:
-                return f"Error: Unknown action '{act}'"
+                if len(pts) >= 4:
+                    action_dict["x1"], action_dict["y1"], action_dict["x2"], action_dict["y2"] = pts[:4]
 
+            res = self.engine.execute_action(action_dict)
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_action_burst":

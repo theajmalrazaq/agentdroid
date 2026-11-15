@@ -31,6 +31,8 @@ DEVICE_PORT = 18888
 def _resolve_shared_token_path() -> Path:
     """Resolve the shared Artemis/AgentDroid helper session token path."""
     candidates = [
+        Path(tempfile.gettempdir()) / "agentdroid" / "helper-token" / "session.token",
+        Path.home() / ".cache" / "agentdroid" / "helper-token" / "session.token",
         Path(tempfile.gettempdir()) / "artemis" / "helper-token" / "session.token",
         Path.home() / ".cache" / "artemis" / "helper-token" / "session.token",
     ]

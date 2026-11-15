@@ -2,6 +2,7 @@
 
 Provides high-precision indexed perception, dynamic-first coordinate-fallback
 locating, action bursts, resilient scroll-and-find, and system dialog handling.
+Single source of truth for UI action parsing and execution.
 """
 
 from __future__ import annotations
@@ -34,6 +35,79 @@ SYSTEM_DIALOG_DISMISS_TARGETS = [
     "Got it",
     "Not now",
 ]
+
+
+def parse_do_step(step_str: str) -> dict[str, Any]:
+    """Parse a compact `--do` or burst step string into a structured action dictionary.
+
+    Examples:
+      - 'click:Login' or 'click:#3' -> {"type": "click", "selector": "Login"}
+      - 'tap:540,960' -> {"type": "tap", "x": 540.0, "y": 960.0}
+      - 'tap_pct:50,40' -> {"type": "tap_pct", "x": 50.0, "y": 40.0}
+      - 'fill:Email=user@test.com' -> {"type": "fill", "selector": "Email", "text": "user@test.com"}
+      - 'type:hello' -> {"type": "type", "text": "hello"}
+      - 'scroll:down' -> {"type": "scroll", "direction": "down"}
+      - 'scroll-to:About' -> {"type": "scroll_to", "text": "About"}
+      - 'swipe:100,500,100,200' -> {"type": "swipe", "x1": 100.0, "y1": 500.0, "x2": 100.0, "y2": 200.0}
+      - 'key:BACK' -> {"type": "key", "key": "BACK"}
+      - 'sleep:1.5' -> {"type": "sleep", "seconds": 1.5}
+      - 'dismiss' -> {"type": "dismiss"}
+    """
+    raw = step_str.strip()
+    if ":" not in raw:
+        v = raw.lower()
+        if v in ("dismiss", "auto-dismiss", "auto_dismiss"):
+            return {"type": "dismiss"}
+        return {"type": "click", "selector": raw}
+
+    verb, arg = raw.split(":", 1)
+    v = verb.strip().lower()
+    arg = arg.strip()
+
+    if v in ("click", "tap-text", "tap_text"):
+        return {"type": "click", "selector": arg}
+    if v == "tap":
+        parts = [p.strip() for p in arg.split(",") if p.strip()]
+        return {"type": "tap", "x": float(parts[0]), "y": float(parts[1])}
+    if v in ("tap_pct", "tap-pct", "tap_percentage"):
+        parts = [p.strip() for p in arg.split(",") if p.strip()]
+        return {"type": "tap_pct", "x": float(parts[0]), "y": float(parts[1])}
+    if v in ("fill", "input"):
+        if "=" in arg:
+            sel, txt = arg.split("=", 1)
+            return {"type": "fill", "selector": sel.strip(), "text": txt}
+        return {"type": "type", "text": arg}
+    if v == "type":
+        return {"type": "type", "text": arg}
+    if v == "scroll":
+        return {"type": "scroll", "direction": arg or "down"}
+    if v in ("scroll-to", "scroll_to"):
+        return {"type": "scroll_to", "text": arg}
+    if v in ("wait", "wait-text", "wait_text"):
+        return {"type": "wait_text", "text": arg}
+    if v == "swipe":
+        pts = [float(p.strip()) for p in arg.split(",") if p.strip()]
+        return {
+            "type": "swipe",
+            "x1": pts[0],
+            "y1": pts[1],
+            "x2": pts[2],
+            "y2": pts[3],
+            "duration": int(pts[4]) if len(pts) > 4 else 300,
+        }
+    if v == "key":
+        return {"type": "key", "key": arg}
+    if v in ("open", "url", "open-url", "open_url"):
+        return {"type": "open_url", "uri": arg}
+    if v == "launch":
+        return {"type": "launch", "package": arg}
+    if v == "shell":
+        return {"type": "shell", "cmd": arg}
+    if v in ("sleep", "pause"):
+        return {"type": "sleep", "seconds": float(arg or 1.0)}
+    if v in ("dismiss", "auto-dismiss", "auto_dismiss"):
+        return {"type": "dismiss"}
+    return {"type": "click", "selector": raw}
 
 
 class AndroidEngine:
@@ -72,9 +146,6 @@ class AndroidEngine:
     def auto_dismiss_dialogs(self) -> dict[str, Any]:
         """Detect and dismiss common system permission dialogs, crash alerts, or ANRs."""
         ui = self.helper.dump_compact_ui(max_elements=40)
-        fg = str(ui.get("foreground") or "").lower()
-
-        # If systemui or packageinstaller is in foreground, dismiss permission/alert
         dismissed = []
         for target in SYSTEM_DIALOG_DISMISS_TARGETS:
             el = self.helper.find_element(target, max_elements=40)
@@ -149,76 +220,93 @@ class AndroidEngine:
         """Artemis active exploration: scroll until element is visible, then return its location."""
         return self.helper.scroll_to_text(target, max_scrolls=max_scrolls, direction=direction)
 
+    def execute_action(self, act: dict[str, Any]) -> dict[str, Any]:
+        """Single source of truth for executing any structured mobile UI action."""
+        act_type = str(act.get("type") or act.get("cmd") or "").lower()
+
+        if act_type in ("click", "tap_text", "tap-text"):
+            return self.helper.tap_element(str(act["selector"]))
+
+        if act_type == "fill":
+            return self.helper.fill_element(
+                str(act["selector"]),
+                str(act["text"]),
+                submit=bool(act.get("submit", False)),
+            )
+
+        if act_type == "tap":
+            return self.tap(float(act["x"]), float(act["y"]))
+
+        if act_type in ("tap_pct", "tap-pct", "tap_percentage"):
+            return self.tap_percentage(float(act["x"]), float(act["y"]))
+
+        if act_type == "type":
+            return self.helper.action("type", text=str(act["text"]), append=bool(act.get("append", False)))
+
+        if act_type == "swipe":
+            return self.swipe(
+                float(act["x1"]),
+                float(act["y1"]),
+                float(act["x2"]),
+                float(act["y2"]),
+                duration_ms=int(act.get("duration", 300)),
+            )
+
+        if act_type == "scroll":
+            return self.helper.scroll(str(act.get("direction", "down")))
+
+        if act_type in ("scroll_to", "scroll-to"):
+            return self.scroll_and_find(str(act["text"]))
+
+        if act_type in ("wait_text", "wait-text"):
+            ok = self._wait_for_text(str(act["text"]), timeout=float(act.get("timeout", 15.0)))
+            return {"success": ok, "text": act["text"]}
+
+        if act_type == "key":
+            return self.helper.action("global", action=str(act["key"]))
+
+        if act_type == "open_url":
+            res = self.adb.open_url(str(act["uri"]))
+            return {"success": bool(res.get("opened", True)), **res}
+
+        if act_type == "launch":
+            res = self.adb.launch_app(str(act["package"]))
+            return {"success": bool(res.get("launched", True)), **res}
+
+        if act_type == "shell":
+            out = self.adb.shell(str(act["cmd"]))
+            return {"success": True, "output": out}
+
+        if act_type in ("dismiss", "auto_dismiss", "auto-dismiss"):
+            return {"success": True, **self.auto_dismiss_dialogs()}
+
+        if act_type in ("sleep", "wait", "pause"):
+            secs = float(act.get("seconds", 1.0))
+            time.sleep(secs)
+            return {"success": True, "slept": secs}
+
+        return {"success": False, "error": f"Unknown action type: {act_type}"}
+
     def execute_action_burst(self, actions: list[str]) -> list[dict[str, Any]]:
-        """Execute a fast action burst (rapid multi-action execution) without LLM turn latency.
-
-        Supported step syntax:
-          - 'click:<selector_or_#id>'
-          - 'tap:<x>,<y>'
-          - 'tap_pct:<x_pct>,<y_pct>'
-          - 'fill:<selector>=<text>'
-          - 'type:<text>'
-          - 'key:<KEYCODE>'
-          - 'scroll:down' or 'scroll:up'
-          - 'scroll-to:<text>'
-          - 'swipe:<x1>,<y1>,<x2>,<y2>'
-          - 'sleep:<seconds>'
-          - 'dismiss' (auto dismiss dialogs)
-        """
+        """Execute a fast action burst without LLM turn latency."""
         results = []
-        for act in actions:
-            act = act.strip()
-            if not act:
+        for step in actions:
+            step_str = step.strip()
+            if not step_str:
                 continue
-
-            verb, _, arg = act.partition(":")
-            verb = verb.strip().lower()
-            arg = arg.strip()
-
-            if verb == "click":
-                res = self.helper.tap_element(arg)
-                results.append({"step": act, "result": res})
-            elif verb == "tap":
-                parts = [float(p.strip()) for p in arg.split(",") if p.strip()]
-                if len(parts) >= 2:
-                    res = self.tap(parts[0], parts[1])
-                    results.append({"step": act, "result": res})
-            elif verb == "tap_pct":
-                parts = [float(p.strip()) for p in arg.split(",") if p.strip()]
-                if len(parts) >= 2:
-                    res = self.tap_percentage(parts[0], parts[1])
-                    results.append({"step": act, "result": res})
-            elif verb == "fill":
-                sel, _, val = arg.partition("=")
-                res = self.helper.fill_element(sel.strip(), val)
-                results.append({"step": act, "result": res})
-            elif verb == "type":
-                res = self.helper.action("type", text=arg)
-                results.append({"step": act, "result": res})
-            elif verb == "key":
-                res = self.helper.action("key", key=arg)
-                results.append({"step": act, "result": res})
-            elif verb == "scroll":
-                res = self.helper.scroll(direction=arg or "down")
-                results.append({"step": act, "result": res})
-            elif verb == "scroll-to":
-                res = self.scroll_and_find(arg)
-                results.append({"step": act, "result": res})
-            elif verb == "swipe":
-                pts = [float(p.strip()) for p in arg.split(",") if p.strip()]
-                if len(pts) >= 4:
-                    res = self.swipe(pts[0], pts[1], pts[2], pts[3])
-                    results.append({"step": act, "result": res})
-            elif verb in ("sleep", "wait"):
-                dur = float(arg) if arg else 0.5
-                time.sleep(min(dur, 10.0))
-                results.append({"step": act, "duration": dur})
-            elif verb in ("dismiss", "auto-dismiss"):
-                res = self.auto_dismiss_dialogs()
-                results.append({"step": act, "result": res})
-            else:
-                results.append({"step": act, "error": f"Unknown action verb '{verb}'"})
-
+            parsed = parse_do_step(step_str)
+            res = self.execute_action(parsed)
+            results.append({"step": step_str, "result": res})
             time.sleep(0.1)
-
         return results
+
+    def _wait_for_text(self, text_needle: str, timeout: float = 15.0) -> bool:
+        needle = text_needle.lower()
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            ui = self.helper.dump_compact_ui(max_elements=100)
+            blob = json.dumps(ui.get("elements", []), ensure_ascii=False).lower()
+            if needle in blob:
+                return True
+            time.sleep(0.5)
+        return False
