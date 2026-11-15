@@ -84,6 +84,13 @@ class LiveWatcher:
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
+            # If running on Linux tiling window managers (Hyprland, Sway, i3), request floating mode
+            import threading
+            threading.Thread(
+                target=self._try_enable_floating,
+                args=(title, self.window_width, self.window_height),
+                daemon=True,
+            ).start()
         except Exception as exc:
             print(f"[agentdroid:watch] Could not start scrcpy overlay: {exc}", file=sys.stderr)
             return {"mode": "watch", "viewer": "none"}
@@ -93,6 +100,54 @@ class LiveWatcher:
             file=sys.stderr,
         )
         return {"mode": "watch", "viewer": "scrcpy_overlay"}
+
+    def _try_enable_floating(self, title: str, width: int, height: int) -> None:
+        """Attempt to enforce floating and target dimensions on Linux tiling WMs (Hyprland, Sway, i3)."""
+        import time
+        for _ in range(4):
+            time.sleep(0.3)
+            # Hyprland
+            if shutil.which("hyprctl"):
+                subprocess.run(
+                    ["hyprctl", "dispatch", "setfloating", f"title:{title}"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                subprocess.run(
+                    ["hyprctl", "dispatch", "pin", f"title:{title}"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                subprocess.run(
+                    ["hyprctl", "dispatch", "resizewindowpixel", f"exact {width} {height}", f"title:{title}"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                break
+            # Sway
+            if shutil.which("swaymsg"):
+                subprocess.run(
+                    ["swaymsg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                break
+            # i3
+            if shutil.which("i3-msg"):
+                subprocess.run(
+                    ["i3-msg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                break
+            # X11 / XWayland wmctrl
+            if shutil.which("wmctrl"):
+                subprocess.run(
+                    ["wmctrl", "-r", title, "-b", "add,above"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                break
 
     def stop(self, force: bool = False) -> None:
         if not force and (self.watch or os.environ.get("AGENTDROID_KEEP_WATCH") == "1"):
