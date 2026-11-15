@@ -26,7 +26,7 @@ SYSTEM_DIALOG_DISMISS_TARGETS = [
     "Only this time",
     "Allow",
     "Grant",
-    # ANRs and crashes
+    # ANRs, crashes, and first-run setup wizards
     "Wait",
     "Close app",
     "OK",
@@ -34,6 +34,11 @@ SYSTEM_DIALOG_DISMISS_TARGETS = [
     "Cancel",
     "Got it",
     "Not now",
+    "Skip",
+    "Continue",
+    "Accept",
+    "Finish",
+    "Get started",
 ]
 
 

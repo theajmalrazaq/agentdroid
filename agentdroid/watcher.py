@@ -169,28 +169,34 @@ class LiveWatcher:
     def _try_enable_floating(self, title: str, width: int, height: int) -> None:
         """Attempt to enforce floating and target dimensions on Linux tiling WMs (Hyprland, Sway, i3)."""
         import time
-        for _ in range(4):
-            time.sleep(0.3)
+        for _ in range(5):
+            time.sleep(0.35)
             # Hyprland
             if shutil.which("hyprctl"):
-                subprocess.run(
-                    ["hyprctl", "dispatch", "setfloating", f"title:{title}"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                subprocess.run(
-                    ["hyprctl", "dispatch", "pin", f"title:{title}"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                subprocess.run(
-                    ["hyprctl", "dispatch", "resizewindowpixel", f"exact {width} {height}", f"title:{title}"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                for selector in (f"title:{title}", "class:scrcpy", "initialTitle:scrcpy"):
+                    subprocess.run(
+                        ["hyprctl", "dispatch", "setfloating", selector],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    subprocess.run(
+                        ["hyprctl", "dispatch", "pin", selector],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    subprocess.run(
+                        ["hyprctl", "dispatch", "resizewindowpixel", f"exact {width} {height}", selector],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                 break
             # Sway
             if shutil.which("swaymsg"):
+                subprocess.run(
+                    ["swaymsg", f'[app_id="scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 subprocess.run(
                     ["swaymsg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
                     stdout=subprocess.DEVNULL,
@@ -200,7 +206,7 @@ class LiveWatcher:
             # i3
             if shutil.which("i3-msg"):
                 subprocess.run(
-                    ["i3-msg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
+                    ["i3-msg", f'[class="(?i)scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

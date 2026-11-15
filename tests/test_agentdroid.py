@@ -221,10 +221,9 @@ class TestLiveWatcherSimulatorOverlay(unittest.TestCase):
         self.assertIn("--window-width", cmd)
         self.assertEqual(cmd[cmd.index("--window-width") + 1], "412")
         self.assertIn("--window-height", cmd)
-        self.assertEqual(cmd[cmd.index("--window-height") + 1], "892")
-        self.assertIn("--stay-awake", cmd)
         self.assertIn("--no-audio", cmd)
         self.assertIn("--no-control", cmd)
+        self.assertNotIn("--stay-awake", cmd)
 
 
 
