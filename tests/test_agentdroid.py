@@ -207,6 +207,8 @@ class TestLiveWatcherSimulatorOverlay(unittest.TestCase):
             always_on_top=True,
             window_width=412,
             window_height=892,
+            window_x=100,
+            window_y=200,
             borderless=True,
             interactive_control=False,
         )
