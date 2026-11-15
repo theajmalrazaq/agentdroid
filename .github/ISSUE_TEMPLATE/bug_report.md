@@ -18,7 +18,8 @@ A clear and concise description of what the bug is.
 
 **Collect debug logs**
 **收集调试日志（ZH_CN）**
-`curl -fsSL https://raw.githubusercontent.com/remote-android/redroid-doc/master/debug.sh | sudo bash -s -- [CONTAINER]`
+`./scripts/debug.sh [CONTAINER]`
+(or `curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentdroid/main/scripts/debug.sh | sudo bash -s -- [CONTAINER]`)
 omit CONTAINER if not exist any more.
 如容器已退出，可忽略CONTAINER参数（ZH_CN）
 

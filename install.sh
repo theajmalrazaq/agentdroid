@@ -5,7 +5,7 @@
 # Usage:
 #   ./install.sh
 #   # OR one-liner from anywhere:
-#   curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentdroid/main/install.sh | bash
 #
 # What this single command does:
 #   1. Clones/updates AgentDroid (if not already running inside the repo)
@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-REPO_URL="${AGENTDROID_REPO_URL:-https://github.com/theajmalrazaq/agentsredroid.git}"
+REPO_URL="${AGENTDROID_REPO_URL:-https://github.com/theajmalrazaq/agentdroid.git}"
 INSTALL_DIR="${AGENTDROID_HOME:-${HOME}/.agentdroid}"
 SKIP_STACK="${AGENTDROID_SKIP_STACK:-0}"
 API_KEY_ARG="${1:-${GEMINI_API_KEY:-${OPENAI_API_KEY:-${ANTHROPIC_API_KEY:-${OPEN_ROUTER_API_KEY:-}}}}}"

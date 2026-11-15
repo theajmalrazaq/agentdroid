@@ -19,6 +19,7 @@ Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, scree
 - [How to Prompt Your AI Agent](#how-to-prompt-your-ai-agent)
 - [Is Redroid More Lightweight than Android Studio?](#is-redroid-more-lightweight-than-android-studios-emulator)
 - [Architecture](#architecture)
+- [Project Structure](#project-structure)
 - [General-Purpose Compound CLI (`agentdroid`)](#general-purpose-compound-cli-agentdroid)
 - [CLI Reference (`agentdroid`)](#cli-reference-agentdroid)
 - [Headless vs. Watch Mode (Floating Mobile Simulator)](#headless-vs-watch-mode-floating-mobile-simulator)
@@ -26,6 +27,7 @@ Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, scree
 - [Redroid Base Configuration & Kernel Modules](#redroid-base-configuration--kernel-modules)
 - [Native Bridge & GMS Support](#native-bridge--gms-support)
 - [Troubleshooting](#troubleshooting)
+- [Acknowledgements & Credits](#acknowledgements--credits)
 - [License](#license)
 
 ---
@@ -36,10 +38,10 @@ Run **one command** to install host tools (`adb`, `scrcpy`, Redroid kernel modul
 
 ```bash
 # Option A: One-liner from anywhere
-curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentsredroid/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/theajmalrazaq/agentdroid/main/install.sh | bash
 
 # Option B: From a local clone
-git clone https://github.com/theajmalrazaq/agentsredroid.git && cd agentsredroid
+git clone https://github.com/theajmalrazaq/agentdroid.git && cd agentdroid
 ./install.sh
 ```
 
@@ -123,6 +125,49 @@ Once `./install.sh` finishes, open **Antigravity, Claude Code, Codex, Cursor, or
 │ • Animations=0, Audio=SILENT      │ │ • Live MJPEG & SSE Step Stream    │
 │ • ArtemisAccessibilityHelper.apk  │ └───────────────────────────────────┘
 └───────────────────────────────────┘
+```
+
+---
+
+## Project Structure
+
+The repository is organized into cleanly separated, categorized directories:
+
+```
+agentdroid/
+├── bin/                          # Standalone CLI executables (`agentdroid`)
+├── agentdroid/                   # Core Python automation engine & library
+│   ├── adb.py                    # General-purpose ADB, F-Droid & device manager
+│   ├── artemis_bridge.py         # Autonomous Artemis agent bridge & retry loop
+│   ├── cli.py                    # Unified CLI parser & subcommand handlers
+│   ├── helper.py                 # Sub-second compact UI tree dumps (~150 tokens)
+│   ├── installer.py              # Environment installer & agent skills mounter
+│   ├── pipeline.py               # Compound single-call workflow execution engine
+│   └── watcher.py                # Headless background vs floating overlay watcher
+├── docker/                       # Multi-container Docker definitions
+│   ├── redroid/                  # Silent Android device image & system properties
+│   ├── artemis/                  # Artemis controller image & entrypoint
+│   └── builder/                  # AOSP custom image build environment & Dockerfile
+├── docs/                         # Categorized documentation & distro guides
+│   ├── deploy/                   # Linux distro guides (Ubuntu, Debian, Arch, WSL, K8s, LXC)
+│   ├── assets/                   # Architectural diagrams & screenshots
+│   └── README.zh-cn.md           # Chinese documentation
+├── packages/                     # On-device APK packages
+│   └── artemis-accessibility-helper/  # ArtemisAccessibilityHelper.apk & manifest
+├── scripts/                      # Host & container automation scripts
+│   ├── provision-device.sh       # Silent root ADB & modern Android 16 provisioner
+│   └── debug.sh                  # Container log & kernel module diagnostics
+├── skills/                       # Host AI agent skills
+│   └── agentdroid/SKILL.md       # Mounted skill for Claude Code, Antigravity, Cursor, etc.
+├── examples/                     # Declarative pipeline workflow specifications
+│   └── app-test-pipeline.json    # Sample multi-step workflow JSON
+├── tests/                        # Automated unit tests
+│   └── test_agentdroid.py        # Comprehensive CLI, pipeline & overlay test suite
+├── docker-compose.yml            # Multi-container device + controller stack
+├── install.sh                    # Universal one-command installer
+├── AGENTS.md                     # Direct operating rules for AI coding agents
+├── pyproject.toml                # Python packaging specification
+└── .env.example                  # Environment configuration template
 ```
 
 ---
@@ -280,25 +325,41 @@ Supported Redroid images (defaults to **Android 16**, configurable via `REDROID_
 | `androidboot.use_memfd` | Use `memfd` instead of deprecated `ashmem` | `true` |
 | `ro.secure=0` | Root ADB shell provided by default | `0` |
 
-See [deploy/README.md](deploy/README.md) for distro-specific kernel module instructions (Ubuntu, Debian, Fedora, Arch, CentOS, WSL, Kubernetes, LXC).
+See [docs/deploy/README.md](docs/deploy/README.md) for distro-specific kernel module instructions (Ubuntu, Debian, Fedora, Arch, CentOS, WSL, Kubernetes, LXC).
 
 ---
 
 ## Native Bridge & GMS Support
 
 - **ARM apps on x86_64**: Published `redroid` images include `libndk_translation`. See [@zhouziyang/libndk_translation](https://github.com/zhouziyang/libndk_translation) for details.
-- **GMS (Google Mobile Services)**: Can be added via Open GApps, MicroG, or MindTheGapps. See [android-builder-docker](./android-builder-docker) for custom image building.
+- **GMS (Google Mobile Services)**: Can be added via Open GApps, MicroG, or MindTheGapps. See [docker/builder](./docker/builder) for custom AOSP image building.
 
 ---
 
 ## Troubleshooting
 
 - Run `agentdroid doctor` (or `agentdroid doctor --json`) to inspect host tools, kernel `binder` support, ADB root status, silent device settings, Artemis Accessibility Helper reachability, and the Artemis Controller daemon.
-- Collect low-level Redroid container debug blobs with `./debug.sh agentdroid-device`.
+- Collect low-level Redroid container debug blobs with `./scripts/debug.sh agentdroid-device`.
+
+---
+
+## Acknowledgements & Credits
+
+AgentDroid stands on the shoulders of two foundational open-source projects:
+
+### 1. [Redroid (Remote Android in Cloud)](https://github.com/remote-android/redroid-doc)
+Created and maintained by the **Remote-Android team** ([@remote-android](https://github.com/remote-android)).
+- Redroid provides the core multi-arch, GPU-accelerated Android In Cloud (AIC) container runtime that shares the host Linux kernel directly via `binder_linux` and `memfd`.
+- AgentDroid builds upon Redroid’s lightweight containerization, kernel driver architecture, and root ADB environment to make Android accessible as an ultra-fast, native computer for AI agents.
+
+### 2. [Google Artemis](https://github.com/google/artemis)
+Created and open-sourced by **Google** ([@google/artemis](https://github.com/google/artemis)).
+- Artemis provides an autonomous agent framework for Android designed for perceptual reasoning, safety net verification, and goal-directed UI execution.
+- AgentDroid integrates Artemis's high-performance Accessibility Helper (`ArtemisAccessibilityHelper.apk`), token-efficient screen representations (~150 tokens per screen), and autonomous verification loops to enable zero-token-waste AI workflows.
 
 ---
 
 ## License
 
-- **Redroid** and **Google Artemis** components are licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-- Redroid kernel modules are under [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+- **AgentDroid**, **Redroid**, and **Google Artemis** components are licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+- Redroid kernel modules are licensed under [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
