@@ -58,7 +58,9 @@ class LiveWatcher:
             return {"mode": "watch", "viewer": "none"}
 
         title = self.window_title or f"AgentDroid · Android Simulator ({self.serial})"
-        cmd = [scrcpy_bin, "-s", self.serial, "--window-title", title, "--stay-awake", "--no-audio"]
+        cmd = [scrcpy_bin, "-s", self.serial, "--window-title", title, "--no-audio"]
+        if self.interactive_control:
+            cmd.append("--stay-awake")
         if self.always_on_top:
             cmd.append("--always-on-top")
         if self.window_width > 0:
@@ -76,7 +78,11 @@ class LiveWatcher:
 
         try:
             self._scrcpy_proc = subprocess.Popen(
-                cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
             )
         except Exception as exc:
             print(f"[agentdroid:watch] Could not start scrcpy overlay: {exc}", file=sys.stderr)
@@ -88,7 +94,9 @@ class LiveWatcher:
         )
         return {"mode": "watch", "viewer": "scrcpy_overlay"}
 
-    def stop(self) -> None:
+    def stop(self, force: bool = False) -> None:
+        if not force and (self.watch or os.environ.get("AGENTDROID_KEEP_WATCH") == "1"):
+            return
         proc = self._scrcpy_proc
         if proc is not None and proc.poll() is None:
             try:

@@ -262,7 +262,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        watcher.stop()
+        watcher.stop(force=True)
     return 0
 
 
@@ -606,7 +606,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print(f"AgentDroid Doctor ({adb.serial})")
         print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={report['host']['kernel_binder_loaded']}")
         print(f"  • Device Connected:   {report['device']['connected']} (root={report['device']['root_adb']}, silent_provisioned={report['device']['silent_provisioned']})")
-        print(f"  • Accessibility Helper: {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping.get('reachable') else 'not reachable'}")
+        is_reachable = bool(helper_ping.get("reachable") or helper_ping.get("success"))
+        print(f"  • Accessibility Helper: {'reachable (v' + str(helper_ping.get('version_name')) + ')' if is_reachable else 'not reachable'}")
     return 0 if report["ok"] else 1
 
 
@@ -638,6 +639,9 @@ def cmd_setup(args: argparse.Namespace) -> int:
             print("✅ Silent Android device is up and provisioned!")
         elif st.get("skipped"):
             print("ℹ Stack startup skipped (--no-start). Run 'agentdroid up' when ready.")
+    return 0
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     from agentdroid.mcp import McpServer, install_mcp_config
 
@@ -1198,7 +1202,8 @@ def main(argv: list[str] | None = None) -> int:
     if func is None:
         parser.print_help()
         return 0
-    return int(func(args))
+    res = func(args)
+    return int(res) if res is not None else 0
 
 
 if __name__ == "__main__":
