@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -22,8 +23,9 @@ type Config struct {
 
 // Router dispatches HTTP requests across modular AgentDroid handlers.
 type Router struct {
-	cfg *Config
-	mux *http.ServeMux
+	cfg      *Config
+	mux      *http.ServeMux
+	security *SecurityGuardrails
 }
 
 // NewRouter initializes modular API routes with CORS and authentication.
@@ -41,9 +43,11 @@ func NewRouter(cfg *Config) *Router {
 		cfg.AgentDroidCLI = "agentdroid"
 	}
 
+	secEnabled := os.Getenv("AGENTDROID_SECURITY_MODE") != "off"
 	r := &Router{
-		cfg: cfg,
-		mux: http.NewServeMux(),
+		cfg:      cfg,
+		mux:      http.NewServeMux(),
+		security: NewSecurityGuardrails(secEnabled),
 	}
 
 	r.registerRoutes()
@@ -90,6 +94,15 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	clientIP := req.RemoteAddr
+	if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil && host != "" {
+		clientIP = host
+	}
+	if err := r.security.ValidateRateLimit(clientIP); err != nil {
+		sendError(w, err.Error(), http.StatusTooManyRequests)
 		return
 	}
 

@@ -424,8 +424,45 @@ class TestAgentDroidCloudServer(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_security_guardrails_ssrf_and_path_traversal(self) -> None:
+        from agentdroid.security import SecurityError, SecurityGuardrails
+
+        sg = SecurityGuardrails(enabled=True, allow_private_networks=False, allow_shell=False)
+
+        # 1. SSRF URL rejection
+        with self.assertRaises(SecurityError) as ctx:
+            sg.validate_url("http://169.254.169.254/latest/meta-data/")
+        self.assertEqual(ctx.exception.violation_type, "ssrf_blocked")
+
+        with self.assertRaises(SecurityError) as ctx:
+            sg.validate_url("file:///etc/passwd")
+        self.assertEqual(ctx.exception.violation_type, "blocked_scheme")
+
+        # Safe URL passes
+        sg.validate_url("https://news.ycombinator.com")
+
+        # 2. Path traversal rejection
+        with self.assertRaises(SecurityError) as ctx:
+            sg.validate_host_path("../../.ssh/id_rsa")
+        self.assertEqual(ctx.exception.violation_type, "path_traversal")
+
+        with self.assertRaises(SecurityError) as ctx:
+            sg.validate_host_path("/etc/shadow")
+        self.assertEqual(ctx.exception.violation_type, "path_traversal")
+
+        # Safe workspace path passes
+        sg.validate_host_path("./artifacts/output.txt")
+
+        # 3. Prohibited shell command rejection
+        with self.assertRaises(SecurityError):
+            sg.validate_shell_command("rm -rf /")
+
+        with self.assertRaises(SecurityError):
+            sg.validate_shell_command(":(){ :|:& };:")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

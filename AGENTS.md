@@ -107,3 +107,15 @@ const { text } = await generateText({
   },
 });
 ```
+
+---
+
+## Web & Cloud Security Guardrails
+
+When connecting to an AgentDroid instance over HTTP / cloud endpoints:
+- **SSRF Protection**: Metadata endpoints (`169.254.169.254`, `metadata.google.internal`) and private ranges are blocked by default.
+- **Path Traversal Defense**: Access to sensitive files (`.env`, `.ssh`, `/etc/shadow`, `/etc/passwd`) is denied.
+- **Shell Command Blocking**: Arbitrary shell commands (`pre_shell`, `post_shell`, `--do shell:`) are blocked in web mode to prevent remote code execution or system tampering.
+- **Rate Limiting**: Requests are metered per client IP (default 60 rpm) to prevent denial-of-service floods.
+- **Local Freedom**: When working locally on your dev machine via the `agentdroid` CLI, you retain full developer permissions and zero restriction.
+

@@ -22,6 +22,7 @@ import urllib.parse
 from agentdroid.adb import AdbDevice
 from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec, parse_do_step
+from agentdroid.security import SecurityError, SecurityGuardrails
 
 
 def _build_playground_html() -> str:
@@ -742,6 +743,13 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
             raise ValueError(f"Invalid JSON request body: {e}") from e
 
     def do_GET(self) -> None:
+        client_ip = self.client_address[0] if getattr(self, "client_address", None) else "127.0.0.1"
+        try:
+            self.server_instance.security.validate_rate_limit(client_ip)
+        except SecurityError as e:
+            self._send_error_json(str(e), status=429)
+            return
+
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
         if not path:
@@ -851,6 +859,13 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
         self._send_error_json(f"Endpoint not found: {path}", status=404)
 
     def do_POST(self) -> None:
+        client_ip = self.client_address[0] if getattr(self, "client_address", None) else "127.0.0.1"
+        try:
+            self.server_instance.security.validate_rate_limit(client_ip)
+        except SecurityError as e:
+            self._send_error_json(str(e), status=429)
+            return
+
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
 
@@ -871,6 +886,12 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
                 spec_dict["serial"] = self.server_instance.serial
             if not spec_dict.get("artemis_url"):
                 spec_dict["artemis_url"] = self.server_instance.artemis_url
+
+            try:
+                self.server_instance.security.validate_pipeline_payload(spec_dict)
+            except SecurityError as e:
+                self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                return
 
             spec = PipelineSpec.from_dict(spec_dict)
             pipeline = CompoundPipeline(spec)
@@ -894,6 +915,18 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
             for item in actions:
                 step = parse_do_step(item) if isinstance(item, str) else item
                 stype = step.get("type", "click")
+                if stype == "shell":
+                    try:
+                        self.server_instance.security.validate_shell_command(step.get("cmd", ""))
+                    except SecurityError as e:
+                        self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                        return
+                elif stype == "open_url":
+                    try:
+                        self.server_instance.security.validate_url(step.get("uri", ""))
+                    except SecurityError as e:
+                        self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                        return
                 if stype == "click":
                     res = helper.tap_element(step.get("selector", ""))
                 elif stype == "fill":
@@ -956,6 +989,12 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
             if not target_url:
                 self._send_error_json("Missing 'url' or 'uri' in body", status=400)
                 return
+            try:
+                self.server_instance.security.validate_url(target_url)
+            except SecurityError as e:
+                self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                return
+
             res = adb.open_uri(target_url, package=body.get("package"))
             self._send_json({"ok": bool(res.get("opened")), "result": res})
             return
@@ -967,6 +1006,19 @@ class AgentDroidRequestHandler(BaseHTTPRequestHandler):
             if not source:
                 self._send_error_json("Missing 'source' in body (path, URL, or fdroid:<query>)", status=400)
                 return
+
+            if source.startswith("http://") or source.startswith("https://"):
+                try:
+                    self.server_instance.security.validate_url(source)
+                except SecurityError as e:
+                    self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                    return
+            elif not source.startswith("fdroid:"):
+                try:
+                    self.server_instance.security.validate_host_path(source)
+                except SecurityError as e:
+                    self._send_error_json(f"SecurityGuardrailViolation: {e}", status=403)
+                    return
             info = adb.install_apk(
                 source,
                 grant_permissions=bool(body.get("grant_permissions", True)),
@@ -1013,6 +1065,7 @@ class AgentDroidServer(ThreadingHTTPServer):
 
         self._adb = AdbDevice(serial=self.serial)
         self._helper = AccessibilityHelperClient(self._adb)
+        self.security = SecurityGuardrails.from_env()
 
         super().__init__((host, port), AgentDroidRequestHandler)
 

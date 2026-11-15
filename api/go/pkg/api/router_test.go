@@ -63,3 +63,35 @@ func TestRouterHealthAndCORS(t *testing.T) {
 		t.Fatalf("expected status 204 for OPTIONS preflight, got %d", wOptions.Code)
 	}
 }
+
+func TestSecurityGuardrails(t *testing.T) {
+	sg := NewSecurityGuardrails(true)
+
+	// 1. SSRF URL check
+	if err := sg.ValidateURL("http://169.254.169.254/latest/meta-data/"); err == nil {
+		t.Fatalf("expected error for cloud metadata IP 169.254.169.254")
+	}
+	if err := sg.ValidateURL("file:///etc/passwd"); err == nil {
+		t.Fatalf("expected error for file:// scheme")
+	}
+	if err := sg.ValidateURL("https://example.com"); err != nil {
+		t.Fatalf("expected valid https URL to pass, got: %v", err)
+	}
+
+	// 2. Path traversal check
+	if err := sg.ValidateHostPath("../../.ssh/id_rsa"); err == nil {
+		t.Fatalf("expected error for .ssh path traversal")
+	}
+	if err := sg.ValidateHostPath("/etc/shadow"); err == nil {
+		t.Fatalf("expected error for /etc/shadow")
+	}
+	if err := sg.ValidateHostPath("./artifacts/notes.md"); err != nil {
+		t.Fatalf("expected safe artifacts path to pass, got: %v", err)
+	}
+
+	// 3. Shell command validation in safe mode
+	if err := sg.ValidateShellCommand("rm -rf /"); err == nil {
+		t.Fatalf("expected error for destructive shell command")
+	}
+}
+

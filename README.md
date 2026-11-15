@@ -21,6 +21,8 @@ Instead of wasting tokens on dozens of back-and-forth MCP tool calls (tap, scree
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [General-Purpose Compound CLI (`agentdroid`)](#general-purpose-compound-cli-agentdroid)
+- [Cloud REST API & Vercel AI SDK Integration](#cloud-deployment-rest-api--vercel-ai-sdk)
+- [Cloud & Web Security Guardrails](#cloud--web-security-guardrails)
 - [CLI Reference (`agentdroid`)](#cli-reference-agentdroid)
 - [Headless vs. Watch Mode (Floating Mobile Simulator)](#headless-vs-watch-mode-floating-mobile-simulator)
 - [Silent Device Provisioning & Modern UI/UX](#silent-device-provisioning--modern-uiux)
@@ -415,6 +417,27 @@ Commands:
 | `POST` | `/api/v1/device/open-url` | Open URL or deep link in Android |
 | `GET` | `/api/v1/apps` | List installed third-party apps |
 | `POST` | `/api/v1/app/install` | Install APK from URL, local path, or F-Droid |
+
+---
+
+### 6. Cloud & Web Security Guardrails
+
+When AgentDroid is deployed in the cloud or exposed over HTTP (`agentdroid serve`, Docker, or the Go REST API), it automatically enforces strict security guardrails (`AGENTDROID_SECURITY_MODE=web`) so remote clients or prompt-injected LLMs cannot compromise the host environment:
+
+1. **SSRF & Cloud Metadata Protection**:
+   - Blocks all requests targeting cloud instance metadata endpoints (`169.254.169.254`, `metadata.google.internal`, link-local ranges).
+   - Blocks requests targeting private subnets (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1`) unless explicitly opted in via `AGENTDROID_ALLOW_PRIVATE_NETWORKS=true`.
+   - Restricts URL schemes to safe web and mobile protocols (`http`, `https`, `market`, `geo`, `tel`).
+2. **Host Path Traversal & Sensitive File Defense**:
+   - Blocks path traversal attempts (`..`, `~`, `/proc`, `/sys`).
+   - Prevents reading, writing, or pushing sensitive host secrets (`.env`, `.ssh`, `.git`, `/etc/shadow`, `/etc/passwd`).
+3. **Destructive Shell Command Prevention**:
+   - In web mode, arbitrary shell execution (`pre_shell`, `post_shell`, `--do shell:`) is blocked by default (`AGENTDROID_ALLOW_WEB_SHELL=false`).
+   - Hard blocks destructive primitives: recursive filesystem wipes (`rm -rf /`), fork bombs, system reboots (`reboot`, `shutdown`, `setenforce 0`), reverse shells (`nc -e`, `/dev/tcp/`), and untrusted pipe execution (`curl | bash`).
+4. **Adaptive Rate Limiting**:
+   - Sliding-window rate limiter per client IP (default: 60 rpm, configurable via `AGENTDROID_RATE_LIMIT_RPM`).
+5. **Frictionless Local Developer Experience**:
+   - Local CLI execution (`agentdroid run`, `agentdroid app install`, etc.) runs in local mode (`AGENTDROID_SECURITY_MODE=local`), preserving complete developer freedom and zero friction on developer machines.
 
 ---
 

@@ -22,6 +22,23 @@ func (r *Router) handleRun(w http.ResponseWriter, req *http.Request) {
 		body["artemis_url"] = r.cfg.ArtemisURL
 	}
 
+	if u, ok := body["open_url"].(string); ok && u != "" {
+		if err := r.security.ValidateURL(u); err != nil {
+			sendError(w, "SecurityGuardrailViolation: "+err.Error(), http.StatusForbidden)
+			return
+		}
+	}
+	if urls, ok := body["open_urls"].([]any); ok {
+		for _, raw := range urls {
+			if u, ok := raw.(string); ok && u != "" {
+				if err := r.security.ValidateURL(u); err != nil {
+					sendError(w, "SecurityGuardrailViolation: "+err.Error(), http.StatusForbidden)
+					return
+				}
+			}
+		}
+	}
+
 	// Create temporary pipeline specification file
 	tmpFile, err := os.CreateTemp("", "agentdroid-pipeline-*.json")
 	if err != nil {

@@ -103,6 +103,11 @@ func (r *Router) handleOpenURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if err := r.security.ValidateURL(url); err != nil {
+		sendError(w, "SecurityGuardrailViolation: "+err.Error(), http.StatusForbidden)
+		return
+	}
+
 	args := []string{"device", "open", url, "-s", r.cfg.Serial, "-j"}
 	if pkg, ok := body["package"].(string); ok && pkg != "" {
 		args = append(args, "-p", pkg)
@@ -160,6 +165,18 @@ func (r *Router) handleInstallApp(w http.ResponseWriter, req *http.Request) {
 	if source == "" {
 		sendError(w, "Field 'source' (file, URL, or fdroid:<pkg>) is required", http.StatusBadRequest)
 		return
+	}
+
+	if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
+		if err := r.security.ValidateURL(source); err != nil {
+			sendError(w, "SecurityGuardrailViolation: "+err.Error(), http.StatusForbidden)
+			return
+		}
+	} else if !strings.HasPrefix(source, "fdroid:") {
+		if err := r.security.ValidateHostPath(source); err != nil {
+			sendError(w, "SecurityGuardrailViolation: "+err.Error(), http.StatusForbidden)
+			return
+		}
 	}
 
 	args := []string{"app", "install", source, "-s", r.cfg.Serial, "-j"}
