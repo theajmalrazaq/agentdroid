@@ -302,7 +302,7 @@ class McpServer:
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_install_app":
-            res = self.adb.install_apk(args["source"], auto_grant_permissions=True)
+            res = self.adb.install_apk(args["source"], grant_permissions=True)
             return json.dumps(res.to_dict(), indent=2, ensure_ascii=False)
 
         if name == "mobile_open_url":

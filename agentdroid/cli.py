@@ -667,7 +667,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version="agentdroid 0.2.0")
+    parser.add_argument("--version", action="version", version="agentdroid 0.3.0")
     subparsers = parser.add_subparsers(dest="subcommand")
 
     # --- setup / init ---

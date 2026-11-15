@@ -16,7 +16,6 @@ from typing import Any
 
 from agentdroid.adb import AdbDevice, InstalledAppInfo
 from agentdroid.engine import AndroidEngine, parse_do_step
-from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.watcher import LiveWatcher
 
 

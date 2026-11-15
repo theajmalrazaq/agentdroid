@@ -279,7 +279,7 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         self.assertIn("mobile_action_burst", tool_names)
         self.assertIn("mobile_auto_dismiss_dialogs", tool_names)
 
-        # 3. Tool call
+        # 3. Tool call - device state
         server.engine.helper.dump_compact_ui = MagicMock(
             return_value={"foreground": "com.android.settings", "element_count": 1, "elements": []}
         )
@@ -291,6 +291,27 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         })
         self.assertFalse(call_resp["result"]["isError"])
         self.assertIn("com.android.settings", call_resp["result"]["content"][0]["text"])
+
+        # 4. Tool call - mobile_install_app
+        server.adb.install_apk = MagicMock(
+            return_value=InstalledAppInfo(
+                source="fdroid:net.gsantner.markor",
+                local_path="/tmp/markor.apk",
+                package="net.gsantner.markor",
+                main_activity="net.gsantner.markor/.MainActivity",
+                permissions_granted=3,
+                appops_granted=5,
+                duration_sec=0.5,
+            )
+        )
+        install_resp = server.handle_request({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "mobile_install_app", "arguments": {"source": "fdroid:net.gsantner.markor"}},
+        })
+        self.assertFalse(install_resp["result"]["isError"])
+        self.assertIn("net.gsantner.markor", install_resp["result"]["content"][0]["text"])
 
     def test_mcp_install_configs_idempotent(self) -> None:
         from agentdroid.mcp import install_mcp_config
