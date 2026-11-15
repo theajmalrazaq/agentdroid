@@ -155,23 +155,30 @@ class AdbDevice:
 
     def connect(self, timeout: float = 30.0) -> bool:
         """Connect to TCP ADB device if needed and verify online state."""
-        subprocess.run(
-            [self.adb_bin, "start-server"],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=10.0,
-            check=False,
-        )
+        try:
+            subprocess.run(
+                [self.adb_bin, "start-server"],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=10.0,
+                check=False,
+            )
+        except Exception:
+            return False
+
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if ":" in self.serial:
-                subprocess.run(
-                    [self.adb_bin, "connect", self.serial],
-                    stdin=subprocess.DEVNULL,
-                    capture_output=True,
-                    timeout=5.0,
-                    check=False,
-                )
+                try:
+                    subprocess.run(
+                        [self.adb_bin, "connect", self.serial],
+                        stdin=subprocess.DEVNULL,
+                        capture_output=True,
+                        timeout=5.0,
+                        check=False,
+                    )
+                except Exception:
+                    return False
             state = self.run_adb(["get-state"], timeout=5.0)
             if state.returncode == 0 and (state.stdout or "").strip() == "device":
                 return True
