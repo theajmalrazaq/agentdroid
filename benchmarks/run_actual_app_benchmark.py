@@ -1,355 +1,355 @@
 #!/usr/bin/env python3
-"""Extensive Real-World Task Benchmark Runner for AgentDroid vs AndroidWorld vs Mobilebox.
+"""
+AgentDroid Real-App End-to-End (E2E) Verified Benchmark Suite.
 
-Executes actual end-to-end task workflows on the active Android device:
-1. Markor: Note creation, multi-line typing, save, file verification on disk.
-2. DeskClock: Alarm tab navigation, create/toggle alarm, UI verification.
-3. Settings: Deep app audit (Apps & notifications -> Markor App Info).
-4. Sideload & Cold Start: APK reinstall and cold-start interactive turnaround.
+Runs 4 genuine multi-step application workflows on live hardware/Redroid via
+AgentDroid's CompoundPipeline, AndroidEngine, and headless CLI, verifying state
+changes cleanly without false-positive assertions:
+  1. Markor: push markdown note -> launch/edit append -> save -> pull & verify content delta
+  2. DeskClock: clean reset -> baseline count -> add alarm -> verify clock + ON count delta (+1)
+  3. Settings CLI: full subprocess `agentdroid run --headless` app audit for Markor Permissions/Storage
+  4. Fossify Math: fresh `adb install` (org.fossify.math, 7.0 MB) + CLI `42 + 58 = 100` UI verification
 
-Measures empirical wall-clock time, step counts, action latencies, perception times,
-token consumption, and dollar costs.
+Usage:
+    python3 benchmarks/run_actual_app_benchmark.py [--serial 127.0.0.1:5555]
 """
 
 from __future__ import annotations
 
+import argparse
+from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
-import statistics
 import subprocess
+import sys
 import time
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from agentdroid.adb import AdbDevice
+from agentdroid.engine import AndroidEngine
 from agentdroid.helper import AccessibilityHelperClient
+from agentdroid.pipeline import CompoundPipeline, PipelineSpec
 
-SERIAL = "127.0.0.1:5555"
+FOSSIFY_APK = Path.home() / ".cache" / "agentdroid" / "apks" / "org.fossify.math_10.apk"
+RESULTS_PATH = PROJECT_ROOT / "benchmarks" / "results" / "benchmark_actual_apps_results.json"
+ARTIFACT_PATH = Path(
+    "/home/theajmalrazaq/.gemini/antigravity/brain/1c28a521-619a-43a8-884d-64ad1867f93a/benchmark_actual_apps_results.json"
+)
 
-def token_count(data: Any) -> int:
-    """Approximate token count for JSON/text payload (4 chars ~= 1 token)."""
-    text = json.dumps(data) if not isinstance(data, str) else data
-    return max(1, len(text) // 4)
 
-def run_benchmarks():
-    dev = AdbDevice(SERIAL)
-    if not dev.connect(timeout=5.0):
-        raise RuntimeError("ADB connection failed to " + SERIAL)
+def run_cli_json(args: list[str], timeout: float = 90.0) -> tuple[float, dict[str, Any]]:
+    """Run `agentdroid run ... -j` subprocess and return (wall_sec, parsed_json)."""
+    t0 = time.perf_counter()
+    proc = subprocess.run(
+        ["agentdroid", *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    wall_sec = time.perf_counter() - t0
+    if not proc.stdout.strip():
+        raise RuntimeError(f"agentdroid returned empty stdout (rc={proc.returncode}): {proc.stderr}")
+    data = json.loads(proc.stdout)
+    return wall_sec, data
 
-    helper = AccessibilityHelperClient(dev)
-    if not helper.ensure_ready():
-        raise RuntimeError("Accessibility Helper not ready")
 
-    results = {
-        "benchmark_metadata": {
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "device": dev.serial,
-            "android_version": dev.shell("getprop ro.build.version.release").strip(),
-            "cpu_arch": dev.shell("getprop ro.product.cpu.abi").strip(),
-            "display": dev.shell("wm size").strip(),
-            "artemis_helper_version": helper.ping().get("version_name"),
+def task1_markor_note_workflow(dev: AdbDevice) -> dict[str, Any]:
+    """Task 1: Push Markdown template, append line inside Markor editor, save, pull & diff."""
+    remote_path = "/sdcard/Download/agentdroid_bench_task1.md"
+    local_in = Path("/tmp/agentdroid_task1_in.md")
+    local_out = Path("/tmp/agentdroid_task1_pulled.md")
+    initial_text = "# AgentDroid E2E Benchmark\nStatus: Pending\nNotes:\n"
+    append_marker = "Verified live benchmark PASSED"
+
+    local_in.write_text(initial_text)
+    local_out.unlink(missing_ok=True)
+    dev.shell("am force-stop net.gsantner.markor")
+    dev.shell(f"rm -f {remote_path}")
+
+    t0 = time.perf_counter()
+    spec = PipelineSpec.from_dict(
+        {
+            "serial": dev.serial,
+            "headless": True,
+            "provision": False,
+            "push_files": [f"{local_in}:{remote_path}"],
+            "open_url": f"file://{remote_path}",
+            "ui_actions": [
+                {"type": "wait_text", "text": "Status"},
+                {"type": "click", "selector": "document__fragment__edit__highlighting_editor"},
+                {"type": "type", "text": f"\n{append_marker}", "append": True},
+                {"type": "click", "selector": "Save"},
+            ],
+            "pull_files": [f"{remote_path}:{local_out}"],
+            "check_crashes": True,
+        }
+    )
+    report = CompoundPipeline(spec).run()
+    wall_sec = time.perf_counter() - t0
+
+    pulled_text = local_out.read_text() if local_out.exists() else ""
+    header_intact = "# AgentDroid E2E Benchmark" in pulled_text
+    marker_present = append_marker in pulled_text
+    bytes_grew = len(pulled_text.encode("utf-8")) > len(initial_text.encode("utf-8"))
+    passed = bool(
+        report.get("ok")
+        and header_intact
+        and marker_present
+        and bytes_grew
+        and not report.get("crashes", {}).get("has_crashes")
+    )
+
+    return {
+        "task": "markor_markdown_edit_verify",
+        "method": "CompoundPipeline (single turn, append=True)",
+        "ok": passed,
+        "wall_clock_sec": round(wall_sec, 3),
+        "pipeline_duration_sec": report.get("duration_sec"),
+        "steps_executed": len(report.get("ui_actions_executed", [])),
+        "llm_turns_required": 1,
+        "initial_bytes": len(initial_text.encode("utf-8")),
+        "pulled_bytes": len(pulled_text.encode("utf-8")),
+        "verification": {
+            "header_intact": header_intact,
+            "marker_present": marker_present,
+            "bytes_grew": bytes_grew,
+            "crashes": bool(report.get("crashes", {}).get("has_crashes")),
+            "pulled_preview": pulled_text,
         },
-        "tasks": {},
+        "errors": report.get("errors", []),
     }
 
-    # =========================================================================
-    # TASK 1: Markor Note Workflow (AndroidWorld core task: markor_create_note)
-    # =========================================================================
-    print("\n=======================================================")
-    print("TASK 1: Markor Note Creation & Save (AndroidWorld markor)")
-    print("=======================================================")
-    t_start = time.perf_counter()
-    task1_steps = []
-    task1_perception_times = []
-    task1_tokens = 0
 
-    # Step 1.1: Reset app state and push initial template
-    dev.shell("am force-stop net.gsantner.markor")
-    test_file_dev = "/sdcard/Download/agentdroid_benchmark_task1.md"
-    dev.shell(f"rm -f {test_file_dev}")
-    initial_text = "# Benchmark Task 1\nStatus: Pending Execution\n"
-    tmp_local = Path("/tmp/agentdroid_task1.md")
-    tmp_local.write_text(initial_text, encoding="utf-8")
-    dev.push_file(str(tmp_local), test_file_dev)
+def _count_deskclock_alarms(helper: AccessibilityHelperClient) -> tuple[int, int, list[dict[str, Any]]]:
+    dump = helper.dump_compact_ui(max_elements=80)
+    elements = dump.get("elements", [])
+    clocks = [e for e in elements if e.get("resource_id") == "digital_clock"]
+    on_switches = [
+        e for e in elements if e.get("resource_id") == "onoff" and e.get("label") == "ON"
+    ]
+    return len(clocks), len(on_switches), clocks
 
-    # Step 1.2: Launch Markor directly opening the target file
+
+def task2_deskclock_add_alarm(dev: AdbDevice, helper: AccessibilityHelperClient, engine: AndroidEngine) -> dict[str, Any]:
+    """Task 2: Clean DeskClock state -> baseline alarm count -> create alarm -> verify +1 clock & +1 ON."""
+    dev.shell("pm clear com.android.deskclock")
+    time.sleep(0.5)
+
     t0 = time.perf_counter()
-    dev.shell(f"am start -a android.intent.action.VIEW -d file://{test_file_dev} -t text/plain net.gsantner.markor")
-    time.sleep(1.0)
-    task1_steps.append({"step": "launch_and_open_file", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 1.3: Perceive UI
-    t0 = time.perf_counter()
-    ui = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task1_perception_times.append(dt_perc)
-    tok = token_count(ui)
-    task1_tokens += tok
-    task1_steps.append({"step": "perceive_editor_screen", "perception_ms": round(dt_perc, 2), "tokens": tok})
-
-    # Step 1.4: Tap Edit or editor body
-    t0 = time.perf_counter()
-    tap_res = helper.tap_element("Edit", timeout=3.0)
-    if not tap_res.get("success"):
-        # Fallback to tap editor area
-        helper.action("tap", x=540, y=600)
-    task1_steps.append({"step": "tap_edit", "latency_s": round(time.perf_counter() - t0, 3)})
+    launch_info = dev.launch_app("com.android.deskclock")
+    engine.execute_action({"type": "wait_text", "text": "Alarm", "timeout": 8.0})
+    engine.execute_action({"type": "click", "selector": "Alarm"})
     time.sleep(0.4)
 
-    # Step 1.5: Type verification lines
-    t0 = time.perf_counter()
-    dev.shell("input keyevent KEYCODE_MOVE_END")
-    dev.shell("input text '\n- [x] Verified by AgentDroid Artemis Engine\n- [x] Wall-Clock Latency Benchmark PASSED'")
-    task1_steps.append({"step": "type_checklist_items", "latency_s": round(time.perf_counter() - t0, 3)})
-    time.sleep(0.5)
+    before_clocks, before_on, _ = _count_deskclock_alarms(helper)
 
-    # Step 1.6: Tap Save
-    t0 = time.perf_counter()
-    save_res = helper.tap_element("Save", timeout=3.0)
-    if not save_res.get("success"):
-        helper.action("tap", x=970, y=140)  # Save icon coordinates in Markor toolbar
-    task1_steps.append({"step": "tap_save", "latency_s": round(time.perf_counter() - t0, 3)})
-    time.sleep(0.8)
+    steps = [
+        {"type": "click", "selector": "Add alarm"},
+        {"type": "wait_text", "text": "OK", "timeout": 5.0},
+        {"type": "click", "selector": "OK"},
+    ]
+    executed = [engine.execute_action(step) for step in steps]
+    time.sleep(0.6)
 
-    # Step 1.7: Pull file and verify on host
-    t0 = time.perf_counter()
-    pulled_local = Path("/tmp/agentdroid_task1_pulled.md")
-    dev.pull_file(test_file_dev, str(pulled_local))
-    content = pulled_local.read_text(encoding="utf-8") if pulled_local.is_file() else ""
-    task1_verified = "Verified by AgentDroid Artemis Engine" in content
-    task1_steps.append({"step": "pull_and_verify_file", "latency_s": round(time.perf_counter() - t0, 3), "verified": task1_verified})
+    after_clocks, after_on, after_items = _count_deskclock_alarms(helper)
+    wall_sec = time.perf_counter() - t0
 
-    t_task1_total = time.perf_counter() - t_start
-    results["tasks"]["task1_markor_note"] = {
-        "task_name": "Markor Note Creation, Edit & Verify (AndroidWorld markor_create_note)",
-        "verified": task1_verified,
-        "total_wall_clock_s": round(t_task1_total, 2),
-        "steps_count": len(task1_steps),
-        "mean_action_latency_s": round(statistics.mean([s.get("latency_s", 0.0) for s in task1_steps if "latency_s" in s]), 3),
-        "perception_turnaround_ms": round(statistics.mean(task1_perception_times) if task1_perception_times else 0.0, 2),
-        "artemis_tokens_consumed": task1_tokens,
-        "vision_equivalent_tokens": len(task1_steps) * 1600,
-        "token_reduction_pct": round((1.0 - (task1_tokens / max(1, len(task1_steps) * 1600))) * 100, 1),
-        "compute_cost_usd": 0.0,
-        "steps_detail": task1_steps,
+    passed = (after_clocks == before_clocks + 1) and (after_on == before_on + 1)
+    # Clean up alarm state so background alarms do not trigger later
+    dev.shell("pm clear com.android.deskclock")
+
+    return {
+        "task": "deskclock_add_alarm_verify",
+        "method": "AndroidEngine UI navigation + state delta assertion",
+        "ok": passed,
+        "wall_clock_sec": round(wall_sec, 3),
+        "launch_WaitTime_ms": launch_info.get("wait_time_ms"),
+        "steps_executed": 1 + len(steps),  # Alarm tab + Add alarm + wait OK + OK
+        "llm_turns_required": 1,
+        "verification": {
+            "before_digital_clock_count": before_clocks,
+            "after_digital_clock_count": after_clocks,
+            "before_on_switch_count": before_on,
+            "after_on_switch_count": after_on,
+            "clock_delta": after_clocks - before_clocks,
+            "on_switch_delta": after_on - before_on,
+            "final_clocks": [c.get("label") for c in after_items],
+        },
+        "action_results": executed,
     }
-    print(f"Task 1 Result: PASS={task1_verified} | Time={t_task1_total:.2f}s | Steps={len(task1_steps)} | Tokens={task1_tokens}")
 
-    # =========================================================================
-    # TASK 2: DeskClock Set/Toggle Alarm (AndroidWorld deskclock_set_alarm)
-    # =========================================================================
-    print("\n=======================================================")
-    print("TASK 2: DeskClock Alarm Configure (AndroidWorld deskclock)")
-    print("=======================================================")
-    t_start = time.perf_counter()
-    task2_steps = []
-    task2_perception_times = []
-    task2_tokens = 0
 
-    # Step 2.1: Cold launch DeskClock
-    dev.shell("am force-stop com.android.deskclock")
-    t0 = time.perf_counter()
-    dev.shell("am start -n com.android.deskclock/com.android.deskclock.DeskClock")
-    time.sleep(1.0)
-    task2_steps.append({"step": "launch_deskclock", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 2.2: Perceive DeskClock UI
-    t0 = time.perf_counter()
-    ui = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task2_perception_times.append(dt_perc)
-    tok = token_count(ui)
-    task2_tokens += tok
-    task2_steps.append({"step": "perceive_clock_screen", "perception_ms": round(dt_perc, 2), "tokens": tok})
-
-    # Step 2.3: Tap Alarm tab if not selected
-    t0 = time.perf_counter()
-    helper.tap_element("Alarm", timeout=3.0)
-    time.sleep(0.5)
-    task2_steps.append({"step": "tap_alarm_tab", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 2.4: Perceive Alarm list
-    t0 = time.perf_counter()
-    ui = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task2_perception_times.append(dt_perc)
-    tok = token_count(ui)
-    task2_tokens += tok
-    task2_steps.append({"step": "perceive_alarm_list", "perception_ms": round(dt_perc, 2), "tokens": tok})
-
-    # Step 2.5: Tap FAB / Add Alarm
-    t0 = time.perf_counter()
-    fab_res = helper.tap_element("Add alarm", timeout=2.5)
-    if not fab_res.get("success"):
-        # Tap bottom center FAB
-        helper.action("tap", x=540, y=1750)
-    time.sleep(0.8)
-    task2_steps.append({"step": "tap_add_alarm_fab", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 2.6: Confirm / Tap OK on time picker
-    t0 = time.perf_counter()
-    ok_res = helper.tap_element("OK", timeout=2.5)
-    if not ok_res.get("success"):
-        helper.action("tap", x=800, y=1300)
-    time.sleep(0.8)
-    task2_steps.append({"step": "confirm_time_picker", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 2.7: Perceive screen to verify alarm exists
-    t0 = time.perf_counter()
-    ui_final = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task2_perception_times.append(dt_perc)
-    tok = token_count(ui_final)
-    task2_tokens += tok
-
-    # Check for alarm toggle or time elements
-    has_alarm = any("alarm" in (str(el.get("label", "")) + " " + str(el.get("desc", ""))).lower() or "am" in str(el.get("label", "")).lower() or "pm" in str(el.get("label", "")).lower() for el in ui_final.get("elements", []))
-    task2_steps.append({"step": "verify_alarm_created", "perception_ms": round(dt_perc, 2), "tokens": tok, "verified": has_alarm})
-
-    t_task2_total = time.perf_counter() - t_start
-    results["tasks"]["task2_deskclock_alarm"] = {
-        "task_name": "DeskClock Set Alarm & Verify (AndroidWorld deskclock_set_alarm)",
-        "verified": has_alarm,
-        "total_wall_clock_s": round(t_task2_total, 2),
-        "steps_count": len(task2_steps),
-        "mean_action_latency_s": round(statistics.mean([s.get("latency_s", 0.0) for s in task2_steps if "latency_s" in s]), 3),
-        "perception_turnaround_ms": round(statistics.mean(task2_perception_times) if task2_perception_times else 0.0, 2),
-        "artemis_tokens_consumed": task2_tokens,
-        "vision_equivalent_tokens": len(task2_steps) * 1600,
-        "token_reduction_pct": round((1.0 - (task2_tokens / max(1, len(task2_steps) * 1600))) * 100, 1),
-        "compute_cost_usd": 0.0,
-        "steps_detail": task2_steps,
+def task3_settings_app_audit_cli(serial: str) -> dict[str, Any]:
+    """Task 3: Real `agentdroid run --headless` CLI navigation into Settings -> Apps -> Markor."""
+    wall_sec, data = run_cli_json(
+        [
+            "run",
+            "-s",
+            serial,
+            "--headless",
+            "--no-provision",
+            "--clear-data",
+            "com.android.settings",
+            "--launch",
+            "com.android.settings",
+            "-d",
+            "wait_text:Apps & notifications",
+            "-d",
+            "click:Apps & notifications",
+            "-d",
+            "wait_text:SEE ALL",
+            "-d",
+            "click:SEE ALL",
+            "-d",
+            "wait_text:App info",
+            "-d",
+            "scroll_to:Markor",
+            "-d",
+            "click:Markor",
+            "-d",
+            "wait_text:Permissions",
+            "--assert-text",
+            "Permissions",
+            "--assert-text",
+            "Storage",
+            "-j",
+        ]
+    )
+    assertions_ok = bool(data.get("assertions")) and all(a.get("passed") for a in data["assertions"])
+    passed = bool(data.get("ok") and assertions_ok and not data.get("crashes", {}).get("has_crashes"))
+    return {
+        "task": "settings_markor_app_info_audit",
+        "method": "Subprocess `agentdroid run --headless` compound CLI",
+        "ok": passed,
+        "subprocess_wall_sec": round(wall_sec, 3),
+        "reported_duration_sec": data.get("duration_sec"),
+        "steps_executed": len(data.get("ui_actions_executed", [])),
+        "llm_turns_required": 1,
+        "foreground": data.get("ui_summary", {}).get("foreground"),
+        "assertions": data.get("assertions"),
+        "crashes": data.get("crashes", {}).get("has_crashes"),
+        "errors": data.get("errors", []),
     }
-    print(f"Task 2 Result: PASS={has_alarm} | Time={t_task2_total:.2f}s | Steps={len(task2_steps)} | Tokens={task2_tokens}")
 
-    # =========================================================================
-    # TASK 3: Settings Deep Audit (AndroidWorld settings_navigate)
-    # =========================================================================
-    print("\n=======================================================")
-    print("TASK 3: Settings Deep Audit (AndroidWorld settings)")
-    print("=======================================================")
-    t_start = time.perf_counter()
-    task3_steps = []
-    task3_perception_times = []
-    task3_tokens = 0
 
-    # Step 3.1: Cold launch Settings
-    dev.shell("am force-stop com.android.settings")
-    t0 = time.perf_counter()
-    dev.shell("am start -n com.android.settings/.Settings")
-    time.sleep(1.0)
-    task3_steps.append({"step": "launch_settings", "latency_s": round(time.perf_counter() - t0, 3)})
+def task4_fossify_math_install_and_compute(dev: AdbDevice) -> dict[str, Any]:
+    """Task 4: Fresh install of Fossify Math (7.0 MB, Mobilebox parity APK) + CLI `42 + 58 = 100`."""
+    if not FOSSIFY_APK.exists():
+        raise FileNotFoundError(f"Missing Fossify Math APK: {FOSSIFY_APK}")
 
-    # Step 3.2: Perceive root screen
-    t0 = time.perf_counter()
-    ui = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task3_perception_times.append(dt_perc)
-    tok = token_count(ui)
-    task3_tokens += tok
-    task3_steps.append({"step": "perceive_settings_root", "perception_ms": round(dt_perc, 2), "tokens": tok})
+    dev.shell("pm uninstall org.fossify.math")
+    t_inst0 = time.perf_counter()
+    inst = dev.run_adb(["install", "-g", str(FOSSIFY_APK)], timeout=120)
+    install_ms = (time.perf_counter() - t_inst0) * 1000.0
+    if inst.returncode != 0 or "Success" not in inst.stdout:
+        raise RuntimeError(f"Fossify Math install failed: {inst.stdout} {inst.stderr}")
 
-    # Step 3.3: Tap "Apps & notifications"
-    t0 = time.perf_counter()
-    tap_res = helper.tap_element("Apps & notifications", timeout=3.0)
-    if not tap_res.get("success"):
-        # Fallback position for Apps item in Android 11 Settings
-        helper.action("tap", x=540, y=550)
-    time.sleep(0.8)
-    task3_steps.append({"step": "tap_apps_notifications", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    # Step 3.4: Perceive Apps screen
-    t0 = time.perf_counter()
-    ui = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task3_perception_times.append(dt_perc)
-    tok = token_count(ui)
-    task3_tokens += tok
-    task3_steps.append({"step": "perceive_apps_screen", "perception_ms": round(dt_perc, 2), "tokens": tok})
-
-    # Step 3.5: Tap "See all apps" or tap Markor directly
-    t0 = time.perf_counter()
-    tap_app = helper.tap_element("Markor", timeout=2.0)
-    if not tap_app.get("success"):
-        helper.tap_element("See all", timeout=2.0)
-        time.sleep(0.5)
-        tap_app = helper.tap_element("Markor", timeout=3.0)
-    task3_steps.append({"step": "tap_markor_app_info", "latency_s": round(time.perf_counter() - t0, 3)})
-    time.sleep(0.8)
-
-    # Step 3.6: Perceive App Info screen & verify
-    t0 = time.perf_counter()
-    ui_appinfo = helper.dump_compact_ui()
-    dt_perc = (time.perf_counter() - t0) * 1000.0
-    task3_perception_times.append(dt_perc)
-    tok = token_count(ui_appinfo)
-    task3_tokens += tok
-
-    has_app_info = any("storage" in str(el.get("label", "")).lower() or "permissions" in str(el.get("label", "")).lower() or "uninstall" in str(el.get("label", "")).lower() for el in ui_appinfo.get("elements", []))
-    task3_steps.append({"step": "verify_app_info_screen", "perception_ms": round(dt_perc, 2), "tokens": tok, "verified": has_app_info})
-
-    # Step 3.7: Press Home to return
-    t0 = time.perf_counter()
-    dev.shell("input keyevent KEYCODE_HOME")
-    task3_steps.append({"step": "return_to_home", "latency_s": round(time.perf_counter() - t0, 3)})
-
-    t_task3_total = time.perf_counter() - t_start
-    results["tasks"]["task3_settings_audit"] = {
-        "task_name": "Settings App Audit & Deep Navigation (AndroidWorld settings_navigate)",
-        "verified": has_app_info,
-        "total_wall_clock_s": round(t_task3_total, 2),
-        "steps_count": len(task3_steps),
-        "mean_action_latency_s": round(statistics.mean([s.get("latency_s", 0.0) for s in task3_steps if "latency_s" in s]), 3),
-        "perception_turnaround_ms": round(statistics.mean(task3_perception_times) if task3_perception_times else 0.0, 2),
-        "artemis_tokens_consumed": task3_tokens,
-        "vision_equivalent_tokens": len(task3_steps) * 1600,
-        "token_reduction_pct": round((1.0 - (task3_tokens / max(1, len(task3_steps) * 1600))) * 100, 1),
-        "compute_cost_usd": 0.0,
-        "steps_detail": task3_steps,
+    wall_sec, data = run_cli_json(
+        [
+            "run",
+            "-s",
+            dev.serial,
+            "--headless",
+            "--no-provision",
+            "--clear-data",
+            "org.fossify.math",
+            "--launch",
+            "org.fossify.math",
+            "-d",
+            "wait_text:7",
+            "-d",
+            "click:btn_4",
+            "-d",
+            "click:btn_2",
+            "-d",
+            "click:btn_plus",
+            "-d",
+            "click:btn_5",
+            "-d",
+            "click:btn_8",
+            "-d",
+            "click:btn_equals",
+            "--assert-text",
+            "100",
+            "-j",
+        ]
+    )
+    result_el = [
+        e for e in data.get("ui_summary", {}).get("elements", []) if e.get("resource_id") == "result"
+    ]
+    result_text = result_el[0].get("label") if result_el else None
+    passed = bool(data.get("ok") and result_text == "100" and not data.get("crashes", {}).get("has_crashes"))
+    return {
+        "task": "fossify_math_fresh_install_and_compute_e2e",
+        "method": "Real `adb install` + subprocess `agentdroid run --headless` (42 + 58 = 100)",
+        "ok": passed,
+        "apk_bytes": FOSSIFY_APK.stat().st_size,
+        "fresh_install_ms": round(install_ms, 2),
+        "subprocess_wall_sec": round(wall_sec, 3),
+        "reported_duration_sec": data.get("duration_sec"),
+        "combined_install_plus_e2e_sec": round((install_ms / 1000.0) + wall_sec, 3),
+        "steps_executed": len(data.get("ui_actions_executed", [])),
+        "llm_turns_required": 1,
+        "result_display_label": result_text,
+        "assertions": data.get("assertions"),
+        "crashes": data.get("crashes", {}).get("has_crashes"),
+        "errors": data.get("errors", []),
     }
-    print(f"Task 3 Result: PASS={has_app_info} | Time={t_task3_total:.2f}s | Steps={len(task3_steps)} | Tokens={task3_tokens}")
 
-    # =========================================================================
-    # TASK 4: Mobilebox Task - Cold Start, APK Sideload & Turnaround
-    # =========================================================================
-    print("\n=======================================================")
-    print("TASK 4: APK Sideload & Cold Start Turnaround (Mobilebox core)")
-    print("=======================================================")
-    cached_apk = Path.home() / ".cache" / "agentdroid" / "apks" / "net.gsantner.markor_164.apk"
-    t_start = time.perf_counter()
-    
-    # APK install
-    t0 = time.perf_counter()
-    dev.shell(f"pm install -r -g {cached_apk}")
-    dt_install_ms = (time.perf_counter() - t0) * 1000.0
 
-    # Cold start to interactive screen
-    dev.shell("am force-stop net.gsantner.markor")
-    t0 = time.perf_counter()
-    dev.shell("am start -W -n net.gsantner.markor/.activity.MainActivity")
-    # Take screenshot immediately to record ready screen
-    tmp_ss = Path("/tmp/coldstart_ss.png")
-    dev.screenshot(tmp_ss)
-    dt_coldstart_ms = (time.perf_counter() - t0) * 1000.0
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run AgentDroid real-app E2E benchmarks.")
+    parser.add_argument("-s", "--serial", default="127.0.0.1:5555")
+    args = parser.parse_args()
 
-    results["tasks"]["task4_sideload_coldstart"] = {
-        "task_name": "APK Sideload & Cold-Start Turnaround (Mobilebox core benchmark)",
-        "apk_install_latency_ms": round(dt_install_ms, 2),
-        "cold_start_to_screenshot_ms": round(dt_coldstart_ms, 2),
-        "screenshot_captured": tmp_ss.is_file(),
-        "total_wall_clock_s": round(time.perf_counter() - t_start, 2),
+    dev = AdbDevice(serial=args.serial)
+    if not dev.connect(timeout=5.0):
+        raise RuntimeError(f"Cannot connect to {args.serial}")
+    helper = AccessibilityHelperClient(dev)
+    if not helper.ensure_ready():
+        raise RuntimeError("Artemis Accessibility Helper is not ready")
+    engine = AndroidEngine(adb=dev)
+
+    print("=== AgentDroid Real-App E2E Benchmark Suite ===")
+    t1 = task1_markor_note_workflow(dev)
+    print(f"  Task 1 (Markor): ok={t1['ok']} wall={t1['wall_clock_sec']}s bytes={t1['initial_bytes']}->{t1['pulled_bytes']}")
+
+    t2 = task2_deskclock_add_alarm(dev, helper, engine)
+    print(
+        f"  Task 2 (DeskClock): ok={t2['ok']} wall={t2['wall_clock_sec']}s "
+        f"clocks={t2['verification']['before_digital_clock_count']}->{t2['verification']['after_digital_clock_count']}"
+    )
+
+    t3 = task3_settings_app_audit_cli(args.serial)
+    print(f"  Task 3 (Settings CLI): ok={t3['ok']} wall={t3['subprocess_wall_sec']}s dur={t3['reported_duration_sec']}s")
+
+    t4 = task4_fossify_math_install_and_compute(dev)
+    print(
+        f"  Task 4 (Fossify Math): ok={t4['ok']} install={t4['fresh_install_ms']}ms "
+        f"e2e_wall={t4['subprocess_wall_sec']}s result={t4['result_display_label']}"
+    )
+
+    tasks = [t1, t2, t3, t4]
+    all_passed = all(t["ok"] for t in tasks)
+    payload = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "device_serial": args.serial,
+        "helper_version": (helper.ping() or {}).get("version"),
+        "all_passed": all_passed,
+        "tasks": tasks,
     }
-    print(f"Task 4 Result: Sideload={dt_install_ms:.1f}ms | ColdStart={dt_coldstart_ms:.1f}ms")
 
-    # Output file
-    out_path = Path(__file__).resolve().parent / "results" / "benchmark_actual_apps_results.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    # Also write to artifacts directory for compatibility
-    artifacts_path = Path("/home/theajmalrazaq/Projects/agentdroid/artifacts/benchmark_actual_apps_results.json")
-    artifacts_path.parent.mkdir(parents=True, exist_ok=True)
-    artifacts_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    print(f"\n✅ All actual app benchmarks complete. Results written to {out_path}")
+    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RESULTS_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+    ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ARTIFACT_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+    print(f"Saved E2E results (all_passed={all_passed}) to {RESULTS_PATH}")
+    if not all_passed:
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    run_benchmarks()
+    main()
