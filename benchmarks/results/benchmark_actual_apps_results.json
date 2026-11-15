@@ -1,0 +1,151 @@
+{
+  "benchmark_metadata": {
+    "timestamp": "2026-11-15T19:19:40Z",
+    "device": "127.0.0.1:5555",
+    "android_version": "11",
+    "cpu_arch": "x86_64",
+    "display": "Physical size: 1080x2400",
+    "artemis_helper_version": "1.2.0"
+  },
+  "tasks": {
+    "task1_markor_note": {
+      "task_name": "Markor Note Creation, Edit & Verify (AndroidWorld markor_create_note)",
+      "verified": true,
+      "total_wall_clock_s": 7.35,
+      "steps_count": 6,
+      "mean_action_latency_s": 1.062,
+      "perception_turnaround_ms": 190.83,
+      "artemis_tokens_consumed": 758,
+      "vision_equivalent_tokens": 9600,
+      "token_reduction_pct": 92.1,
+      "compute_cost_usd": 0.0,
+      "steps_detail": [
+        {
+          "step": "launch_and_open_file",
+          "latency_s": 1.051
+        },
+        {
+          "step": "perceive_editor_screen",
+          "perception_ms": 190.83,
+          "tokens": 758
+        },
+        {
+          "step": "tap_edit",
+          "latency_s": 0.752
+        },
+        {
+          "step": "type_checklist_items",
+          "latency_s": 2.74
+        },
+        {
+          "step": "tap_save",
+          "latency_s": 0.722
+        },
+        {
+          "step": "pull_and_verify_file",
+          "latency_s": 0.047,
+          "verified": true
+        }
+      ]
+    },
+    "task2_deskclock_alarm": {
+      "task_name": "DeskClock Set Alarm & Verify (AndroidWorld deskclock_set_alarm)",
+      "verified": true,
+      "total_wall_clock_s": 6.29,
+      "steps_count": 7,
+      "mean_action_latency_s": 1.49,
+      "perception_turnaround_ms": 96.94,
+      "artemis_tokens_consumed": 3033,
+      "vision_equivalent_tokens": 11200,
+      "token_reduction_pct": 72.9,
+      "compute_cost_usd": 0.0,
+      "steps_detail": [
+        {
+          "step": "launch_deskclock",
+          "latency_s": 1.045
+        },
+        {
+          "step": "perceive_clock_screen",
+          "perception_ms": 182.62,
+          "tokens": 1124
+        },
+        {
+          "step": "tap_alarm_tab",
+          "latency_s": 1.754
+        },
+        {
+          "step": "perceive_alarm_list",
+          "perception_ms": 56.21,
+          "tokens": 826
+        },
+        {
+          "step": "tap_add_alarm_fab",
+          "latency_s": 1.609
+        },
+        {
+          "step": "confirm_time_picker",
+          "latency_s": 1.551
+        },
+        {
+          "step": "verify_alarm_created",
+          "perception_ms": 51.97,
+          "tokens": 1083,
+          "verified": true
+        }
+      ]
+    },
+    "task3_settings_audit": {
+      "task_name": "Settings App Audit & Deep Navigation (AndroidWorld settings_navigate)",
+      "verified": true,
+      "total_wall_clock_s": 5.59,
+      "steps_count": 7,
+      "mean_action_latency_s": 1.005,
+      "perception_turnaround_ms": 241.47,
+      "artemis_tokens_consumed": 2936,
+      "vision_equivalent_tokens": 11200,
+      "token_reduction_pct": 73.8,
+      "compute_cost_usd": 0.0,
+      "steps_detail": [
+        {
+          "step": "launch_settings",
+          "latency_s": 1.039
+        },
+        {
+          "step": "perceive_settings_root",
+          "perception_ms": 620.61,
+          "tokens": 1193
+        },
+        {
+          "step": "tap_apps_notifications",
+          "latency_s": 1.624
+        },
+        {
+          "step": "perceive_apps_screen",
+          "perception_ms": 57.81,
+          "tokens": 919
+        },
+        {
+          "step": "tap_markor_app_info",
+          "latency_s": 0.704
+        },
+        {
+          "step": "verify_app_info_screen",
+          "perception_ms": 46.01,
+          "tokens": 824,
+          "verified": true
+        },
+        {
+          "step": "return_to_home",
+          "latency_s": 0.653
+        }
+      ]
+    },
+    "task4_sideload_coldstart": {
+      "task_name": "APK Sideload & Cold-Start Turnaround (Mobilebox core benchmark)",
+      "apk_install_latency_ms": 102.82,
+      "cold_start_to_screenshot_ms": 2325.74,
+      "screenshot_captured": true,
+      "total_wall_clock_s": 2.53
+    }
+  }
+}

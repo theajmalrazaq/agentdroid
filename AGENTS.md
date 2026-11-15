@@ -129,31 +129,3 @@ Supported `--do` verbs:
 | **Read notifications (2FA/OTP codes, messages)** | `agentdroid device notifications --json` *(or `--notifications` flag on `run`)* |
 | **Read / write Android clipboard** | `agentdroid device clipboard "text to copy"` / `agentdroid device clipboard --json` |
 | **Run while showing live screen to user** | `agentdroid --watch --launch "com.android.settings" -d "click:Display"` |
-| **Cloud server (HTTP + AI SDK tools)** | `cd server && npm start` / `docker compose up -d` |
-
----
-
-## Cloud Deployment & Vercel AI SDK Integration
-
-There is ONE central server: [`server/`](server/) (TypeScript). Deploy with `docker compose up -d` (needs a strong `AGENTDROID_API_KEY`). Web apps use the Vercel AI SDK tools; no LLM keys live on the server:
-
-```typescript
-import { generateText, stepCountIs } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { createAgentDroidTools } from "@agentdroid/server/tools";
-
-const { text } = await generateText({
-  model: openai("gpt-4o"),
-  tools: createAgentDroidTools({ endpoint: "https://your-host", apiKey: process.env.AGENTDROID_API_KEY }),
-  stopWhen: stepCountIs(10),
-  prompt: "Open Hacker News on Android and summarize the top stories",
-});
-```
-
-## Server Security Guardrails
-
-- Refuses to start off-loopback without a strong API key; keys only via `X-API-Key` / Bearer.
-- SSRF: DNS-resolved URL checks block private, loopback, link-local and metadata addresses, including across redirects.
-- No shell execution exists in the server. Host files are confined to `AGENTDROID_DATA_DIR`.
-- Rate limit, 1 MB body limit, and one device operation at a time.
-- The local `agentdroid` CLI is unrestricted; the server is not.

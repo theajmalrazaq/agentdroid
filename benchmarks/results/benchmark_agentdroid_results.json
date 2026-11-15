@@ -1,0 +1,30 @@
+{
+  "tap_ms": {
+    "artemis_ipc_median_ms": 837.5,
+    "artemis_ipc_p90_ms": 2021.55,
+    "adb_shell_median_ms": 714.37
+  },
+  "tap_to_screenshot_ms": {
+    "n": 5,
+    "median": 1692.24,
+    "min": 1646.04,
+    "max": 3130.34
+  },
+  "artemis_ui_perception_ms": {
+    "n": 10,
+    "median": 58.13,
+    "p90": 95.03,
+    "min": 53.23,
+    "max": 98.75
+  },
+  "tokens_per_step": {
+    "artemis_indexed_tree_tokens": 614,
+    "vision_screenshot_tokens": 1600,
+    "token_reduction_pct": 61.6
+  },
+  "apk_install_ms": {
+    "fast_path_check_ms": 51.9,
+    "local_pm_reinstall_ms": 37.03
+  },
+  "compound_burst_3_actions_ms": 2197.08
+}
