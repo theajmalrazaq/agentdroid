@@ -293,6 +293,13 @@ class AdbDevice:
                 pkgs.add(line.split(":", 1)[1].strip())
         return pkgs
 
+    def is_package_installed(self, package: str) -> bool:
+        """Fast check whether a package is already installed on device."""
+        if not package or not self.connect(timeout=5.0):
+            return False
+        out = self.shell(f"pm path {package}", timeout=4.0)
+        return out.startswith("package:")
+
     def search_fdroid_apps(self, query: str, *, limit: int = 5) -> list[dict[str, Any]]:
         """Search the public F-Droid repository API so AI agents can find & install tools on the fly."""
         encoded = urllib.parse.quote(query.strip())
@@ -410,18 +417,49 @@ class AdbDevice:
         started = time.monotonic()
         temp_file: str | None = None
         resolved_source = apk_source
+        cache_dir = Path.home() / ".cache" / "agentdroid" / "apks"
+        cache_dir.mkdir(parents=True, exist_ok=True)
 
         if apk_source.startswith("fdroid:"):
             query = apk_source.split(":", 1)[1].strip()
+            # Fast path: skip download/install if app is already installed
+            if "." in query and self.is_package_installed(query):
+                main_activity = self.resolve_main_activity(query)
+                return InstalledAppInfo(
+                    source=apk_source,
+                    local_path="cached-device",
+                    package=query,
+                    main_activity=main_activity,
+                    permissions_granted=0,
+                    appops_granted=0,
+                    duration_sec=round(time.monotonic() - started, 3),
+                )
             pkg_id, resolved_source = self.resolve_fdroid_apk_url(query)
             package_hint = package_hint or pkg_id
 
+        if package_hint and self.is_package_installed(package_hint):
+            main_activity = self.resolve_main_activity(package_hint)
+            return InstalledAppInfo(
+                source=apk_source,
+                local_path="cached-device",
+                package=package_hint,
+                main_activity=main_activity,
+                permissions_granted=0,
+                appops_granted=0,
+                duration_sec=round(time.monotonic() - started, 3),
+            )
+
         try:
             if resolved_source.startswith(("http://", "https://")):
-                fd, temp_file = tempfile.mkstemp(suffix=".apk", prefix="agentdroid_")
-                os.close(fd)
-                urllib.request.urlretrieve(resolved_source, temp_file)
-                apk_path = Path(temp_file)
+                url_name = Path(urllib.parse.urlparse(resolved_source).path).name or "download.apk"
+                cached_apk = cache_dir / url_name
+                if cached_apk.is_file() and cached_apk.stat().st_size > 1024:
+                    apk_path = cached_apk
+                else:
+                    tmp_part = cache_dir / f"{url_name}.part"
+                    urllib.request.urlretrieve(resolved_source, str(tmp_part))
+                    tmp_part.rename(cached_apk)
+                    apk_path = cached_apk
             else:
                 apk_path = Path(resolved_source).expanduser().resolve()
                 if not apk_path.is_file():
@@ -429,10 +467,15 @@ class AdbDevice:
                     if not resolved_source.endswith(".apk"):
                         pkg_id, fdroid_url = self.resolve_fdroid_apk_url(resolved_source)
                         package_hint = package_hint or pkg_id
-                        fd, temp_file = tempfile.mkstemp(suffix=".apk", prefix="agentdroid_")
-                        os.close(fd)
-                        urllib.request.urlretrieve(fdroid_url, temp_file)
-                        apk_path = Path(temp_file)
+                        url_name = Path(urllib.parse.urlparse(fdroid_url).path).name or f"{pkg_id}.apk"
+                        cached_apk = cache_dir / url_name
+                        if cached_apk.is_file() and cached_apk.stat().st_size > 1024:
+                            apk_path = cached_apk
+                        else:
+                            tmp_part = cache_dir / f"{url_name}.part"
+                            urllib.request.urlretrieve(fdroid_url, str(tmp_part))
+                            tmp_part.rename(cached_apk)
+                            apk_path = cached_apk
                     else:
                         raise FileNotFoundError(f"APK file not found: {apk_source}")
 

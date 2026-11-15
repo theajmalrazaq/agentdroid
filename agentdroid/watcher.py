@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -13,6 +14,61 @@ def has_gui_display() -> bool:
     if sys.platform in ("darwin", "win32"):
         return True
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def detect_dock_coordinates(
+    target_width: int = 412,
+    target_height: int = 892,
+) -> tuple[int, int, int, int]:
+    """Calculate side-by-side docking coordinates on the right edge of the monitor."""
+    # 1. Wayland / Hyprland (active on Omarchy / modern desktop)
+    if shutil.which("hyprctl"):
+        try:
+            res = subprocess.run(
+                ["hyprctl", "monitors", "-j"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                mons = json.loads(res.stdout)
+                if mons:
+                    focused = next((m for m in mons if m.get("focused")), mons[0])
+                    scale = float(focused.get("scale", 1.0))
+                    sw = int(focused["width"] / scale)
+                    sh = int(focused["height"] / scale)
+                    h = min(target_height, sh - 60)
+                    w = int(h * (412 / 892))
+                    x = sw - w - 24
+                    y = 30
+                    return w, h, x, y
+        except Exception:
+            pass
+
+    # 2. X11 / xrandr fallback
+    if shutil.which("xrandr"):
+        try:
+            res = subprocess.run(
+                ["xrandr", "--current"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            for line in res.stdout.splitlines():
+                if " current " in line:
+                    parts = line.split(" current ")[1].split(",")[0].split(" x ")
+                    sw, sh = int(parts[0]), int(parts[1])
+                    h = min(target_height, sh - 80)
+                    w = int(h * (412 / 892))
+                    x = sw - w - 24
+                    y = 30
+                    return w, h, x, y
+        except Exception:
+            pass
+
+    return target_width, target_height, 1480, 40
 
 
 class LiveWatcher:
@@ -57,7 +113,16 @@ class LiveWatcher:
             )
             return {"mode": "watch", "viewer": "none"}
 
-        title = self.window_title or f"AgentDroid · Android Simulator ({self.serial})"
+        if self.window_x is None or self.window_y is None:
+            w, h, x, y = detect_dock_coordinates(self.window_width, self.window_height)
+            self.window_width = w
+            self.window_height = h
+            if self.window_x is None:
+                self.window_x = x
+            if self.window_y is None:
+                self.window_y = y
+
+        title = self.window_title or f"📱 AgentDroid · Mobile Simulator ({self.serial})"
         cmd = [scrcpy_bin, "-s", self.serial, "--window-title", title, "--no-audio"]
         if self.interactive_control:
             cmd.append("--stay-awake")
