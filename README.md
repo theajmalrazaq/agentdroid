@@ -1,11 +1,11 @@
 # AgentDroid
 
-A silent, headless **Android computer for AI agents**, built on [Redroid](https://github.com/remote-android/redroid-doc) and [Google Artemis](https://github.com/google/artemis).
+A silent, headless **Android computer for AI agents**, built on [Redroid](https://github.com/remote-android/redroid-doc), using the accessibility helper from [Google Artemis](https://github.com/google/artemis).
 
 - **Local:** your coding agent (Claude Code, Antigravity, Codex, Cursor, …) drives it through the `agentdroid` CLI.
 - **Cloud / web:** deploy **one central server** (TypeScript) and drive it from any app through the **Vercel AI SDK** tools or plain HTTP.
 
-No LLM keys are needed anywhere. The model in your agent or app is the brain. AgentDroid provides the eyes (a compact ~150-token screen dump) and the hands (click, fill, scroll, install, open URL).
+**No LLM keys, no `.env`, no Artemis agent daemon.** Claude Code, Codex, Antigravity and Cursor use the Android device directly; the model in your agent or app is the brain. AgentDroid provides the eyes (a compact ~150-token screen dump) and the hands (click, fill, scroll, install, open URL).
 
 ## Architecture
 
@@ -111,4 +111,4 @@ Redroid runs Android as a container on the host kernel (no QEMU VM), so it typic
 
 ## Credits
 
-Built on [Redroid](https://github.com/remote-android/redroid-doc) (Remote-Android team) for the Android-in-container runtime, and [Google Artemis](https://github.com/google/artemis) for the accessibility helper APK and agent design. Both are Apache-2.0; Redroid kernel modules are GPL-2.0. AgentDroid is Apache-2.0.
+Built on [Redroid](https://github.com/remote-android/redroid-doc) (Remote-Android team) for the Android-in-container runtime, and [Google Artemis](https://github.com/google/artemis) for the accessibility helper APK (only the APK; none of its LLM agent is used). Both are Apache-2.0; Redroid kernel modules are GPL-2.0. AgentDroid is Apache-2.0.

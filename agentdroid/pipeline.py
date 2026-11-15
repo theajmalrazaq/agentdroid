@@ -15,7 +15,6 @@ import time
 from typing import Any
 
 from agentdroid.adb import AdbDevice, InstalledAppInfo
-from agentdroid.artemis_bridge import ArtemisBridge, GoalExecutionResult
 from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.watcher import LiveWatcher
 
@@ -25,10 +24,8 @@ class PipelineSpec:
     """Specification for a compound single-call general-purpose Android AI workflow."""
 
     serial: str | None = None
-    artemis_url: str | None = None
     headless: bool = True
     watch: bool = False
-    watch_web: bool = False
     auto_provision: bool = True
 
     # Watcher / Mobile Simulator Overlay styling (iOS Simulator look & feel)
@@ -61,17 +58,7 @@ class PipelineSpec:
     wait_for_text: list[str] = field(default_factory=list)
     assert_texts: list[str] = field(default_factory=list)
 
-    # Optional external Artemis daemon natural-language goals (if running Artemis server)
-    goals: list[str] = field(default_factory=list)
-    combine_goals: bool = True
-    profile: str = "flash"
-    expected_output: str | None = None
     locked_app_package: str | None = None
-    verification_level: str | None = None
-    explorer_mode: str | None = None
-    until_output: bool = False
-    max_attempts: int = 1
-    timeout: float = 900.0
 
     # Diagnostics & outputs (dump_ui defaults to True so the host AI agent always gets screen state)
     check_crashes: bool = True
@@ -103,10 +90,6 @@ class PipelineSpec:
         if "wait_text" in data and "wait_for_text" not in data:
             val = data.pop("wait_text")
             data["wait_for_text"] = [val] if isinstance(val, str) else list(val)
-
-        if "goal" in data and "goals" not in data:
-            val = data.pop("goal")
-            data["goals"] = [val] if isinstance(val, str) else list(val)
 
         if "notifications" in data and "read_notifications" not in data:
             data["read_notifications"] = bool(data.pop("notifications"))
@@ -191,11 +174,6 @@ class CompoundPipeline:
         self.spec = spec
         self.adb = AdbDevice(serial=spec.serial)
         self.helper = AccessibilityHelperClient(self.adb)
-        self.artemis = ArtemisBridge(
-            base_url=spec.artemis_url,
-            device_serial=self.adb.serial,
-            default_profile=spec.profile,
-        )
 
     def _log_watch(self, watch_enabled: bool, msg: str) -> None:
         if watch_enabled:
@@ -208,9 +186,7 @@ class CompoundPipeline:
 
         watcher = LiveWatcher(
             self.adb.serial,
-            artemis_url=self.artemis.base_url,
             watch=watch_enabled,
-            prefer_web=spec.watch_web,
             interactive_control=spec.watch_interactive,
             always_on_top=spec.always_on_top,
             window_width=spec.watch_width,
@@ -231,8 +207,6 @@ class CompoundPipeline:
             "opened_urls": [],
             "pre_shell_outputs": [],
             "ui_actions_executed": [],
-            "agent_runs": [],
-            "agent_output": None,
             "assertions": [],
             "post_shell_outputs": [],
             "pulled_files": [],
@@ -363,44 +337,6 @@ class CompoundPipeline:
                 if not found:
                     report["ok"] = False
                     report["errors"].append(f"Timed out waiting for text on screen: {text_needle!r}")
-
-            # 12. Optional Artemis natural-language goals (when using an external Artemis daemon)
-            if spec.goals:
-                goals_to_run: list[str]
-                if spec.combine_goals and len(spec.goals) > 1:
-                    numbered = "\n".join(f"{i}. {g}" for i, g in enumerate(spec.goals, 1))
-                    goals_to_run = [
-                        f"Execute the following steps in order on the device:\n{numbered}"
-                    ]
-                else:
-                    goals_to_run = list(spec.goals)
-
-                for goal_text in goals_to_run:
-                    goal_res: GoalExecutionResult = self.artemis.execute_goal(
-                        goal_text,
-                        profile=spec.profile,
-                        expected_output=spec.expected_output,
-                        locked_app_package=spec.locked_app_package,
-                        verification_level=spec.verification_level,
-                        explorer_mode=spec.explorer_mode,
-                        timeout=spec.timeout,
-                        watcher=watcher,
-                        until_output=spec.until_output,
-                        max_attempts=spec.max_attempts,
-                        ui_context_provider=self.helper.dump_compact_ui,
-                    )
-                    report["agent_runs"].append(goal_res.to_dict())
-                    if goal_res.output is not None:
-                        report["agent_output"] = goal_res.output
-                    elif goal_res.explanation:
-                        report["agent_output"] = goal_res.explanation
-
-                    if not goal_res.succeeded:
-                        report["ok"] = False
-                        report["errors"].append(
-                            goal_res.error or f"Agent goal failed with status '{goal_res.status}'"
-                        )
-                        break
 
             # 13. Post-execution text assertions
             if spec.assert_texts:

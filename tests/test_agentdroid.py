@@ -9,7 +9,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from agentdroid.adb import AdbDevice, CrashReport, InstalledAppInfo
-from agentdroid.artemis_bridge import ArtemisBridge, GoalExecutionResult
 from agentdroid.cli import build_parser, main, normalize_argv
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec
 
@@ -37,15 +36,6 @@ class TestCliNormalizationAndParsing(unittest.TestCase):
                 "./doc.pdf:/sdcard/Download/doc.pdf",
                 "--open-url",
                 "https://news.ycombinator.com",
-                "--step",
-                "Read top 3 stories",
-                "--step",
-                "Summarize points",
-                "--expect",
-                "JSON list of stories",
-                "--until-output",
-                "--max-attempts",
-                "3",
                 "--pull",
                 "/sdcard/Download/out.txt:./artifacts/out.txt",
                 "--notifications",
@@ -57,10 +47,6 @@ class TestCliNormalizationAndParsing(unittest.TestCase):
         self.assertEqual(args.install, ["fdroid:org.mozilla.fennec_fdroid"])
         self.assertEqual(args.push, ["./doc.pdf:/sdcard/Download/doc.pdf"])
         self.assertEqual(args.open_url, ["https://news.ycombinator.com"])
-        self.assertEqual(args.goals_opt, ["Read top 3 stories", "Summarize points"])
-        self.assertEqual(args.expect, "JSON list of stories")
-        self.assertTrue(args.until_output)
-        self.assertEqual(args.max_attempts, 3)
         self.assertTrue(args.notifications)
         self.assertTrue(args.get_clipboard)
         self.assertTrue(args.dump_ui)
@@ -77,10 +63,6 @@ class TestCompoundPipelineExecution(unittest.TestCase):
             install_apks=["fdroid:net.gsantner.markor"],
             launch_target="auto",
             open_urls=["https://example.com"],
-            goals=["Step 1: Read file", "Step 2: Summarize content"],
-            combine_goals=True,
-            expected_output="summary string",
-            until_output=True,
             pull_files=["/sdcard/Download/out.txt:/tmp/out.txt"],
             get_clipboard=True,
             read_notifications=True,
@@ -119,19 +101,6 @@ class TestCompoundPipelineExecution(unittest.TestCase):
         pipeline.adb.open_url = MagicMock(
             return_value={"opened": True, "uri": "https://example.com", "package": None, "output": "ok"}
         )
-        pipeline.artemis.execute_goal = MagicMock(
-            return_value=GoalExecutionResult(
-                succeeded=True,
-                status="completed",
-                goal="combined",
-                profile="flash",
-                session_id="sess-123",
-                output={"summary": "Hello from Android"},
-                attempts=1,
-                steps_count=4,
-                duration_sec=3.5,
-            )
-        )
         pipeline.adb.pull_file = MagicMock(
             return_value={"remote": "/sdcard/Download/out.txt", "local": "/tmp/out.txt", "ok": True}
         )
@@ -156,7 +125,6 @@ class TestCompoundPipelineExecution(unittest.TestCase):
         self.assertEqual(report["installed_apks"][0]["package"], "net.gsantner.markor")
         self.assertEqual(report["launched_app"]["package"], "net.gsantner.markor")
         self.assertEqual(report["opened_urls"][0]["uri"], "https://example.com")
-        self.assertEqual(report["agent_output"], {"summary": "Hello from Android"})
         self.assertEqual(len(report["pulled_files"]), 1)
         self.assertEqual(report["clipboard"], "copied-link")
         self.assertEqual(report["notifications"][0]["text"], "Your code is 482910")
@@ -199,46 +167,6 @@ class TestCompoundPipelineExecution(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(len(report["ui_actions_executed"]), 3)
         self.assertEqual(report["ui_summary"]["element_count"], 2)
-
-    def test_until_output_retries_with_screen_recovery_context(self) -> None:
-        bridge = ArtemisBridge(base_url="http://127.0.0.1:8000", device_serial="127.0.0.1:5555")
-        call_goals: list[str] = []
-
-        def fake_single(goal: str, **kwargs):
-            call_goals.append(goal)
-            if len(call_goals) == 1:
-                return GoalExecutionResult(
-                    succeeded=False,
-                    status="failed",
-                    goal=goal,
-                    profile="flash",
-                    session_id="s1",
-                    error="Popup blocked button",
-                )
-            return GoalExecutionResult(
-                succeeded=True,
-                status="completed",
-                goal=goal,
-                profile="flash",
-                session_id="s2",
-                output={"done": True},
-            )
-
-        bridge._execute_single_attempt = fake_single  # type: ignore[method-assign]
-        res = bridge.execute_goal(
-            "Complete task and extract result",
-            expected_output="JSON with done=true",
-            until_output=True,
-            max_attempts=3,
-            ui_context_provider=lambda: {
-                "foreground": {"component": "com.app/.MainActivity"},
-                "elements": [{"label": "Dismiss Popup"}, {"label": "Continue"}],
-            },
-        )
-        self.assertTrue(res.succeeded)
-        self.assertEqual(res.attempts, 2)
-        self.assertIn("Recovery Attempt 2/3", call_goals[1])
-        self.assertIn("Dismiss Popup", call_goals[1])
 
 
 class TestOneCommandInstaller(unittest.TestCase):

@@ -13,7 +13,6 @@ import time
 from typing import Any
 
 from agentdroid.adb import AdbDevice
-from agentdroid.artemis_bridge import ArtemisBridge
 from agentdroid.helper import AccessibilityHelperClient
 from agentdroid.installer import install_agent_skills_and_rules, run_one_command_setup
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec, parse_do_step
@@ -67,22 +66,6 @@ def _print_output(data: dict[str, Any], *, as_json: bool) -> None:
 
     for u in data.get("opened_urls") or []:
         print(f"  🌐 Opened:    {u.get('uri')}")
-
-    for run in data.get("agent_runs") or []:
-        st = run.get("status")
-        prof = run.get("profile")
-        att = run.get("attempts", 1)
-        print(
-            f"  🤖 Artemis ({prof}, attempts={att}): {st} in {run.get('duration_sec')}s "
-            f"[session={run.get('session_id')}]"
-        )
-
-    if data.get("agent_output") is not None:
-        out_val = data["agent_output"]
-        if isinstance(out_val, (dict, list)):
-            print("  📋 Output:\n" + json.dumps(out_val, indent=2, ensure_ascii=False))
-        else:
-            print(f"  📋 Output: {out_val}")
 
     for plf in data.get("pulled_files") or []:
         print(f"  📥 Pulled:    {plf.get('remote')} -> {plf.get('local')}")
@@ -169,12 +152,6 @@ def _parse_ui_actions(args: argparse.Namespace) -> list[dict[str, Any]]:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    goals: list[str] = []
-    if args.goals_opt:
-        goals.extend(args.goals_opt)
-    if args.positional_goals:
-        goals.extend(args.positional_goals)
-
     clear_pkgs = list(args.clear_data or [])
     if args.clear_installed:
         clear_pkgs.append("auto")
@@ -183,15 +160,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.launch_installed and not launch_target:
         launch_target = "auto"
 
-    watch_mode = bool(args.watch or args.watch_web)
+    watch_mode = bool(args.watch)
     headless_mode = not watch_mode
 
     spec = PipelineSpec(
         serial=args.serial,
-        artemis_url=args.artemis_url,
         headless=headless_mode,
         watch=watch_mode,
-        watch_web=bool(args.watch_web),
         watch_width=getattr(args, "window_width", 412),
         watch_height=getattr(args, "window_height", 892),
         always_on_top=not getattr(args, "no_always_on_top", False),
@@ -215,16 +190,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         post_shell=list(args.post_shell or []),
         wait_for_text=list(args.wait_text or []),
         assert_texts=list(args.assert_text or []),
-        goals=goals,
-        combine_goals=not args.separate_goals,
-        profile=args.profile,
-        expected_output=args.expect,
         locked_app_package=args.locked_app,
-        verification_level=args.verification_level,
-        explorer_mode=args.explorer_mode,
-        until_output=bool(args.until_output),
-        max_attempts=args.max_attempts,
-        timeout=args.timeout,
         check_crashes=not args.no_check_crashes,
         collect_logs=bool(args.collect_logs),
         log_lines=args.log_lines,
@@ -244,14 +210,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
         print(f"Error: Could not connect to device {adb.serial}", file=sys.stderr)
         return 1
 
-    artemis_url = (
-        args.artemis_url
-        or os.environ.get("ARTEMIS_BASE_URL")
-        or "http://127.0.0.1:8000"
-    )
-
     if args.headless:
-        watcher = LiveWatcher(adb.serial, artemis_url=artemis_url, watch=False)
         print(
             json.dumps(
                 {
@@ -263,7 +222,6 @@ def cmd_watch(args: argparse.Namespace) -> int:
             ),
             flush=True,
         )
-        watcher.start_sse_stream(args.session_id, as_jsonl=True)
         try:
             last_fg = None
             while True:
@@ -276,21 +234,18 @@ def cmd_watch(args: argparse.Namespace) -> int:
                     last_fg = fg
                 time.sleep(2.0)
         except KeyboardInterrupt:
-            watcher.stop()
             return 0
 
     watcher = LiveWatcher(
         adb.serial,
-        artemis_url=artemis_url,
         watch=True,
-        prefer_web=bool(args.web),
         interactive_control=bool(args.interactive),
         always_on_top=not getattr(args, "no_always_on_top", False),
         window_width=getattr(args, "window_width", 412),
         window_height=getattr(args, "window_height", 892),
         borderless=bool(getattr(args, "borderless", False)),
     )
-    info = watcher.start(session_id=args.session_id)
+    info = watcher.start()
     print(
         f"[agentdroid:watch] Watching {adb.serial} via {info.get('viewer')}. Press Ctrl+C to exit.",
         file=sys.stderr,
@@ -323,7 +278,8 @@ def cmd_up(args: argparse.Namespace) -> int:
     cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d"]
     if args.build:
         cmd.append("--build")
-    if args.redroid_only:
+    if not args.with_server:
+        # Local use: only the Android device. The cloud server needs AGENTDROID_API_KEY.
         cmd.append("redroid")
 
     if not args.json:
@@ -340,7 +296,6 @@ def cmd_up(args: argparse.Namespace) -> int:
         watcher = LiveWatcher(
             adb.serial,
             watch=True,
-            prefer_web=bool(args.watch_web),
             interactive_control=bool(getattr(args, "interactive", False)),
             always_on_top=not getattr(args, "no_always_on_top", False),
             window_width=getattr(args, "window_width", 412),
@@ -607,7 +562,7 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
     return 0 if report.get("ok") else 1
 
 
-def _run_doctor_checks(serial: str | None = None, artemis_url: str | None = None) -> dict[str, Any]:
+def _run_doctor_checks(serial: str | None = None) -> dict[str, Any]:
     adb = AdbDevice(serial=serial)
     connected = adb.connect(timeout=5.0)
     is_root = adb.ensure_root() if connected else False
@@ -615,9 +570,6 @@ def _run_doctor_checks(serial: str | None = None, artemis_url: str | None = None
 
     helper = AccessibilityHelperClient(adb)
     helper_ping = helper.ping() if connected else None
-
-    bridge = ArtemisBridge(base_url=artemis_url, device_serial=adb.serial)
-    daemon_st = bridge.daemon_status()
 
     binder_ok = False
     try:
@@ -642,15 +594,13 @@ def _run_doctor_checks(serial: str | None = None, artemis_url: str | None = None
             "foreground": adb.foreground_app() if connected else None,
         },
         "accessibility_helper": helper_ping or {"reachable": False},
-        "artemis_daemon": daemon_st,
     }
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    report = _run_doctor_checks(serial=args.serial, artemis_url=args.artemis_url)
+    report = _run_doctor_checks(serial=args.serial)
     adb = AdbDevice(serial=args.serial)
     helper_ping = report.get("accessibility_helper") or {}
-    daemon_st = report.get("artemis_daemon") or {}
 
     if args.json:
         print(json.dumps(report, indent=2))
@@ -658,8 +608,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print(f"AgentDroid Doctor ({adb.serial})")
         print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={report['host']['kernel_binder_loaded']}")
         print(f"  • Device Connected:   {report['device']['connected']} (root={report['device']['root_adb']}, silent_provisioned={report['device']['silent_provisioned']})")
-        print(f"  • Artemis A11y APK:   {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping.get('reachable') else 'not reachable'}")
-        print(f"  • Artemis Controller: {daemon_st.get('status')} ({daemon_st.get('base_url') or args.artemis_url or 'http://127.0.0.1:8000'})")
+        print(f"  • Accessibility Helper: {'reachable (v' + str(helper_ping.get('version_name')) + ')' if helper_ping.get('reachable') else 'not reachable'}")
     return 0 if report["ok"] else 1
 
 
@@ -675,7 +624,6 @@ def cmd_setup(args: argparse.Namespace) -> int:
         return 0
 
     res = run_one_command_setup(
-        api_key=args.api_key,
         start_stack=not args.no_start,
         build_images=bool(args.build),
         watch=bool(args.watch),
@@ -684,13 +632,12 @@ def cmd_setup(args: argparse.Namespace) -> int:
         print(json.dumps(res, indent=2))
     else:
         print(f"✅ Global CLI installed at: {res['cli_binary']}")
-        print(f"✅ Environment configured:  {res['env_file']}")
         skills_cnt = len(res["ai_agents_configured"]["skills_installed"])
         rules_cnt = len(res["ai_agents_configured"]["rules_installed"])
         print(f"✅ AI Agents configured:    {skills_cnt} skill locations, {rules_cnt} global rule files")
         st = res.get("stack", {})
         if st.get("started"):
-            print("✅ Silent Android Device + Artemis Controller stack is up and provisioned!")
+            print("✅ Silent Android device is up and provisioned!")
         elif st.get("skipped"):
             print("ℹ Stack startup skipped (--no-start). Run 'agentdroid up' when ready.")
         elif st.get("error"):
@@ -702,7 +649,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentdroid",
         description=(
-            "AgentDroid: Silent General-Purpose Android Environment for AI Agents (Redroid + Google Artemis).\n"
+            "AgentDroid: Silent General-Purpose Android Environment for AI Agents (Redroid).\n"
             "Allows AI agents to use Android for any task — installing tools/apps on demand, opening URLs/deep links,\n"
             "pushing/pulling files, reading notifications/clipboard, and executing multi-step UI workflows in one call\n"
             "with silent --headless background mode and live --watch visual mode."
@@ -718,7 +665,6 @@ def build_parser() -> argparse.ArgumentParser:
             setup_name,
             help="One-command setup: install global CLI, configure API key, mount skills/rules into all AI agents, and boot the silent Android device.",
         )
-        setup_p.add_argument("--api-key", help="LLM API Key (Gemini, OpenAI, Anthropic, or OpenRouter).")
         setup_p.add_argument("--no-start", action="store_true", help="Configure CLI and AI agent rules without starting Docker containers.")
         setup_p.add_argument("--agents-only", action="store_true", help="Only install/update AI agent skills & rules.")
         setup_p.add_argument("--build", action="store_true", help="Build Docker images when starting stack.")
@@ -729,7 +675,7 @@ def build_parser() -> argparse.ArgumentParser:
     # --- run ---
     run_p = subparsers.add_parser(
         "run",
-        help="Execute a compound multi-step Android workflow (install apps, push/pull files, open URLs, run AI goals, read notifications/output) in one call.",
+        help="Execute a compound multi-step Android workflow (install apps, push/pull files, open URLs, read notifications/output) in one call.",
     )
     _add_run_arguments(run_p)
 
@@ -739,8 +685,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Watch live what the AI agent is doing (opens scrcpy/web stream with --watch, or streams background JSONL with --headless).",
     )
     watch_p.add_argument("-s", "--serial", help="Target Android device serial (default: 127.0.0.1:5555).")
-    watch_p.add_argument("--artemis-url", help="Artemis daemon URL (default: http://127.0.0.1:8000).")
-    watch_p.add_argument("--session-id", default="active", help="Session ID to stream (default: active).")
     watch_p.add_argument(
         "--headless",
         action="store_true",
@@ -753,7 +697,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=True,
         help="Open live visual viewer (scrcpy or web stream) + terminal action telemetry (default).",
     )
-    watch_p.add_argument("--web", action="store_true", help="Open Artemis Web Console instead of scrcpy.")
     watch_p.add_argument(
         "--interactive",
         action="store_true",
@@ -786,15 +729,14 @@ def build_parser() -> argparse.ArgumentParser:
     # --- up ---
     up_p = subparsers.add_parser(
         "up",
-        help="Start the headless Redroid + Artemis Docker Compose stack and silently provision the device.",
+        help="Start the headless Redroid + server Docker Compose stack and silently provision the device.",
     )
     up_p.add_argument("-s", "--serial", help="ADB serial (default: 127.0.0.1:5555).")
     up_p.add_argument("--image", help="Override Redroid Docker image tag.")
     up_p.add_argument("--build", action="store_true", help="Rebuild Docker images before starting.")
-    up_p.add_argument("--redroid-only", action="store_true", help="Start only the Redroid device container.")
+    up_p.add_argument("--with-server", action="store_true", help="Also start the central cloud server (requires AGENTDROID_API_KEY).")
     up_p.add_argument("--headless", action="store_true", default=True, help="Run silently in background (default).")
-    up_p.add_argument("-w", "--watch", action="store_true", help="Open live scrcpy/web viewer once booted.")
-    up_p.add_argument("--watch-web", action="store_true", help="Open Artemis Web Console when used with --watch.")
+    up_p.add_argument("-w", "--watch", action="store_true", help="Open live scrcpy viewer once booted.")
     up_p.add_argument("--window-width", type=int, default=412, help="Width of the simulator watch window.")
     up_p.add_argument("--window-height", type=int, default=892, help="Height of the simulator watch window.")
     up_p.add_argument("--no-always-on-top", action="store_true", help="Do not keep simulator window on top.")
@@ -803,14 +745,14 @@ def build_parser() -> argparse.ArgumentParser:
     up_p.set_defaults(func=cmd_up)
 
     # --- down ---
-    down_p = subparsers.add_parser("down", help="Stop the Redroid + Artemis Docker Compose stack.")
+    down_p = subparsers.add_parser("down", help="Stop the Redroid + server Docker Compose stack.")
     down_p.add_argument("-v", "--volumes", action="store_true", help="Also remove persistent data volumes.")
     down_p.set_defaults(func=cmd_down)
 
     # --- provision ---
     prov_p = subparsers.add_parser(
         "provision",
-        help="Configure an Android/Redroid device for silent AI agent usage (root ADB, animations=0, audio muted, Artemis Helper enabled).",
+        help="Configure an Android/Redroid device for silent AI agent usage (root ADB, animations=0, audio muted, accessibility helper enabled).",
     )
     prov_p.add_argument("-s", "--serial", help="Target Android device serial.")
     prov_p.add_argument("--force", action="store_true", help="Re-apply all settings even if already provisioned.")
@@ -884,7 +826,7 @@ def build_parser() -> argparse.ArgumentParser:
     # --- ui ---
     ui_p = subparsers.add_parser(
         "ui",
-        help="Direct sub-second UI hierarchy dump & gestures via Artemis Accessibility Helper.",
+        help="Direct sub-second UI hierarchy dump & gestures via the on-device accessibility helper.",
     )
     ui_sub = ui_p.add_subparsers(dest="ui_action", required=True)
 
@@ -936,9 +878,8 @@ def build_parser() -> argparse.ArgumentParser:
     pipe_p.set_defaults(func=cmd_pipeline)
 
     # --- doctor ---
-    doc_p = subparsers.add_parser("doctor", help="Check Redroid, ADB root, silent settings, and Artemis health.")
+    doc_p = subparsers.add_parser("doctor", help="Check Redroid, ADB root, silent settings, and helper health.")
     doc_p.add_argument("-s", "--serial", help="Target Android device serial.")
-    doc_p.add_argument("--artemis-url", help="Artemis daemon URL.")
     doc_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     doc_p.set_defaults(func=cmd_doctor)
 
@@ -946,13 +887,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _add_run_arguments(p: argparse.ArgumentParser) -> None:
-    p.add_argument(
-        "positional_goals",
-        nargs="*",
-        help="Natural-language task(s) or goal(s) for the AI agent to perform on the Android device.",
-    )
     p.add_argument("-s", "--serial", help="Target Android device serial (default: 127.0.0.1:5555).")
-    p.add_argument("--artemis-url", help="Artemis Daemon URL (default: http://127.0.0.1:8000).")
     p.add_argument(
         "--headless",
         action="store_true",
@@ -964,11 +899,6 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "--watch",
         action="store_true",
         help="Show live what the AI agent is doing via a floating mobile simulator overlay window (like macOS iOS Simulator).",
-    )
-    p.add_argument(
-        "--watch-web",
-        action="store_true",
-        help="Open the Artemis Web Console live stream instead of scrcpy when watching.",
     )
     p.add_argument(
         "--interactive",
@@ -1039,7 +969,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         nargs="?",
         const="auto",
         metavar="PACKAGE",
-        help="Launch the installed app (or specified PACKAGE/component) before running goals.",
+        help="Launch the installed app (or specified PACKAGE/component) before running UI steps.",
     )
     p.add_argument(
         "--launch-installed",
@@ -1069,7 +999,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "--open-url",
         action="append",
         metavar="URI",
-        help="Open web URL or deep link (https://, tg://, mailto:, geo:, etc.) before AI goals (repeatable).",
+        help="Open web URL or deep link (https://, tg://, mailto:, geo:, etc.) before UI steps (repeatable).",
     )
     p.add_argument(
         "--set-clipboard",
@@ -1159,13 +1089,13 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "--wait-text",
         action="append",
         metavar="TEXT",
-        help="Wait until TEXT appears on screen before AI goals (repeatable).",
+        help="Wait until TEXT appears on screen before UI steps (repeatable).",
     )
     p.add_argument(
         "--post-shell",
         action="append",
         metavar="CMD",
-        help="Run root ADB shell command after AI goals (repeatable).",
+        help="Run root ADB shell command after UI steps (repeatable).",
     )
     p.add_argument(
         "--assert-text",
@@ -1174,67 +1104,11 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         help="Verify TEXT is visible on screen after execution (repeatable).",
     )
 
-    # AI Agent (Artemis) options
-    p.add_argument(
-        "-g",
-        "--goal",
-        "--step",
-        dest="goals_opt",
-        action="append",
-        metavar="GOAL",
-        help="Natural-language goal/step for the Artemis AI agent (repeatable; chained in one run).",
-    )
-    p.add_argument(
-        "--separate-goals",
-        action="store_true",
-        help="Run multiple --goal/--step entries as separate sequential Artemis sessions instead of one combined plan.",
-    )
-    p.add_argument(
-        "-p",
-        "--profile",
-        choices=["flash", "pro"],
-        default=os.environ.get("ARTEMIS_DEFAULT_PROFILE", "flash"),
-        help="Artemis execution profile: 'flash' (~3-5s/step reactive) or 'pro' (planner + safety net + checker).",
-    )
-    p.add_argument(
-        "-e",
-        "--expect",
-        metavar="OUTPUT_DESC",
-        help="Expected output description/schema for Artemis to synthesize and return.",
-    )
-    p.add_argument(
-        "-u",
-        "--until-output",
-        action="store_true",
-        help="Keep retrying with screen recovery context until the required output/goal succeeds.",
-    )
-    p.add_argument(
-        "--max-attempts",
-        type=int,
-        default=1,
-        help="Maximum attempts when running with --until-output (default: 3 when --until-output is set).",
-    )
     p.add_argument(
         "-a",
         "--locked-app",
         metavar="PACKAGE",
-        help="Restrict the Artemis agent to a specific Android package.",
-    )
-    p.add_argument(
-        "--verification-level",
-        choices=["off", "final", "checkpoints", "strict"],
-        help="Checker preset for Pro profile.",
-    )
-    p.add_argument(
-        "--explorer-mode",
-        choices=["flash", "pro", "ultra"],
-        help="Explorer perception tier.",
-    )
-    p.add_argument(
-        "--timeout",
-        type=float,
-        default=900.0,
-        help="Timeout in seconds per Artemis goal (default: 900).",
+        help="Open URLs in this specific Android package.",
     )
 
     # Diagnostics & outputs
@@ -1275,7 +1149,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
 
 
 def normalize_argv(argv: list[str]) -> list[str]:
-    """Allow `agentdroid --install ... --goal "..."` without typing `run` explicitly."""
+    """Allow `agentdroid --install ... --do "click:Login"` without typing `run` explicitly."""
     if len(argv) > 1 and argv[1] not in KNOWN_SUBCOMMANDS:
         return [argv[0], "run", *argv[1:]]
     return list(argv)

@@ -1,22 +1,11 @@
 {
   "headless": true,
   "auto_provision": true,
-  "install_apks": [],
-  "grant_all_permissions": true,
-  "pre_shell": [
-    "input keyevent KEYCODE_HOME"
-  ],
-  "goals": [
-    "Open the Settings app and navigate to About simulated phone (or About phone)",
-    "Read the Android version and build number displayed on screen"
-  ],
-  "combine_goals": true,
-  "profile": "flash",
-  "expected_output": "JSON object with android_version and build_number fields",
-  "until_output": true,
-  "max_attempts": 2,
+  "pre_shell": ["input keyevent KEYCODE_HOME"],
+  "launch": "com.android.settings",
+  "do": ["scroll-to:About", "click:About", "scroll-to:Android version"],
+  "assert_text": ["Android version"],
   "check_crashes": true,
-  "collect_logs": false,
   "screenshot_path": "./artifacts/settings_about.png",
   "dump_ui": true
 }

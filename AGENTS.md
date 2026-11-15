@@ -1,6 +1,6 @@
 # AgentDroid (`agentdroid`) — AI Agent Operating Rules
 
-This repository provides a **silent, general-purpose Android computer** (powered by **Redroid** + **Google Artemis**) that AI agents can drive for **any task**.
+This repository provides a **silent, general-purpose Android computer** (powered by **Redroid**; the on-device accessibility helper comes from **Google Artemis**) that AI agents can drive for **any task**.
 
 > **No Separate LLM API Keys or `.env` Required**:
 > **You (the host AI agent — Claude Code, Antigravity, Codex, Cursor, etc.) are already the brain!**

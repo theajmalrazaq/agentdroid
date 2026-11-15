@@ -126,70 +126,14 @@ def ensure_cli_on_path(home_dir: Path | None = None) -> str:
     return str(target)
 
 
-def ensure_env_file(api_key: str | None = None) -> Path:
-    """Create .env from .env.example and populate any detected or provided LLM API key."""
-    env_file = REPO_ROOT / ".env"
-    example_file = REPO_ROOT / ".env.example"
-    if not env_file.is_file() and example_file.is_file():
-        shutil.copy2(example_file, env_file)
-    elif not env_file.is_file():
-        env_file.write_text("GEMINI_API_KEY=\nARTEMIS_DEFAULT_PROFILE=flash\n", encoding="utf-8")
-
-    text = env_file.read_text(encoding="utf-8")
-    keys_to_sync = (
-        "GEMINI_API_KEY",
-        "GOOGLE_API_KEY",
-        "OPENAI_API_KEY",
-        "ANTHROPIC_API_KEY",
-        "OPEN_ROUTER_API_KEY",
-        "XAI_API_KEY",
-    )
-
-    if api_key:
-        if api_key.startswith("sk-ant-"):
-            target_var = "ANTHROPIC_API_KEY"
-        elif api_key.startswith("sk-or-"):
-            target_var = "OPEN_ROUTER_API_KEY"
-        elif api_key.startswith("sk-"):
-            target_var = "OPENAI_API_KEY"
-        else:
-            target_var = "GEMINI_API_KEY"
-        os.environ[target_var] = api_key
-
-    lines = text.splitlines()
-    new_lines: list[str] = []
-    updated_vars: set[str] = set()
-    for line in lines:
-        matched = False
-        for k in keys_to_sync:
-            val = os.environ.get(k, "").strip()
-            if val and line.startswith(f"{k}="):
-                new_lines.append(f"{k}={val}")
-                updated_vars.add(k)
-                matched = True
-                break
-        if not matched:
-            new_lines.append(line)
-
-    for k in keys_to_sync:
-        val = os.environ.get(k, "").strip()
-        if val and k not in updated_vars and f"{k}=" not in text:
-            new_lines.append(f"{k}={val}")
-
-    env_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-    return env_file
-
-
 def run_one_command_setup(
     *,
-    api_key: str | None = None,
     start_stack: bool = True,
     build_images: bool = False,
     watch: bool = False,
 ) -> dict[str, Any]:
-    """Execute complete one-command setup: CLI PATH link, .env config, AI agent skills/rules, and stack boot."""
+    """Execute complete one-command setup: CLI PATH link, AI agent skills/rules, and stack boot."""
     cli_path = ensure_cli_on_path()
-    env_path = ensure_env_file(api_key=api_key)
     agents_mounted = install_agent_skills_and_rules()
 
     stack_result: dict[str, Any] = {"started": False, "skipped": not start_stack}
@@ -225,7 +169,6 @@ def run_one_command_setup(
     return {
         "ok": True,
         "cli_binary": cli_path,
-        "env_file": str(env_path),
         "ai_agents_configured": agents_mounted,
         "stack": stack_result,
     }
