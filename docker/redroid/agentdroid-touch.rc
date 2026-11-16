@@ -1,0 +1,15 @@
+# Conditional virtual touchscreen initialization for headless Redroid.
+# Only starts vendor.uinputd when the host kernel exposes /dev/uinput in /proc/misc,
+# avoiding zygote restart loops on hosts where uinput.ko is not loaded.
+
+on post-fs-data
+    exec - root root -- /system/bin/sh -c "if grep -q uinput /proc/misc 2>/dev/null; then setprop ro.agentdroid.uinput 1; fi"
+
+service vendor.agentdroid_uinputd /vendor/bin/uinputd
+    class main
+    user root
+    group root
+    disabled
+
+on property:ro.agentdroid.uinput=1
+    start vendor.agentdroid_uinputd
