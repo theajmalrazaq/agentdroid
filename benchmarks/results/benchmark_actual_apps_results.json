@@ -1,151 +1,143 @@
 {
-  "benchmark_metadata": {
-    "timestamp": "2026-11-15T19:19:40Z",
-    "device": "127.0.0.1:5555",
-    "android_version": "11",
-    "cpu_arch": "x86_64",
-    "display": "Physical size: 1080x2400",
-    "artemis_helper_version": "1.2.0"
-  },
-  "tasks": {
-    "task1_markor_note": {
-      "task_name": "Markor Note Creation, Edit & Verify (AndroidWorld markor_create_note)",
-      "verified": true,
-      "total_wall_clock_s": 7.35,
-      "steps_count": 6,
-      "mean_action_latency_s": 1.062,
-      "perception_turnaround_ms": 190.83,
-      "artemis_tokens_consumed": 758,
-      "vision_equivalent_tokens": 9600,
-      "token_reduction_pct": 92.1,
-      "compute_cost_usd": 0.0,
-      "steps_detail": [
+  "timestamp_utc": "2026-11-16T04:58:05.348362+00:00",
+  "device_serial": "127.0.0.1:5555",
+  "helper_version": "1.2.0",
+  "all_passed": true,
+  "tasks": [
+    {
+      "task": "markor_markdown_edit_verify",
+      "method": "CompoundPipeline (single turn, append=True)",
+      "ok": true,
+      "wall_clock_sec": 3.153,
+      "pipeline_duration_sec": 3.15,
+      "steps_executed": 4,
+      "llm_turns_required": 1,
+      "initial_bytes": 50,
+      "pulled_bytes": 81,
+      "verification": {
+        "header_intact": true,
+        "marker_present": true,
+        "bytes_grew": true,
+        "crashes": false,
+        "pulled_preview": "# AgentDroid E2E Benchmark\nStatus: Pending\nNotes:\n\nVerified live benchmark PASSED"
+      },
+      "errors": []
+    },
+    {
+      "task": "deskclock_add_alarm_verify",
+      "method": "AndroidEngine UI navigation + state delta assertion",
+      "ok": true,
+      "wall_clock_sec": 2.541,
+      "launch_WaitTime_ms": null,
+      "steps_executed": 4,
+      "llm_turns_required": 1,
+      "verification": {
+        "before_digital_clock_count": 2,
+        "after_digital_clock_count": 3,
+        "before_on_switch_count": 0,
+        "after_on_switch_count": 1,
+        "clock_delta": 1,
+        "on_switch_delta": 1,
+        "final_clocks": [
+          "04:57",
+          "08:30",
+          "09:00"
+        ]
+      },
+      "action_results": [
         {
-          "step": "launch_and_open_file",
-          "latency_s": 1.051
+          "success": true,
+          "selector": "Add alarm",
+          "matched_element": {
+            "id": 22,
+            "label": "Add alarm",
+            "class": "ImageButton",
+            "center": [
+              540,
+              2147
+            ],
+            "resource_id": "fab",
+            "clickable": true
+          },
+          "center": [
+            540,
+            2147
+          ]
         },
         {
-          "step": "perceive_editor_screen",
-          "perception_ms": 190.83,
-          "tokens": 758
+          "success": true,
+          "text": "OK"
         },
         {
-          "step": "tap_edit",
-          "latency_s": 0.752
-        },
-        {
-          "step": "type_checklist_items",
-          "latency_s": 2.74
-        },
-        {
-          "step": "tap_save",
-          "latency_s": 0.722
-        },
-        {
-          "step": "pull_and_verify_file",
-          "latency_s": 0.047,
-          "verified": true
+          "success": true,
+          "selector": "OK",
+          "matched_element": {
+            "id": 33,
+            "label": "OK",
+            "class": "Button",
+            "center": [
+              815,
+              1634
+            ],
+            "resource_id": "button1",
+            "clickable": true
+          },
+          "center": [
+            815,
+            1634
+          ]
         }
       ]
     },
-    "task2_deskclock_alarm": {
-      "task_name": "DeskClock Set Alarm & Verify (AndroidWorld deskclock_set_alarm)",
-      "verified": true,
-      "total_wall_clock_s": 6.29,
-      "steps_count": 7,
-      "mean_action_latency_s": 1.49,
-      "perception_turnaround_ms": 96.94,
-      "artemis_tokens_consumed": 3033,
-      "vision_equivalent_tokens": 11200,
-      "token_reduction_pct": 72.9,
-      "compute_cost_usd": 0.0,
-      "steps_detail": [
+    {
+      "task": "settings_markor_app_info_audit",
+      "method": "Subprocess `agentdroid run --headless` compound CLI",
+      "ok": true,
+      "subprocess_wall_sec": 7.682,
+      "reported_duration_sec": 7.53,
+      "steps_executed": 8,
+      "llm_turns_required": 1,
+      "foreground": {
+        "package": "com.android.settings",
+        "activity": "com.android.settings.SubSettings",
+        "component": "com.android.settings/com.android.settings.SubSettings"
+      },
+      "assertions": [
         {
-          "step": "launch_deskclock",
-          "latency_s": 1.045
+          "type": "assert_text",
+          "text": "Permissions",
+          "passed": true
         },
         {
-          "step": "perceive_clock_screen",
-          "perception_ms": 182.62,
-          "tokens": 1124
-        },
-        {
-          "step": "tap_alarm_tab",
-          "latency_s": 1.754
-        },
-        {
-          "step": "perceive_alarm_list",
-          "perception_ms": 56.21,
-          "tokens": 826
-        },
-        {
-          "step": "tap_add_alarm_fab",
-          "latency_s": 1.609
-        },
-        {
-          "step": "confirm_time_picker",
-          "latency_s": 1.551
-        },
-        {
-          "step": "verify_alarm_created",
-          "perception_ms": 51.97,
-          "tokens": 1083,
-          "verified": true
+          "type": "assert_text",
+          "text": "Storage",
+          "passed": true
         }
-      ]
+      ],
+      "crashes": false,
+      "errors": []
     },
-    "task3_settings_audit": {
-      "task_name": "Settings App Audit & Deep Navigation (AndroidWorld settings_navigate)",
-      "verified": true,
-      "total_wall_clock_s": 5.59,
-      "steps_count": 7,
-      "mean_action_latency_s": 1.005,
-      "perception_turnaround_ms": 241.47,
-      "artemis_tokens_consumed": 2936,
-      "vision_equivalent_tokens": 11200,
-      "token_reduction_pct": 73.8,
-      "compute_cost_usd": 0.0,
-      "steps_detail": [
+    {
+      "task": "fossify_math_fresh_install_and_compute_e2e",
+      "method": "Real `adb install` + subprocess `agentdroid run --headless` (42 + 58 = 100)",
+      "ok": true,
+      "apk_bytes": 7047681,
+      "fresh_install_ms": 588.25,
+      "subprocess_wall_sec": 4.05,
+      "reported_duration_sec": 3.86,
+      "combined_install_plus_e2e_sec": 4.639,
+      "steps_executed": 7,
+      "llm_turns_required": 1,
+      "result_display_label": "100",
+      "assertions": [
         {
-          "step": "launch_settings",
-          "latency_s": 1.039
-        },
-        {
-          "step": "perceive_settings_root",
-          "perception_ms": 620.61,
-          "tokens": 1193
-        },
-        {
-          "step": "tap_apps_notifications",
-          "latency_s": 1.624
-        },
-        {
-          "step": "perceive_apps_screen",
-          "perception_ms": 57.81,
-          "tokens": 919
-        },
-        {
-          "step": "tap_markor_app_info",
-          "latency_s": 0.704
-        },
-        {
-          "step": "verify_app_info_screen",
-          "perception_ms": 46.01,
-          "tokens": 824,
-          "verified": true
-        },
-        {
-          "step": "return_to_home",
-          "latency_s": 0.653
+          "type": "assert_text",
+          "text": "100",
+          "passed": true
         }
-      ]
-    },
-    "task4_sideload_coldstart": {
-      "task_name": "APK Sideload & Cold-Start Turnaround (Mobilebox core benchmark)",
-      "apk_install_latency_ms": 102.82,
-      "cold_start_to_screenshot_ms": 2325.74,
-      "screenshot_captured": true,
-      "total_wall_clock_s": 2.53
+      ],
+      "crashes": false,
+      "errors": []
     }
-  }
+  ]
 }
