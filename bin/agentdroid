@@ -1,14 +1,32 @@
-#!/usr/bin/env python3
-"""Executable wrapper for agentdroid CLI."""
+#!/usr/bin/env bash
+# Wrapper for agentdroid CLI — routes pure low-latency UI commands straight through
+# compiled Rust (`agentdroid-fast`, <5 ms startup) while delegating rich compound
+# orchestration (`run`, `watch`, `setup`, `mcp`, `app`, etc.) cleanly to Python.
+set -euo pipefail
 
-from pathlib import Path
-import sys
+SELF="${BASH_SOURCE[0]}"
+while [[ -L "${SELF}" ]]; do
+    DIR="$(cd -P "$(dirname "${SELF}")" && pwd)"
+    TARGET="$(readlink "${SELF}")"
+    [[ "${TARGET}" == /* ]] && SELF="${TARGET}" || SELF="${DIR}/${TARGET}"
+done
+REPO_ROOT="$(cd -P "$(dirname "${SELF}")/.." && pwd)"
+FAST_BIN="${AGENTDROID_FAST_BIN:-${REPO_ROOT}/rust/target/release/agentdroid-fast}"
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+if [[ "${AGENTDROID_NO_RUST:-0}" != "1" && -x "${FAST_BIN}" && "${1:-}" == "ui" ]]; then
+    sub="${2:-}"
+    case "${sub}" in
+        dump|tap|swipe|key|type)
+            skip_fast=0
+            for arg in "${@:3}"; do
+                [[ "${arg}" == "-h" || "${arg}" == "--help" ]] && skip_fast=1
+            done
+            if [[ "${skip_fast}" == "0" ]]; then
+                exec "${FAST_BIN}" "${sub}" "${@:3}"
+            fi
+            ;;
+    esac
+fi
 
-from agentdroid.cli import main
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+exec python3 -m agentdroid.cli "$@"

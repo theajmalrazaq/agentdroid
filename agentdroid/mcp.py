@@ -48,6 +48,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "URL, deep link, or local file to open (e.g. 'file:///sdcard/Download/test.md').",
                 },
+                "locked_app_package": {
+                    "type": "string",
+                    "description": "Optional Android package name to force-handle open_url intents (e.g. 'com.android.chrome').",
+                },
                 "launch": {
                     "type": "string",
                     "description": "App package or component to launch (e.g. 'net.gsantner.markor').",
@@ -55,7 +59,7 @@ TOOL_DEFINITIONS = [
                 "do": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Ordered UI action steps: 'click:<target|#id>', 'fill:<target>=<text>', 'scroll:down', 'scroll-to:<text>', 'type:<text>', 'key:<KEY>', 'tap:x,y', 'sleep:<sec>'.",
+                    "description": "Ordered UI steps: 'click:<target|#id|btn:X|edit:X|exact:X>', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-text:<txt>', 'wait-any:<a|b>', 'wait-gone:<txt>', 'wait-stable', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'capture-all:<var>=<regex>', 'hide-keyboard', 'scroll:down', 'scroll-to:<txt>', 'key:<KEY>', 'tap:x,y', 'sleep:<sec>'. Supports {{var}} interpolation.",
                 },
                 "pull": {
                     "type": "array",
@@ -72,7 +76,12 @@ TOOL_DEFINITIONS = [
                 },
                 "screenshot": {
                     "type": "string",
-                    "description": "Local host path to save the final screenshot.",
+                    "description": "Optional host path for final screenshot. DO NOT pass unless hierarchy returned zero readable controls or user explicitly requested an image.",
+                },
+                "wait_text": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Wait (polling UI hierarchy every 0.2s, zero screenshots) for text strings to appear before assertions and UI dump.",
                 },
                 "assert_text": {
                     "type": "array",
@@ -94,9 +103,10 @@ TOOL_DEFINITIONS = [
     {
         "name": "mobile_get_device_state",
         "description": (
-            "Retrieve real-time Android device state: either a token-efficient numbered "
-            "UI element tree ([#1] Button 'Settings' | Center: (x, y)) or a screenshot. "
-            "Inspect the screen with this tool before issuing actions."
+            "Retrieve real-time Android device state. ALWAYS prefer view_type='hierarchy' "
+            "([#1] Button 'Settings' | Center: (x, y), ~5ms, ~150 tokens). NEVER request "
+            "'screenshot' unless 'hierarchy' shows 0 actionable controls after settling "
+            "(raw image/Canvas/game) or the user explicitly asked for an image."
         ),
         "inputSchema": {
             "type": "object",
@@ -105,12 +115,17 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "enum": ["hierarchy", "screenshot", "both"],
                     "default": "hierarchy",
-                    "description": "Observation type: 'hierarchy' (compact numbered elements), 'screenshot' (file URI), or 'both'.",
+                    "description": "Observation type: 'hierarchy' (mandatory default: compact numbered elements), 'screenshot' (Canvas/image fallback only), or 'both'.",
                 },
                 "max_elements": {
                     "type": "integer",
                     "default": 80,
                     "description": "Maximum number of interactive elements to return.",
+                },
+                "include_ime": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include soft-keyboard IME keys in hierarchy (default: False to filter noise).",
                 },
             },
         },
@@ -160,7 +175,7 @@ TOOL_DEFINITIONS = [
                 "actions": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of action strings: 'click:<sel_or_#id>', 'tap:x,y', 'fill:<sel>=<txt>', 'type:<txt>', 'key:<KEY>', 'scroll:down', 'scroll-to:<txt>', 'sleep:<sec>'.",
+                    "description": "List of action strings: 'click:<sel|#id|btn:X|edit:X>', 'tap:x,y', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-any:<a|b>', 'wait-gone:<txt>', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'hide-keyboard', 'key:<KEY>', 'scroll:down', 'scroll-to:<txt>', 'sleep:<sec>'.",
                 }
             },
             "required": ["actions"],
@@ -317,11 +332,13 @@ class McpServer:
         if name == "mobile_get_device_state":
             vtype = args.get("view_type", "hierarchy")
             max_el = int(args.get("max_elements", 80))
+            inc_ime = bool(args.get("include_ime", False))
             out: dict[str, Any] = {}
 
             if vtype in ("hierarchy", "both"):
-                ui = self.engine.get_screen_data(max_elements=max_el)
+                ui = self.engine.get_screen_data(max_elements=max_el, include_ime=inc_ime)
                 out["foreground"] = ui.get("foreground")
+                out["display_size"] = ui.get("display_size")
                 out["element_count"] = ui.get("element_count")
                 out["elements_formatted"] = ui.get("formatted_text")
 

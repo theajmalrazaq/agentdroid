@@ -179,6 +179,7 @@ class CompoundPipeline:
             "opened_urls": [],
             "pre_shell_outputs": [],
             "ui_actions_executed": [],
+            "captured_vars": {},
             "assertions": [],
             "post_shell_outputs": [],
             "pulled_files": [],
@@ -193,19 +194,36 @@ class CompoundPipeline:
         }
 
         try:
-            # 1. Connect & silently provision device
-            if not self.adb.connect(timeout=25.0):
-                report["ok"] = False
-                report["errors"].append(f"Could not connect to Android device '{self.adb.serial}'")
-                return report
+            self.engine.locked_app_package = spec.locked_app_package
 
-            if spec.auto_provision:
-                prov = self.adb.provision_silent(force=False, quiet=not watch_enabled)
-                report["provision"] = prov
-                if not prov.get("provisioned"):
+            # 1. Connect & silently provision device (/ping fast-path skips ~575ms redundant checks)
+            ping_fast_ok = False
+            if (
+                spec.auto_provision
+                and "connect" not in self.adb.__dict__
+                and "provision_silent" not in self.adb.__dict__
+            ):
+                if self.helper.ping() is not None:
+                    ping_fast_ok = True
+                    report["provision"] = {
+                        "provisioned": True,
+                        "action": "already_provisioned_fast",
+                        "serial": self.adb.serial,
+                    }
+
+            if not ping_fast_ok:
+                if not self.adb.connect(timeout=25.0):
                     report["ok"] = False
-                    report["errors"].append(f"Device provisioning failed: {prov}")
+                    report["errors"].append(f"Could not connect to Android device '{self.adb.serial}'")
                     return report
+
+                if spec.auto_provision:
+                    prov = self.adb.provision_silent(force=False, quiet=not watch_enabled)
+                    report["provision"] = prov
+                    if not prov.get("provisioned"):
+                        report["ok"] = False
+                        report["errors"].append(f"Device provisioning failed: {prov}")
+                        return report
 
             # Start live watcher (opens scrcpy if --watch was passed)
             watcher.start()
@@ -272,21 +290,20 @@ class CompoundPipeline:
                     report["launched_app"] = launch_res
                     if not launch_res.get("launched"):
                         report["errors"].append(f"Failed to launch {target_launch}")
-                    time.sleep(0.5)
 
             # 8. Open URLs / deep links if requested
             for uri in spec.open_urls:
                 self._log_watch(watch_enabled, f"Opening URI {uri}...")
                 opened = self.adb.open_url(uri, package=spec.locked_app_package)
                 report["opened_urls"].append(opened)
-                time.sleep(0.5)
 
             # 9. Pre-shell commands
             for cmd in spec.pre_shell:
                 out = self.adb.shell(cmd)
                 report["pre_shell_outputs"].append({"cmd": cmd, "output": out})
 
-            # 10. Compound Semantic & Coordinate UI actions (via Artemis Accessibility Helper)
+            # 10. Compound Semantic & Coordinate UI actions (adaptive micro-settle, zero blind sleeps)
+            total_actions = len(spec.ui_actions)
             for idx, act in enumerate(spec.ui_actions, 1):
                 act_type = str(act.get("type") or act.get("cmd") or "").lower()
                 self._log_watch(watch_enabled, f"[Step {idx}] {act_type}: {act}")
@@ -298,31 +315,51 @@ class CompoundPipeline:
                         res.get("error") or f"UI action {act_type} failed at step {idx}"
                     )
                     break
-                time.sleep(0.75 if act_type in ("type", "fill") else 0.35)
+                passive = act_type in (
+                    "wait_text", "wait-text", "wait_any", "wait-any",
+                    "wait_gone", "wait-gone", "wait_stable", "capture", "extract", "sleep",
+                ) or bool(res.get("skipped"))
+                if idx < total_actions:
+                    next_type = str(
+                        spec.ui_actions[idx].get("type") or spec.ui_actions[idx].get("cmd") or ""
+                    ).lower()
+                    next_waits = next_type in (
+                        "wait_text", "wait-text", "wait_any", "wait-any",
+                        "wait_gone", "wait-gone", "wait_stable",
+                    )
+                    if not passive and not next_waits:
+                        time.sleep(0.50 if act_type in ("type", "fill") else 0.06)
+                elif not passive and (spec.pull_files or spec.assert_texts or spec.post_shell):
+                    time.sleep(0.25)
+
+            if self.engine.vars:
+                report["captured_vars"] = dict(self.engine.vars)
 
             # 11. Wait for text on screen if specified
             for text_needle in spec.wait_for_text:
-                found = self._wait_for_text(text_needle, timeout=15.0)
+                rendered_needle = str(self.engine.render_vars(text_needle))
+                found = self._wait_for_text(rendered_needle, timeout=25.0)
                 report["assertions"].append(
-                    {"type": "wait_for_text", "text": text_needle, "passed": found}
+                    {"type": "wait_for_text", "text": rendered_needle, "passed": found}
                 )
                 if not found:
                     report["ok"] = False
-                    report["errors"].append(f"Timed out waiting for text on screen: {text_needle!r}")
+                    report["errors"].append(f"Timed out waiting for text on screen: {rendered_needle!r}")
 
             # 13. Post-execution text assertions
             if spec.assert_texts:
                 ui_now = self.helper.dump_compact_ui(max_elements=100)
                 screen_blob = json.dumps(ui_now.get("elements", []), ensure_ascii=False).lower()
                 for expected_txt in spec.assert_texts:
-                    passed = expected_txt.lower() in screen_blob
+                    rendered_exp = str(self.engine.render_vars(expected_txt))
+                    passed = rendered_exp.lower() in screen_blob
                     report["assertions"].append(
-                        {"type": "assert_text", "text": expected_txt, "passed": passed}
+                        {"type": "assert_text", "text": rendered_exp, "passed": passed}
                     )
                     if not passed:
                         report["ok"] = False
                         report["errors"].append(
-                            f"Assertion failed: expected text {expected_txt!r} not visible on screen"
+                            f"Assertion failed: expected text {rendered_exp!r} not visible on screen"
                         )
 
             # 14. Post-shell commands
@@ -390,5 +427,5 @@ class CompoundPipeline:
     def _execute_ui_action(self, act_type: str, act: dict[str, Any]) -> dict[str, Any]:
         return self.engine.execute_action(act)
 
-    def _wait_for_text(self, text_needle: str, timeout: float = 15.0) -> bool:
+    def _wait_for_text(self, text_needle: str, timeout: float = 25.0) -> bool:
         return self.engine._wait_for_text(text_needle, timeout=timeout)

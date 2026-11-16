@@ -290,10 +290,31 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         engine.helper.tap_element = MagicMock(return_value={"success": True, "selector": "#1"})
         engine.helper.action = MagicMock(return_value={"success": True})
 
-        burst = ["click:#1", "sleep:0.1", "key:BACK"]
+        burst = ["click:#1", "sleep:0.1", "append:extra", "key:BACK"]
         results = engine.execute_action_burst(burst)
-        self.assertEqual(len(results), 3)
+        self.assertEqual(len(results), 4)
         self.assertTrue(results[0]["result"]["success"])
+        engine.helper.action.assert_any_call("type", text="extra", append=True)
+
+    def test_engine_wait_text_step_and_fast_poll(self) -> None:
+        from agentdroid.engine import AndroidEngine, parse_do_step
+
+        self.assertEqual(parse_do_step("wait-text:Driving Mode"), {"type": "wait_text", "text": "Driving Mode"})
+        self.assertEqual(parse_do_step("append:line"), {"type": "type", "text": "line", "append": True})
+
+        engine = AndroidEngine()
+        engine.helper.dump_compact_ui = MagicMock(
+            side_effect=[
+                {"elements": [{"id": 1, "label": "mapsWebView"}]},
+                {"elements": [{"id": 10, "label": "Driving Mode 2h 51m"}]},
+            ]
+        )
+        with patch("agentdroid.engine.time.sleep") as mock_sleep:
+            res = engine.execute_action(parse_do_step("wait-text:Driving Mode"))
+        self.assertTrue(res["success"])
+        self.assertEqual(engine.helper.dump_compact_ui.call_count, 2)
+        engine.helper.dump_compact_ui.assert_any_call(max_elements=100, allow_sparse_fallback=False)
+        mock_sleep.assert_called_once_with(0.2)
 
     def test_mcp_server_protocol_initialize_and_tools(self) -> None:
         from agentdroid.mcp import McpServer
@@ -312,6 +333,10 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         self.assertIn("mobile_perform_action", tool_names)
         self.assertIn("mobile_action_burst", tool_names)
         self.assertIn("mobile_auto_dismiss_dialogs", tool_names)
+        tools_by_name = {t["name"]: t for t in tools}
+        self.assertIn("wait_text", tools_by_name["mobile_run_workflow"]["inputSchema"]["properties"])
+        self.assertIn("append:", tools_by_name["mobile_run_workflow"]["inputSchema"]["properties"]["do"]["description"])
+        self.assertIn("NEVER request 'screenshot'", tools_by_name["mobile_get_device_state"]["description"])
 
         # 3. Tool call - device state
         server.engine.helper.dump_compact_ui = MagicMock(
@@ -581,6 +606,57 @@ class TestInputDaemonAndContainerConfig(unittest.TestCase):
         self.assertEqual(ui3["foreground"]["package"], "net.gsantner.markor")
         mock_adb.foreground_app.assert_called_once()
 
+    def test_dump_compact_ui_sparse_webview_fallback_to_uiautomator(self) -> None:
+        from agentdroid.helper import AccessibilityHelperClient
+
+        mock_adb = MagicMock()
+        mock_adb.serial = "127.0.0.1:5555"
+        helper = AccessibilityHelperClient(mock_adb)
+        helper._ensure_forward = MagicMock(return_value=18888)
+        helper.ping = MagicMock(
+            return_value={
+                "success": True,
+                "authenticated": True,
+                "package": "us.spotco.maps",
+                "activity": "us.spotco.maps.MainActivity",
+            }
+        )
+        helper._last_ping = helper.ping.return_value
+
+        sparse_xml = (
+            b'<hierarchy rotation="0">'
+            b'<node text="13:30" package="com.android.systemui" bounds="[22,0][139,66]" />'
+            b'<node text="Tap to see quick actions" package="us.spotco.maps" clickable="true" bounds="[100,2100][980,2250]" />'
+            b'</hierarchy>'
+        )
+        rich_uia_xml = (
+            '<hierarchy rotation="0">'
+            '<node text="Faisalabad, Pakistan to Lahore, Pakistan" package="us.spotco.maps" clickable="true" bounds="[100,120][980,220]" />'
+            '<node text="Driving Mode 2h 50m" package="us.spotco.maps" clickable="true" bounds="[22,233][283,368]" />'
+            '<node text="Two-wheeler Mode 3h 15m" package="us.spotco.maps" clickable="true" bounds="[280,233][541,368]" />'
+            '</hierarchy>'
+        )
+        mock_adb.shell = MagicMock(side_effect=["", rich_uia_xml])
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.read.return_value = sparse_xml
+
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            ui = helper.dump_compact_ui(max_elements=80)
+
+        self.assertEqual(ui["backend"], "uiautomator")
+        self.assertEqual(ui["element_count"], 3)
+        labels = [el["label"] for el in ui["elements"]]
+        self.assertIn("Driving Mode 2h 50m", labels)
+
+        # When allow_sparse_fallback=False and HTTP /hierarchy.xml is empty/unavailable, skips uiautomator block
+        mock_adb.shell.reset_mock()
+        with patch("urllib.request.urlopen", side_effect=TimeoutError("busy")):
+            ui_fast = helper.dump_compact_ui(max_elements=80, allow_sparse_fallback=False)
+        self.assertEqual(ui_fast["element_count"], 0)
+        mock_adb.shell.assert_not_called()
+
     def test_adb_single_shell_boot_silent_probes_and_clear_logs(self) -> None:
         adb = AdbDevice("127.0.0.1:5555")
         adb.connect = MagicMock(return_value=True)
@@ -714,6 +790,174 @@ class TestInputDaemonAndContainerConfig(unittest.TestCase):
         self.assertEqual(mock_probe.call_count, 2)
         connect_calls = [c for c in mock_run.call_args_list if len(c.args[0]) >= 2 and c.args[0][1] == "connect"]
         self.assertEqual(len(connect_calls), 1)
+
+
+class TestUniversalEngineAndRustParity(unittest.TestCase):
+    def test_parse_xml_ime_filter_display_size_and_full_text_parity(self) -> None:
+        import os
+        from agentdroid.helper import AccessibilityHelperClient
+
+        long_note = "Header " + ("x" * 210)
+        xml = (
+            '<hierarchy rotation="0">'
+            '<node package="com.android.inputmethod.latin" class="android.inputmethodservice.Keyboard$Key" text="q" bounds="[0,2400][144,2600]" />'
+            '<node package="org.demo" class="android.webkit.WebView" text="Search docs banner" bounds="[0,0][1440,3120]" />'
+            f'<node package="org.demo" class="android.widget.EditText" text="{long_note}" clickable="true" bounds="[40,300][1400,900]" />'
+            '<node package="org.demo" class="android.widget.Button" text="Search" clickable="true" resource-id="org.demo:id/btn_search" bounds="[1000,100][1380,220]" />'
+            '</hierarchy>'
+        )
+
+        # Verify both Rust fast-path (when built) and pure-Python fallback
+        for env_val in ("0", "1"):
+            with patch.dict(os.environ, {"AGENTDROID_NO_RUST": env_val}):
+                els, app_cnt, has_sys, disp, err = AccessibilityHelperClient._parse_hierarchy_xml(
+                    xml, 80, include_ime=False
+                )
+                self.assertIsNone(err)
+                self.assertEqual(disp, (1440, 3120))
+                self.assertEqual(len(els), 3)  # IME Key filtered out
+                self.assertEqual(app_cnt, 3)
+                self.assertFalse(has_sys)
+                edit_el = next(e for e in els if e["class"] == "EditText")
+                self.assertEqual(edit_el.get("full_text"), long_note)
+
+                els_ime, _, _, _, _ = AccessibilityHelperClient._parse_hierarchy_xml(
+                    xml, 80, include_ime=True
+                )
+                self.assertEqual(len(els_ime), 4)
+
+    def test_select_element_interactivity_and_prefixes(self) -> None:
+        import os
+        from agentdroid.helper import select_ui_element
+
+        elements = [
+            {"id": 1, "label": "Search results header", "class": "WebView", "center": [500, 100]},
+            {"id": 2, "label": "Search", "class": "Button", "center": [900, 150], "resource_id": "btn_go", "clickable": True},
+            {"id": 3, "label": "Search query", "class": "EditText", "center": [500, 300], "clickable": True, "editable": True},
+        ]
+        for env_val in ("0", "1"):
+            with patch.dict(os.environ, {"AGENTDROID_NO_RUST": env_val}):
+                self.assertEqual(select_ui_element(elements, "Search")["id"], 2)
+                self.assertEqual(select_ui_element(elements, "btn:Search")["id"], 2)
+                self.assertEqual(select_ui_element(elements, "btn:#1")["id"], 2)
+                self.assertEqual(select_ui_element(elements, "edit:Search")["id"], 3)
+                self.assertEqual(select_ui_element(elements, "edit:#1")["id"], 3)
+                self.assertEqual(select_ui_element(elements, "id:btn_go")["id"], 2)
+                self.assertEqual(select_ui_element(elements, "exact:Search")["id"], 2)
+                self.assertEqual(select_ui_element(elements, "#1")["id"], 1)
+
+    def test_wait_any_if_visible_and_capture_variable_interpolation(self) -> None:
+        from agentdroid.engine import parse_do_step
+
+        self.assertEqual(
+            parse_do_step("wait-any:Ready|Allow|Error"),
+            {"type": "wait_any", "patterns": ["Ready", "Allow", "Error"]},
+        )
+        self.assertEqual(parse_do_step("wait-gone:Spinner"), {"type": "wait_gone", "text": "Spinner"})
+        self.assertEqual(parse_do_step("hide-keyboard"), {"type": "hide_keyboard"})
+
+        spec = PipelineSpec.from_dict(
+            {
+                "serial": "127.0.0.1:5555",
+                "auto_provision": False,
+                "check_crashes": False,
+                "do": [
+                    "wait-any:Metric Ready|Offline",
+                    "if-visible:Metric Ready->capture:eta=Metric Ready:\\s*([0-9]+\\s*min)",
+                    "if-visible:MissingBanner->click:Nope",
+                    "open-url:file:///sdcard/Download/out.md",
+                    "append:- Result: {{eta}}",
+                ],
+                "assert_text": ["{{eta}}"],
+            }
+        )
+        pipeline = CompoundPipeline(spec)
+        pipeline.adb.connect = MagicMock(return_value=True)
+        pipeline.adb.open_url = MagicMock(return_value={"opened": True, "uri": "file:///sdcard/Download/out.md"})
+        pipeline.helper.action = MagicMock(return_value={"success": True, "backend": "helper_ipc"})
+        pipeline.helper.dump_compact_ui = MagicMock(
+            side_effect=[
+                {"elements": [{"id": 1, "label": "Loading..."}]},
+                {"elements": [{"id": 1, "label": "Metric Ready: 42 min"}]},
+                {"elements": [{"id": 1, "label": "Metric Ready: 42 min"}]},
+                {"elements": [{"id": 1, "label": "Metric Ready: 42 min"}]},
+                {"elements": [{"id": 1, "label": "Metric Ready: 42 min"}]},
+                {"elements": [{"id": 1, "label": "- Result: 42 min"}]},
+                {"elements": [{"id": 1, "label": "- Result: 42 min"}]},
+            ]
+        )
+
+        with patch("agentdroid.engine.time.sleep"):
+            report = pipeline.run()
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["captured_vars"], {"eta": "42 min"})
+        pipeline.helper.action.assert_any_call("type", text="- Result: 42 min", append=True)
+
+    def test_dynamic_display_size_scaling(self) -> None:
+        from agentdroid.engine import AndroidEngine
+
+        engine = AndroidEngine(AdbDevice("127.0.0.1:5555"))
+        engine.helper._display_size = (1440, 3120)
+        engine.helper.action = MagicMock(return_value={"success": True})
+
+        res_tap = engine.tap_percentage(50.0, 50.0)
+        self.assertEqual(res_tap["x"], 720)
+        self.assertEqual(res_tap["y"], 1560)
+
+        engine.helper.scroll("down")
+        engine.helper.action.assert_any_call("swipe", x1=720, y1=2028, x2=720, y2=624, duration=300)
+
+    def test_pipeline_fast_ping_skips_provision_silent(self) -> None:
+        spec = PipelineSpec(serial="127.0.0.1:5555", auto_provision=True, check_crashes=False, dump_ui=False)
+        pipeline = CompoundPipeline(spec)
+        pipeline.helper.ping = MagicMock(return_value={"success": True, "authenticated": True})
+        with patch.object(AdbDevice, "provision_silent", side_effect=AssertionError("should be skipped")):
+            report = pipeline.run()
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["provision"]["action"], "already_provisioned_fast")
+
+    def test_fast_dump_dex_generation_and_displays_xml_parity(self) -> None:
+        import hashlib
+        import importlib.util
+        import os
+        import struct
+        import zlib
+        from agentdroid.helper import AccessibilityHelperClient
+
+        repo_root = Path(__file__).resolve().parent.parent
+        script_path = repo_root / "scripts" / "build_fast_dump_dex.py"
+        spec = importlib.util.spec_from_file_location("build_fast_dump_dex", script_path)
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        dex = mod.build_fast_dump_dex()
+        self.assertTrue(dex.startswith(b"dex\n035\x00"))
+        self.assertIn(b"Lcom/agentdroid/FastDump;", dex)
+        self.assertEqual(struct.unpack_from("<I", dex, 32)[0], len(dex))
+        self.assertEqual(dex[12:32], hashlib.sha1(dex[32:]).digest())
+        self.assertEqual(struct.unpack_from("<I", dex, 8)[0], zlib.adler32(dex[12:]) & 0xFFFFFFFF)
+        committed = repo_root / "packages" / "agentdroid-fast-dump" / "agentdroid-fast-dump.dex"
+        self.assertEqual(committed.read_bytes(), dex)
+
+        # Verify <displays><display><window><node .../></window></display></displays> XML parity in Rust & Python
+        displays_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<displays><display id="0">'
+            '<window index="0" bounds="[0,0][1080,2400]">'
+            '<node package="org.demo" class="android.widget.Button" text="Continue" clickable="true" bounds="[100,200][500,300]" />'
+            '</window></display></displays>'
+        )
+        for env_val in ("0", "1"):
+            with patch.dict(os.environ, {"AGENTDROID_NO_RUST": env_val}):
+                els, app_cnt, _, disp, err = AccessibilityHelperClient._parse_hierarchy_xml(
+                    displays_xml, 80, include_ime=False
+                )
+                self.assertIsNone(err)
+                self.assertEqual(disp, (1080, 2400))
+                self.assertEqual(app_cnt, 1)
+                self.assertEqual(els[0]["label"], "Continue")
 
 
 if __name__ == "__main__":

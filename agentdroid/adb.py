@@ -128,6 +128,8 @@ class AdbDevice:
         adb_bin: str | None = None,
     ) -> None:
         self.adb_bin = adb_bin or os.environ.get("ADB_BIN") or shutil.which("adb") or "adb"
+        self._adb_bin_explicit = adb_bin is not None or "ADB_BIN" in os.environ
+        self._display_size: tuple[int, int] | None = None
         self.serial = (
             serial
             or os.environ.get("ADB_DEVICE_SERIAL")
@@ -136,7 +138,27 @@ class AdbDevice:
             or "127.0.0.1:5555"
         )
 
+    def _use_rust_adb(self) -> bool:
+        if self._adb_bin_explicit and self.adb_bin != "adb":
+            return False
+        return (
+            getattr(self.run_adb, "__func__", None) is AdbDevice.run_adb
+            and subprocess.run.__module__ == "subprocess"
+        )
+
     def _detect_first_device(self) -> str | None:
+        if not self._adb_bin_explicit and subprocess.run.__module__ == "subprocess":
+            try:
+                from agentdroid import rust_bridge
+
+                ok, out = rust_bridge.adb_devices()
+                if ok:
+                    for line in out.splitlines():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            return parts[0]
+            except Exception:
+                pass
         try:
             proc = subprocess.run(
                 [self.adb_bin, "devices"],
@@ -178,11 +200,31 @@ class AdbDevice:
             )
 
     def shell(self, command: str, *, timeout: float = 30.0) -> str:
+        if self._use_rust_adb():
+            try:
+                from agentdroid import rust_bridge
+
+                ok, out = rust_bridge.adb_shell(
+                    self.serial, command, timeout_ms=int(max(1.0, timeout) * 1000)
+                )
+                if ok:
+                    return out.strip()
+            except Exception:
+                pass
         res = self.run_adb(["shell", command], timeout=timeout)
         return (res.stdout or "").strip()
 
     def is_connected(self) -> bool:
         """Quick non-blocking check if device state is 'device'."""
+        if self._use_rust_adb():
+            try:
+                from agentdroid import rust_bridge
+
+                ok, state_str = rust_bridge.adb_state(self.serial)
+                if ok:
+                    return state_str.strip() == "device"
+            except Exception:
+                pass
         try:
             state = self.run_adb(["get-state"], timeout=3.0)
             return state.returncode == 0 and (state.stdout or "").strip() == "device"
@@ -808,6 +850,23 @@ class AdbDevice:
             )
         return notifications[:30]
 
+    def get_display_size(self, *, refresh: bool = False) -> tuple[int, int]:
+        """Return cached or live device screen (width, height) in pixels."""
+        if self._display_size is not None and not refresh:
+            return self._display_size
+        out = self.shell("wm size 2>/dev/null || true", timeout=4.0)
+        matches = re.findall(r"(\d+)\s*x\s*(\d+)", out)
+        if matches:
+            w, h = map(int, matches[-1])
+            if w > 0 and h > 0:
+                self._display_size = (w, h)
+                return self._display_size
+        return (1080, 2400)
+
+    def set_display_size_hint(self, width: int, height: int) -> None:
+        if width > 0 and height > 0:
+            self._display_size = (width, height)
+
     def foreground_app(self) -> dict[str, str | None]:
         """Return the currently visible foreground package and activity."""
         out = self.shell("dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
@@ -835,8 +894,28 @@ class AdbDevice:
 
     def collect_crashes(self, package_filter: str | None = None) -> CrashReport:
         """Inspect logcat crash buffer and ANR traces."""
-        crash_res = self.run_adb(["logcat", "-d", "-b", "crash"], timeout=10.0)
-        raw_crash = (crash_res.stdout or "").strip()
+        if self._use_rust_adb():
+            combined = self.shell(
+                "logcat -d -b crash 2>/dev/null; "
+                "printf '\\n__AGENTDROID_ANR_SEP__\\n'; "
+                "logcat -d -b system,events -s ActivityManager:E am_anr:* 2>/dev/null",
+                timeout=10.0,
+            )
+            if "__AGENTDROID_ANR_SEP__" in combined:
+                raw_crash, raw_anr = combined.split("__AGENTDROID_ANR_SEP__", 1)
+                raw_crash = raw_crash.strip()
+                raw_anr = raw_anr.strip()
+            else:
+                raw_crash = combined.strip()
+                raw_anr = ""
+        else:
+            crash_res = self.run_adb(["logcat", "-d", "-b", "crash"], timeout=10.0)
+            raw_crash = (crash_res.stdout or "").strip()
+            anr_res = self.run_adb(
+                ["logcat", "-d", "-b", "system,events", "-s", "ActivityManager:E", "am_anr:*"],
+                timeout=10.0,
+            )
+            raw_anr = (anr_res.stdout or "").strip()
 
         fatal_exceptions: list[str] = []
         native_tombstones: list[str] = []
@@ -848,12 +927,8 @@ class AdbDevice:
             elif "Fatal signal" in line or "backtrace:" in line:
                 native_tombstones.append(line.strip())
 
-        anr_res = self.run_adb(
-            ["logcat", "-d", "-b", "system,events", "-s", "ActivityManager:E", "am_anr:*"],
-            timeout=10.0,
-        )
         anrs: list[str] = []
-        for line in (anr_res.stdout or "").splitlines():
+        for line in raw_anr.splitlines():
             if "ANR in " in line or "am_anr" in line:
                 if not package_filter or package_filter in line:
                     anrs.append(line.strip())

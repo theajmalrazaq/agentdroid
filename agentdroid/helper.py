@@ -40,6 +40,14 @@ INPUT_DAEMON_DEX_HOST = (
 INPUT_DAEMON_DEX_DEVICE = "/data/local/tmp/agentdroid-input.dex"
 INPUT_DAEMON_DEX_VENDOR = "/vendor/etc/artemis/agentdroid-input.dex"
 INPUT_DAEMON_TOKEN_DEVICE = "/data/local/tmp/.agentdroid_input_token"
+FAST_DUMP_PORT = 18890
+FAST_DUMP_DEX_HOST = (
+    Path(__file__).resolve().parent.parent
+    / "packages"
+    / "agentdroid-fast-dump"
+    / "agentdroid-fast-dump.dex"
+)
+FAST_DUMP_DEX_DEVICE = "/data/local/tmp/agentdroid-fast-dump.dex"
 
 _KEYCODE_MAP = {
     "BACK": "KEYCODE_BACK",
@@ -107,6 +115,111 @@ def _parse_swipe_args(params: dict[str, Any]) -> tuple[float, float, float, floa
     )
 
 
+def _is_ime_node(package_name: str, short_class: str) -> bool:
+    if short_class == "Key":
+        return True
+    low = package_name.lower()
+    return "inputmethod" in low or "latinime" in low or "gboard" in low
+
+
+def select_ui_element(elements: list[dict[str, Any]], selector: str) -> dict[str, Any] | None:
+    """Universal interactivity-scored element selector (#idx, btn:, edit:, exact:, id:, substring)."""
+    sel = selector.strip()
+    if not sel or not elements:
+        return None
+
+    try:
+        from agentdroid import rust_bridge
+
+        handled, el = rust_bridge.select_element(elements, sel)
+        if handled:
+            return el
+    except Exception:
+        pass
+
+    idx_str = sel[1:] if sel.startswith("#") else sel
+    if idx_str.isdigit():
+        target_id = int(idx_str)
+        for el in elements:
+            if el.get("id") == target_id:
+                return el
+
+    mode = "any"
+    needle_raw = sel
+    for prefix, m in (("btn:", "btn"), ("edit:", "edit"), ("exact:", "exact"), ("id:", "id"), ("text:", "text")):
+        if sel.startswith(prefix):
+            mode = m
+            needle_raw = sel[len(prefix) :].strip()
+            break
+
+    needle = needle_raw.lower()
+    if not needle:
+        return None
+
+    if mode in ("btn", "edit") and needle_raw.startswith("#") and needle_raw[1:].isdigit():
+        nth = int(needle_raw[1:])
+        if nth >= 1:
+            cnt = 0
+            for el in elements:
+                cls_name = str(el.get("class") or "")
+                is_kind = (
+                    (mode == "btn" and (bool(el.get("clickable")) or "Button" in cls_name))
+                    or (mode == "edit" and bool(el.get("editable")))
+                )
+                if is_kind:
+                    cnt += 1
+                    if cnt == nth:
+                        return el
+            return None
+
+    best: tuple[int, int, dict[str, Any]] | None = None
+    for pos, el in enumerate(elements):
+        cls_name = str(el.get("class") or "")
+        clickable = bool(el.get("clickable"))
+        editable = bool(el.get("editable"))
+        if mode == "btn" and not clickable and "Button" not in cls_name:
+            continue
+        if mode == "edit" and not editable:
+            continue
+
+        interactive_bonus = 20 if (clickable or editable) else 0
+        non_webview_bonus = 0 if cls_name == "WebView" else 5
+
+        if mode == "id":
+            fields = [(str(el.get("resource_id") or ""), 5)]
+        elif mode == "text":
+            fields = [
+                (str(el.get("label") or ""), 4),
+                (str(el.get("full_text") or ""), 4),
+            ]
+        else:
+            fields = [
+                (str(el.get("label") or ""), 4),
+                (str(el.get("full_text") or ""), 4),
+                (str(el.get("desc") or ""), 3),
+                (str(el.get("resource_id") or ""), 5),
+            ]
+
+        field_score = 0
+        for raw_val, weight in fields:
+            v = raw_val.strip().lower()
+            if not v:
+                continue
+            if v == needle:
+                field_score = max(field_score, 100 + weight)
+            elif mode != "exact" and needle in v:
+                field_score = max(field_score, 40 + weight)
+
+        if field_score == 0:
+            continue
+
+        total_score = field_score + interactive_bonus + non_webview_bonus
+        if best is None or total_score > best[0]:
+            best = (total_score, pos, el)
+
+    return best[2] if best is not None else None
+
+
 class AccessibilityHelperClient:
     """Sub-second UI hierarchy, semantic locator, and gesture client backed by ArtemisAccessibilityHelper.apk and InputDaemon."""
 
@@ -118,7 +231,22 @@ class AccessibilityHelperClient:
         self._input_rfile: Any = None
         self._input_lock = threading.Lock()
         self._last_ping: dict[str, Any] | None = None
+        self._last_sparse_fallback_at: float = 0.0
+        self._display_size: tuple[int, int] | None = None
         self._token: str = get_or_create_helper_token()
+
+    def get_display_size(self) -> tuple[int, int]:
+        if self._display_size is not None:
+            return self._display_size
+        if isinstance(self.adb, AdbDevice):
+            try:
+                size = self.adb.get_display_size()
+                if isinstance(size, tuple) and len(size) == 2 and size[0] > 0 and size[1] > 0:
+                    self._display_size = size
+                    return size
+            except Exception:
+                pass
+        return (1080, 2400)
 
     def close(self) -> None:
         """Close any cached persistent socket connections."""
@@ -140,6 +268,17 @@ class AccessibilityHelperClient:
             self._input_sock = None
 
     def _find_existing_forward(self, remote_port: int = DEVICE_PORT) -> int | None:
+        if isinstance(self.adb, AdbDevice) and self.adb._use_rust_adb():
+            try:
+                from agentdroid import rust_bridge
+
+                ok, pairs = rust_bridge.adb_forward_list(self.adb.serial)
+                if ok:
+                    for loc, rem in pairs:
+                        if rem == remote_port:
+                            return loc
+            except Exception:
+                pass
         res = self.adb.run_adb(["forward", "--list"], timeout=5.0)
         for line in (res.stdout or "").splitlines():
             parts = line.split()
@@ -165,6 +304,20 @@ class AccessibilityHelperClient:
             elif remote_port == INPUT_DAEMON_PORT:
                 self._input_local_port = existing
             return existing
+
+        if isinstance(self.adb, AdbDevice) and self.adb._use_rust_adb():
+            try:
+                from agentdroid import rust_bridge
+
+                ok, local_port = rust_bridge.adb_forward_create(self.adb.serial, remote_port)
+                if ok and local_port is not None:
+                    if remote_port == DEVICE_PORT:
+                        self._local_port = local_port
+                    elif remote_port == INPUT_DAEMON_PORT:
+                        self._input_local_port = local_port
+                    return local_port
+            except Exception:
+                pass
 
         res = self.adb.run_adb(["forward", "tcp:0", f"tcp:{remote_port}"], timeout=10.0)
         port_str = (res.stdout or "").strip()
@@ -336,6 +489,8 @@ class AccessibilityHelperClient:
             return None
         if c == "type":
             text_str = str(params.get("text", ""))
+            if params.get("append"):
+                self._input_daemon_exec("key\tKEYCODE_MOVE_END", timeout=1.5)
             if text_str.isascii():
                 b64 = base64.b64encode(text_str.encode("utf-8")).decode("ascii")
                 resp = self._input_daemon_exec(
@@ -344,6 +499,14 @@ class AccessibilityHelperClient:
                 )
                 if resp:
                     return {"success": True, "backend": "input_daemon"}
+            elif hasattr(self.adb, "set_clipboard"):
+                try:
+                    if self.adb.set_clipboard(text_str):
+                        resp = self._input_daemon_exec("key\tKEYCODE_PASTE", timeout=2.0)
+                        if resp:
+                            return {"success": True, "backend": "input_daemon_paste"}
+                except Exception:
+                    pass
             return None
         return None
 
@@ -475,8 +638,18 @@ class AccessibilityHelperClient:
             self.adb.shell(f"input swipe {int(sx1)} {int(sy1)} {int(sx2)} {int(sy2)} {dur}")
             return {"success": True, "backend": "adb_input"}
         if c == "type":
-            text = str(params.get("text", "")).replace(" ", "%s").replace("'", "")
-            self.adb.shell(f"input text '{text}'")
+            if params.get("append"):
+                self._input_daemon_action("global", action="MOVE_END")
+            text = str(params.get("text", ""))
+            if hasattr(self.adb, "set_clipboard"):
+                try:
+                    if self.adb.set_clipboard(text):
+                        self.adb.shell("input keyevent KEYCODE_PASTE")
+                        return {"success": True, "backend": "adb_clipboard_paste"}
+                except Exception:
+                    pass
+            escaped = text.replace(" ", "%s").replace("'", "")
+            self.adb.shell(f"input text '{escaped}'")
             return {"success": True, "backend": "adb_input"}
         if c == "global":
             act = str(params.get("action", "")).upper()
@@ -485,36 +658,20 @@ class AccessibilityHelperClient:
             return {"success": True, "backend": "adb_input"}
         return {"success": False, "error": f"Unsupported fallback action: {cmd}"}
 
-    def find_element(self, selector: str, *, max_elements: int = 120) -> dict[str, Any] | None:
-        """Locate a UI element on screen by index (#3), exact text/desc/id, or case-insensitive substring."""
+    def find_element(
+        self,
+        selector: str,
+        *,
+        max_elements: int = 120,
+        include_ime: bool = False,
+    ) -> dict[str, Any] | None:
+        """Locate a UI element using interactivity-scored matching (#idx, btn:, edit:, exact:, id:, substring)."""
         sel = selector.strip()
-        ui = self.dump_compact_ui(max_elements=max_elements)
+        if not sel:
+            return None
+        ui = self.dump_compact_ui(max_elements=max_elements, include_ime=include_ime)
         elements = ui.get("elements") or []
-
-        # 1. Match by element index (#3 or plain integer if 1..len)
-        idx_str = sel[1:] if sel.startswith("#") else sel
-        if idx_str.isdigit():
-            target_id = int(idx_str)
-            for el in elements:
-                if el.get("id") == target_id:
-                    return el
-
-        sel_lower = sel.lower()
-        # 2. Exact match on label, desc, or resource_id
-        for el in elements:
-            for field in ("label", "desc", "resource_id"):
-                val = str(el.get(field) or "").strip()
-                if val and val.lower() == sel_lower:
-                    return el
-
-        # 3. Case-insensitive substring match
-        for el in elements:
-            for field in ("label", "desc", "resource_id"):
-                val = str(el.get(field) or "").strip()
-                if val and sel_lower in val.lower():
-                    return el
-
-        return None
+        return select_ui_element(elements, sel)
 
     def tap_element(self, selector: str, *, timeout: float = 8.0) -> dict[str, Any]:
         """Wait up to timeout for an element matching selector (text, id, #index) and tap its center."""
@@ -532,7 +689,7 @@ class AccessibilityHelperClient:
                 }
             if time.monotonic() >= deadline:
                 break
-            time.sleep(0.5)
+            time.sleep(0.15)
         return {
             "success": False,
             "selector": selector,
@@ -544,10 +701,10 @@ class AccessibilityHelperClient:
         tap_res = self.tap_element(selector, timeout=6.0)
         if not tap_res.get("success"):
             return tap_res
-        time.sleep(0.25)
+        time.sleep(0.05)
         type_res = self.action("type", text=text, append=False)
         if submit:
-            time.sleep(0.15)
+            time.sleep(0.05)
             self.action("global", action="ENTER")
         return {
             "success": bool(type_res.get("success", True)),
@@ -557,16 +714,20 @@ class AccessibilityHelperClient:
         }
 
     def scroll(self, direction: str = "down") -> dict[str, Any]:
-        """Perform a directional scroll gesture on the screen."""
+        """Perform a resolution-scaled directional scroll gesture on the screen."""
+        w, h = self.get_display_size()
+        cx, cy = w // 2, h // 2
+        y_top, y_bot = int(h * 0.20), int(h * 0.65)
+        x_left, x_right = int(w * 0.16), int(w * 0.84)
         d = direction.strip().lower()
         if d == "down":
-            return self.action("swipe", x1=540, y1=1450, x2=540, y2=450, duration=350)
+            return self.action("swipe", x1=cx, y1=y_bot, x2=cx, y2=y_top, duration=300)
         if d == "up":
-            return self.action("swipe", x1=540, y1=450, x2=540, y2=1450, duration=350)
+            return self.action("swipe", x1=cx, y1=y_top, x2=cx, y2=y_bot, duration=300)
         if d == "left":
-            return self.action("swipe", x1=900, y1=960, x2=180, y2=960, duration=300)
+            return self.action("swipe", x1=x_right, y1=cy, x2=x_left, y2=cy, duration=280)
         if d == "right":
-            return self.action("swipe", x1=180, y1=960, x2=900, y2=960, duration=300)
+            return self.action("swipe", x1=x_left, y1=cy, x2=x_right, y2=cy, duration=280)
         return {"success": False, "error": f"Unknown scroll direction: {direction!r}"}
 
     def scroll_to_text(self, text_needle: str, *, max_scrolls: int = 8, direction: str = "down") -> dict[str, Any]:
@@ -577,7 +738,7 @@ class AccessibilityHelperClient:
                 return {"success": True, "found": True, "scrolls": attempt, "element": el}
             if attempt < max_scrolls:
                 self.scroll(direction)
-                time.sleep(0.5)
+                time.sleep(0.15)
         return {
             "success": False,
             "found": False,
@@ -585,8 +746,193 @@ class AccessibilityHelperClient:
             "error": f"Text {text_needle!r} not found after {max_scrolls} scrolls",
         }
 
-    def dump_compact_ui(self, *, max_elements: int = 80) -> dict[str, Any]:
-        """Return a token-efficient compact list of interactive/labelled UI elements on screen."""
+    def _ensure_fast_dump(self) -> int | None:
+        if not isinstance(self.adb, AdbDevice):
+            return None
+        try:
+            port = self._ensure_forward(remote_port=FAST_DUMP_PORT)
+        except Exception:
+            return None
+
+        def _ping_fast(p: int) -> bool:
+            try:
+                with socket.create_connection(("127.0.0.1", p), timeout=0.6) as s:
+                    s.settimeout(0.8)
+                    s.sendall(f"{self._token}\tping\n".encode("utf-8"))
+                    return s.recv(64).startswith(b"OK pong")
+            except OSError:
+                return False
+
+        if _ping_fast(port):
+            return port
+        if not FAST_DUMP_DEX_HOST.is_file():
+            return None
+        host_size = FAST_DUMP_DEX_HOST.stat().st_size
+        token_clean = re.sub(r"[^0-9A-Za-z._-]", "", self._token) or "agentdroid"
+        check_cmd = (
+            f"umask 077 && printf '%s\\n' '{token_clean}' > {INPUT_DAEMON_TOKEN_DEVICE} && "
+            f"chmod 600 {INPUT_DAEMON_TOKEN_DEVICE}; "
+            f"wc -c < {FAST_DUMP_DEX_DEVICE} 2>/dev/null || echo 0"
+        )
+        out = (self.adb.shell(check_cmd, timeout=5.0) or "").strip()
+        last_line = out.splitlines()[-1].strip() if out else ""
+        dev_size = int(last_line) if last_line.isdigit() else 0
+        if dev_size != host_size:
+            push_res = self.adb.run_adb(["push", str(FAST_DUMP_DEX_HOST), FAST_DUMP_DEX_DEVICE], timeout=10.0)
+            if push_res.returncode != 0:
+                return None
+        launch_cmd = (
+            f"CLASSPATH=/system/framework/uiautomator.jar:{FAST_DUMP_DEX_DEVICE} "
+            f"nohup app_process / com.agentdroid.FastDump {FAST_DUMP_PORT} {INPUT_DAEMON_TOKEN_DEVICE} "
+            f"</dev/null >/dev/null 2>&1 &"
+        )
+        self.adb.shell(launch_cmd, timeout=4.0)
+        for _ in range(12):
+            if _ping_fast(port):
+                return port
+            time.sleep(0.05)
+        return None
+
+    def _fast_dump_xml(self) -> str:
+        port = self._ensure_fast_dump()
+        if port is None:
+            return ""
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=1.5) as s:
+                s.settimeout(2.5)
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                s.sendall(f"{self._token}\tdump\n".encode("utf-8"))
+                f = s.makefile("rb")
+                hdr = f.readline().decode("utf-8", errors="replace").strip()
+                if not hdr.startswith("OK "):
+                    return ""
+                byte_len = int(hdr.split()[1])
+                if byte_len <= 0 or byte_len > 8 * 1024 * 1024:
+                    return ""
+                data = f.read(byte_len).decode("utf-8", errors="replace")
+                return data if ("<hierarchy" in data or "<displays" in data) else ""
+        except Exception:
+            return ""
+
+    def _dump_uiautomator_xml(self) -> str:
+        if isinstance(self.adb, AdbDevice):
+            fast = self._fast_dump_xml()
+            if fast:
+                return fast
+        self.adb.shell("timeout 4 uiautomator dump /sdcard/agentdroid_ui.xml >/dev/null 2>&1 || true")
+        return self.adb.shell("cat /sdcard/agentdroid_ui.xml 2>/dev/null || true")
+
+    @staticmethod
+    def _parse_hierarchy_xml(
+        xml_str: str,
+        max_elements: int,
+        *,
+        include_ime: bool = False,
+    ) -> tuple[list[dict[str, Any]], int, bool, tuple[int, int], str | None]:
+        """Parse UI XML via Rust fast-path (or Python fallback) returning (elements, app_count, has_systemui, display_size, error)."""
+        if not xml_str or "<" not in xml_str:
+            return [], 0, False, (1080, 2400), None
+
+        try:
+            from agentdroid import rust_bridge
+
+            r = rust_bridge.parse_xml(xml_str, max_elements=max_elements, include_ime=include_ime)
+            if r is not None:
+                if not r.get("ok"):
+                    return [], 0, False, (1080, 2400), str(r.get("error") or "XML parse error")
+                ds = r.get("display_size") or [1080, 2400]
+                disp = (int(ds[0]), int(ds[1])) if len(ds) == 2 else (1080, 2400)
+                return (
+                    list(r.get("elements") or []),
+                    int(r.get("non_sysui_count") or 0),
+                    bool(r.get("has_systemui")),
+                    disp,
+                    None,
+                )
+        except Exception:
+            pass
+
+        elements: list[dict[str, Any]] = []
+        non_sysui_count = 0
+        has_systemui = False
+        max_w, max_h = 0, 0
+        try:
+            xml_clean = xml_str[xml_str.find("<") :]
+            root = ET.fromstring(xml_clean)
+            idx = 1
+            for node in root.iter():
+                node_pkg = (node.attrib.get("package") or "").strip()
+                if node_pkg == "com.android.systemui":
+                    has_systemui = True
+
+                bounds_str = node.attrib.get("bounds") or ""
+                m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups())
+                    if x2 > max_w:
+                        max_w = x2
+                    if y2 > max_h:
+                        max_h = y2
+                else:
+                    continue
+
+                if x2 <= x1 or y2 <= y1:
+                    continue
+
+                class_raw = node.attrib.get("class") or ""
+                short_cls = class_raw.rsplit(".", 1)[-1]
+                if not include_ime and _is_ime_node(node_pkg, short_cls):
+                    continue
+
+                text = (node.attrib.get("text") or "").strip()
+                desc = (node.attrib.get("content-desc") or "").strip()
+                res_id = (node.attrib.get("resource-id") or "").strip()
+                clickable = node.attrib.get("clickable") == "true"
+                editable = "EditText" in class_raw
+
+                if not (text or desc or clickable or editable):
+                    continue
+                if len(elements) >= max_elements:
+                    continue
+
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                short_id = res_id.split("/")[-1] if "/" in res_id else res_id
+                raw_label = text or desc or short_id or short_cls
+                label = raw_label[:180]
+                item: dict[str, Any] = {
+                    "id": idx,
+                    "label": label,
+                    "class": short_cls,
+                    "center": [cx, cy],
+                }
+                if (editable or len(raw_label) > 180) and raw_label != label:
+                    item["full_text"] = raw_label
+                if text and desc and text != desc:
+                    item["desc"] = desc[:120]
+                if short_id and short_id != label:
+                    item["resource_id"] = short_id
+                if clickable:
+                    item["clickable"] = True
+                if editable:
+                    item["editable"] = True
+                elements.append(item)
+                if node_pkg != "com.android.systemui":
+                    non_sysui_count += 1
+                idx += 1
+        except Exception as exc:
+            return [], 0, has_systemui, (1080, 2400), str(exc)
+
+        disp = (max_w, max_h) if max_w > 0 and max_h > 0 else (1080, 2400)
+        return elements, non_sysui_count, has_systemui, disp, None
+
+    def dump_compact_ui(
+        self,
+        *,
+        max_elements: int = 80,
+        allow_sparse_fallback: bool = True,
+        include_ime: bool = False,
+    ) -> dict[str, Any]:
+        """Return compact numbered UI elements for minimal AI agent token consumption."""
         xml_str = ""
         backend = "helper"
         fg: dict[str, str | None] | None = None
@@ -618,7 +964,7 @@ class AccessibilityHelperClient:
                     headers={"X-Artemis-Token": self._token},
                     method="GET",
                 )
-                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                with urllib.request.urlopen(req, timeout=2.0) as resp:
                     xml_str = resp.read().decode("utf-8", errors="replace")
             except Exception:
                 xml_str = ""
@@ -626,69 +972,57 @@ class AccessibilityHelperClient:
         if fg is None:
             fg = self.adb.foreground_app()
 
-        if not xml_str or "<hierarchy" not in xml_str:
-            backend = "uiautomator"
-            self.adb.shell("uiautomator dump /sdcard/agentdroid_ui.xml >/dev/null 2>&1 || true")
-            xml_str = self.adb.shell("cat /sdcard/agentdroid_ui.xml 2>/dev/null || true")
-
-        elements: list[dict[str, Any]] = []
-        if xml_str and "<" in xml_str:
-            try:
-                xml_clean = xml_str[xml_str.find("<") :]
-                root = ET.fromstring(xml_clean)
-                idx = 1
-                for node in root.iter():
-                    text = (node.attrib.get("text") or "").strip()
-                    desc = (node.attrib.get("content-desc") or "").strip()
-                    res_id = (node.attrib.get("resource-id") or "").strip()
-                    clickable = node.attrib.get("clickable") == "true"
-                    editable = "EditText" in (node.attrib.get("class") or "")
-                    bounds_str = node.attrib.get("bounds") or ""
-
-                    if not (text or desc or clickable or editable):
-                        continue
-
-                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
-                    if not m:
-                        continue
-                    x1, y1, x2, y2 = map(int, m.groups())
-                    if x2 <= x1 or y2 <= y1:
-                        continue
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                    short_id = res_id.split("/")[-1] if "/" in res_id else res_id
-                    short_cls = (node.attrib.get("class") or "").rsplit(".", 1)[-1]
-
-                    label = text or desc or short_id or short_cls
-                    item: dict[str, Any] = {
-                        "id": idx,
-                        "label": label[:100],
-                        "class": short_cls,
-                        "center": [cx, cy],
-                    }
-                    if text and desc and text != desc:
-                        item["desc"] = desc[:80]
-                    if short_id and short_id != label:
-                        item["resource_id"] = short_id
-                    if clickable:
-                        item["clickable"] = True
-                    if editable:
-                        item["editable"] = True
-                    elements.append(item)
-                    idx += 1
-                    if len(elements) >= max_elements:
-                        break
-            except Exception as exc:
+        if not xml_str or ("<hierarchy" not in xml_str and "<displays" not in xml_str):
+            if not allow_sparse_fallback:
                 return {
-                    "backend": backend,
+                    "backend": "helper",
                     "foreground": fg,
+                    "display_size": list(self.get_display_size()),
                     "element_count": 0,
                     "elements": [],
-                    "parse_error": str(exc),
                 }
+            backend = "uiautomator"
+            xml_str = self._dump_uiautomator_xml()
+
+        elements, non_sysui_count, has_systemui, disp_size, parse_error = self._parse_hierarchy_xml(
+            xml_str, max_elements, include_ime=include_ime
+        )
+        self._display_size = disp_size
+        if isinstance(self.adb, AdbDevice):
+            self.adb.set_display_size_hint(disp_size[0], disp_size[1])
+
+        if parse_error is not None:
+            return {
+                "backend": backend,
+                "foreground": fg,
+                "display_size": list(disp_size),
+                "element_count": 0,
+                "elements": [],
+                "parse_error": parse_error,
+            }
+
+        # Recover rich WebView/multi-window nodes when helper only sees system bar + sparse stub
+        if (
+            allow_sparse_fallback
+            and backend == "helper"
+            and has_systemui
+            and non_sysui_count <= 2
+            and (time.monotonic() - self._last_sparse_fallback_at) >= 1.5
+        ):
+            self._last_sparse_fallback_at = time.monotonic()
+            uia_xml = self._dump_uiautomator_xml()
+            uia_els, uia_non_sysui, _, uia_disp, uia_err = self._parse_hierarchy_xml(
+                uia_xml, max_elements, include_ime=include_ime
+            )
+            if uia_err is None and uia_non_sysui > non_sysui_count:
+                backend = "uiautomator"
+                elements = uia_els
+                self._display_size = uia_disp
 
         return {
             "backend": backend,
             "foreground": fg,
+            "display_size": list(self.get_display_size()),
             "element_count": len(elements),
             "elements": elements,
         }

@@ -99,10 +99,20 @@ if [[ "$(uname -s)" == "Linux" ]]; then
     fi
 fi
 
+# Build native Rust accelerator (`agentdroid-fast`) if Cargo is present
+if command -v cargo >/dev/null 2>&1 && [[ -f "${REPO_ROOT}/rust/Cargo.toml" ]]; then
+    info "Building native Rust engine (agentdroid-fast)..."
+    cargo build --release --manifest-path "${REPO_ROOT}/rust/Cargo.toml" >/dev/null 2>&1 || \
+        warn "Rust build skipped (pure-Python engine remains active)."
+fi
+
 # 3. Ensure ~/.local/bin is on PATH and symlink `agentdroid`
 mkdir -p "${HOME}/.local/bin"
 chmod +x "${REPO_ROOT}/bin/agentdroid" "${REPO_ROOT}/scripts/provision-device.sh"
 ln -sf "${REPO_ROOT}/bin/agentdroid" "${HOME}/.local/bin/agentdroid"
+if [[ -x "${REPO_ROOT}/rust/target/release/agentdroid-fast" ]]; then
+    ln -sf "${REPO_ROOT}/rust/target/release/agentdroid-fast" "${HOME}/.local/bin/agentdroid-fast"
+fi
 
 if [[ -w /usr/local/bin ]]; then
     ln -sf "${REPO_ROOT}/bin/agentdroid" /usr/local/bin/agentdroid || true

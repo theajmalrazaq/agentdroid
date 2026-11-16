@@ -552,7 +552,10 @@ def cmd_ui(args: argparse.Namespace) -> int:
     act = args.ui_action
 
     if act == "dump":
-        summary = engine.get_screen_data(max_elements=args.max_elements)
+        summary = engine.get_screen_data(
+            max_elements=args.max_elements,
+            include_ime=bool(getattr(args, "include_ime", False)),
+        )
         if args.json:
             print(json.dumps(summary, indent=2, ensure_ascii=False))
         else:
@@ -938,6 +941,7 @@ def build_parser() -> argparse.ArgumentParser:
     dump_p = ui_sub.add_parser("dump", help="Dump compact, token-efficient visible UI elements.")
     dump_p.add_argument("-s", "--serial", help="Target device serial.")
     dump_p.add_argument("--max-elements", type=int, default=60)
+    dump_p.add_argument("--include-ime", action="store_true", help="Include soft-keyboard keys in UI dump.")
     dump_p.add_argument("-j", "--json", action="store_true")
 
     tap_p = ui_sub.add_parser("tap", help="Tap screen coordinates.")

@@ -1,131 +1,65 @@
 # AgentDroid (`agentdroid`) — AI Agent Operating Rules
 
-This repository provides a **silent, general-purpose Android computer** (powered by **Redroid**; the on-device accessibility helper comes from **Google Artemis**) that AI agents can drive for **any task**.
+This repository provides a **silent, general-purpose Android computer** (powered by **Redroid**, **Google Artemis Accessibility Helper**, **InputDaemon**, and native Rust **`agentdroid-fast`**) that AI agents can drive for **any task**.
 
 > **No Separate LLM API Keys or `.env` Required**:
 > **You (the host AI agent — Claude Code, Antigravity, Codex, Cursor, etc.) are already the brain!**
-> Artemis's proven mobile driving engine (numbered indexed perception, action bursts, dynamic-first coordinate fallback, and dialog auto-dismissal) is embedded directly into `agentdroid` via **Model Context Protocol (MCP)** and compound CLI commands.
+
+---
+
+## HARD OPERATING RULES (NON-NEGOTIABLE)
+
+1. **ZERO REDUNDANT SCREENSHOTS (`screenshots = 0` by default)**
+   - **FORBIDDEN**: Calling `screenshot`, `adb screencap`, `agentdroid ui screenshot`, `view_type="screenshot"`, or `--screenshot` to read text, buttons, lists, menus, routes, forms, notifications, or to "verify" completed actions.
+   - **MANDATORY**: Read `ui_summary` / `agentdroid ui dump --json` (`~5 ms`, IME keyboard chrome filtered automatically). Editable/long text fields include full text without truncation.
+   - **LOADING / WEBVIEW / DYNAMIC SCREENS**: If `ui dump` shows only status bar items or a loading stub (`element_count <= 7`), **DO NOT take a screenshot**. Poll cleanly with `-d "wait-any:<expected>|<fallback>|<blocker>"` or `-d "wait-gone:<spinner>"`.
+   - **ONLY TWO EXCEPTIONS**: (a) after `wait-*` settling, `ui dump` still exposes zero readable/actionable nodes (pure Canvas/OpenGL/image surface), OR (b) the user explicitly asked for an image/screenshot file.
+
+2. **TRUE SINGLE-CALL FIRST (`<= 1` call when extracting & writing across apps; `<= 2` calls max on unknown UIs)**
+   - **FORBIDDEN**: Ping-ponging `dump -> tap -> dump -> type` across 5–10 LLM turns or shelling out multiple `agentdroid ui ...` calls when one compound pipeline handles all steps.
+   - **SINGLE-CALL CROSS-APP READ + WRITE**: Use `capture:<var>=<regex>` / `capture-all:<var>=<regex>` + `{{var}}` interpolation to read values from App A and pass them straight into App B in **ONE `agentdroid` CLI or `mobile_run_workflow` call** (zero mid-task LLM round-trips!).
+   - **CONDITIONAL RECOVERY INSIDE A CALL**: Use `wait-any:<expected>|<blocker>` and `if-visible:<needle>-><step>` (e.g., `-d "if-visible:Allow->click:Allow"`) to handle popups, onboarding, or transient redirects without burning another LLM turn.
+   - **PREFER DEEP LINKS & INTENTS**: Jump straight with `--locked-app <pkg> --open-url "<uri>"`.
+
+3. **TARGETING PRECISION (`btn:`, `edit:`, `exact:`, `id:`, `#id`)**
+   - Default selectors rank clickable/editable nodes above static labels/WebView containers.
+   - When a screen has both a label and a button with similar text (e.g. `"Search"` title vs button), pass `btn:Search`, `edit:Search`, `exact:Save`, or `#id`.
+
+4. **HEADLESS REDROID ENVIRONMENT INVARIANTS**
+   - **NO HARDWARE GPS**: Headless Redroid has no physical GPS receiver; tapping `"Your location"` stalls location requests. Supply explicit origins or resolved IP geolocation whenever driving location-dependent apps.
+   - **DO NOT DUPLICATE `--watch` WINDOWS**: Check `pgrep -f "scrcpy.*$SERIAL"` before passing `--watch`. If a persistent `agentdroid watch` window is open, run commands with `--headless` (`headless=True`) — the live window reflects every action immediately.
+
+5. **`append:` VS `type:` & `hide-keyboard`**
+   - `-d "type:<text>"` sets/replaces field text; `-d "append:<text>"` jumps to EOF and appends cleanly (works with Unicode, newlines, and long notes).
+   - Use `-d "hide-keyboard"` if a soft keyboard ever covers lower UI targets (IME key nodes are already hidden from `ui_summary` by default; pass `--include-ime` only if inspecting a keyboard itself).
 
 ---
 
 ## Direct Agent Integration via MCP (Claude Code, Codex, Antigravity, Cursor)
 
-Run once to mount AgentDroid's MCP tools into all your AI coding assistants:
+Run once to mount AgentDroid's MCP tools:
 ```bash
 agentdroid mcp --install
 ```
 
-Your AI assistant can then directly call:
-- `mobile_run_workflow(...)`: **RECOMMENDED PRIMARY TOOL**. Run complete Android tasks (install, push, open, do, click, fill, screenshot, clipboard, pull) in ONE tool call.
-- `mobile_get_device_state(view_type="hierarchy"|"screenshot")`: Read compact numbered UI elements (`[#1] Button 'Sign In' | Center: (540, 960)`).
-- `mobile_action_burst(actions=["click:#1", "type:user", "key:ENTER"])`: High-speed chained gestures without round-trip LLM latency.
-- `mobile_perform_action(action="click", target="#1")`: Dynamic-first element click or coordinate tap.
-- `mobile_auto_dismiss_dialogs()`: Detect and auto-clear Android permission popups, intro wizards, or ANR/crash alerts.
-- `mobile_launch_app`, `mobile_install_app`, `mobile_open_url`, `mobile_read_notifications`, `mobile_clipboard`.
+Native MCP tools:
+- `mobile_run_workflow(...)`: **PRIMARY TOOL**. Run complete single-call Android tasks (`install`, `push`, `open_url`, `locked_app_package`, `launch`, `do` with `capture:`/`{{var}}`/`wait-any:`/`if-visible:`, `wait_text`, `pull`, `assert_text`).
+- `mobile_get_device_state(view_type="hierarchy")`: Compact IME-free UI elements (`display_size`, `elements`, `full_text`). Never pass `"screenshot"` unless hierarchy is genuinely empty.
+- `mobile_action_burst(actions=[...])`: Execute ordered steps without LLM round-trip latency.
+- `mobile_perform_action(action="click", target="btn:Submit")`
+- `mobile_auto_dismiss_dialogs()`, `mobile_launch_app`, `mobile_install_app`, `mobile_open_url`, `mobile_read_notifications`, `mobile_clipboard`.
 
 ---
 
-## Artemis Driving Mindset: The "Compound-First, Numbered-Index" Rule
+## Supported `--do` / `mobile_action_burst` Verbs
 
-When driving Android:
-1. **Compound Single-Call First**: Execute multi-step tasks in ONE call (`mobile_run_workflow` or compound CLI). Never make 10-15 turn-by-turn tool calls.
-2. **Prefer numbered index (`#id`)**: Targeting by index `#3` is faster and more reliable than fuzzy text matching.
-3. **Coordinate Fallback**: If an element is within a Canvas or Flutter surface where the accessibility node is non-interactive, tap its center coordinates `(x, y)` directly.
-4. **Action Bursts**: Execute multi-step sequences together so menus and popups don't close between LLM turns.
-
----
-
-## How to Translate Natural User Requests into AgentDroid Commands
-
-When the user tells you what to do in plain English, **YOU are the brain** that compiles their intent into a single compound execution:
-
-| User's Natural Request | How You (the AI) Compile It |
-| :--- | :--- |
-| **"Create a file, edit it in Markor, and save it"** | `agentdroid --push ./file.md:/sdcard/Download/file.md -i "fdroid:net.gsantner.markor" --open-url "file:///sdcard/Download/file.md" -d "click:Edit" -d "type:\n- [x] Done\n" -d "click:Save" --pull /sdcard/Download/file.md:./artifacts/out.md --json` |
-| **"Open website X and search / read"** | `agentdroid --open-url "https://example.com" -d "click:Search" -d "type:query" -d "key:ENTER" --json` |
-| **"Check Android version / Wi-Fi in Settings"** | `agentdroid --launch "com.android.settings" -d "scroll-to:About" -d "click:About" --json` |
-| **"Show me what you are doing" / "Let me see"** | Add `--watch` to the command so the live floating phone overlay window pops up for the user. |
-| **"Install app X from F-Droid"** | `agentdroid -i "fdroid:<package>" --launch --json` |
-| **"Check verification code / 2FA / notification"** | `agentdroid device notifications --json` (or add `--notifications` to any command) |
-
-### The "Maximum 2-Turn Rule" for Unknown Screens
-If you are dealing with a new, unfamiliar screen where you cannot guess the button names in advance:
-1. **Turn 1 (Launch & Inspect)**: Run `agentdroid --launch <pkg> --json` (or `mobile_run_workflow`). Auto-dismiss clears onboarding wizards, and `ui_summary` immediately returns all numbered elements (`[#1]`, `[#2]`).
-2. **Turn 2 (Execute Entire Action Burst)**: Do **NOT** tap one button per turn! Now that you see the screen, execute all remaining steps together in ONE compound action burst:
-   `-d "click:#2" -d "type:query" -d "key:ENTER" -d "click:#5" --pull ... --json`
-3. **NEVER ping-pong**: Never do `dump -> tap -> dump -> tap` over 10 separate turns.
-
----
-
-## Core Principle: Single-Call Compound Execution (Zero Token Waste)
-
-Do **not** issue 15 separate tool calls to install an app, grant permissions, push a file, launch an activity, tap coordinates, take screenshots, and pull results one by one.
-
-Instead, combine everything into **one `agentdroid` command**:
-
-### 1. General Task: Install, Push, Launch, Navigate & Pull Back Result
-
-```bash
-# Example: Install Markor from F-Droid (or URL/APK), push a file, open it, edit, and pull back!
-agentdroid \
-  --headless \
-  --install "fdroid:net.gsantner.markor" \
-  --push ./draft.md:/sdcard/Download/draft.md \
-  --open-url "file:///sdcard/Download/draft.md" \
-  -d "click:Edit" \
-  -d "type:\nCompleted by AI Agent\n" \
-  -d "click:Save" \
-  --pull /sdcard/Download/draft.md:./artifacts/draft_edited.md \
-  --notifications \
-  --json
-```
-
-### 2. Multi-Step Sequential UI Workflow with `--do`
-
-Use `-d` / `--do` to chain multiple semantic actions in one execution:
-```bash
-agentdroid \
-  --headless \
-  --launch "com.android.settings" \
-  --do "scroll-to:About" \
-  --do "click:About" \
-  --do "scroll-to:Android version" \
-  --assert-text "Android" \
-  --json
-```
-
-Supported `--do` verbs:
-- `click:<text_or_id_or_#index>` (e.g. `click:Login`, `click:#3`)
-- `fill:<selector>=<text>` (e.g. `fill:Email=user@test.com`)
-- `scroll:down` / `scroll:up` / `scroll-to:<text>`
-- `key:HOME` / `key:BACK` / `key:ENTER`
-- `tap:x,y` / `type:<text>` / `sleep:<seconds>`
-
----
-
-## Execution Modes: `--headless` vs `--watch`
-
-1. **`--headless` (Default — Silent Background Mode for AI Agents)**:
-   - Runs completely in the background with **zero GUI windows** (`scrcpy` and browsers are suppressed), muted device audio, disabled system animations (`0.0`), and auto-dismissed setup/error dialogs.
-   - Always pass `--headless --json` when running autonomously so you receive a single structured JSON response with the live UI tree.
-
-2. **`--watch` (`-w` — Live Visual Mode for the User)**:
-   - Pass `--watch` whenever the user asks to **see** or **watch** what you are doing on the Android device.
-   - Automatically launches a **sleek floating mobile phone overlay window** (`412×892`, `--always-on-top`, like macOS iOS Simulator) that stays docked next to the user's terminal/editor instead of taking over the full display.
-   - Streams real-time step-by-step actions and telemetry in the terminal.
-   - Standalone live viewer: `agentdroid watch` (opens floating phone simulator overlay + live stream) or `agentdroid watch --headless` (streams background JSONL telemetry).
-
----
-
-## General-Purpose Capabilities Reference
-
-| Task / Capability | Single-Call Command |
-| :--- | :--- |
-| **Inspect screen UI in ~150 tokens** | `agentdroid ui dump --json` *(or `--json` on `run`)* |
-| **Search F-Droid for tools/apps** | `agentdroid app search "markdown editor" --json` |
-| **Install app on the fly (F-Droid, URL, APK)** | `agentdroid -i "fdroid:termux" --launch --json` |
-| **Push & pull files** | `agentdroid --push ./file.txt --click "Open" --pull /sdcard/Download/out.txt:./artifacts/ --json` |
-| **Open web URLs or deep links (`tg://`, `mailto:`)** | `agentdroid --open-url "https://example.com" --notifications --json` |
-| **Read notifications (2FA/OTP codes, messages)** | `agentdroid device notifications --json` *(or `--notifications` flag on `run`)* |
-| **Read / write Android clipboard** | `agentdroid device clipboard "text to copy"` / `agentdroid device clipboard --json` |
-| **Run while showing live screen to user** | `agentdroid --watch --launch "com.android.settings" -d "click:Display"` |
+- `if-visible:<needle>-><verb:arg>` / `if-missing:<needle>-><verb:arg>` (conditional recovery without round-trip)
+- `click:<selector>` (`#3`, `btn:#1`, `edit:#1`, `btn:Save`, `edit:Notes`, `exact:OK`, `id:action_save`, or text/substring)
+- `fill:<selector>=<text>`
+- `type:<text>` / `append:<text>` (supports `{{var}}`)
+- `wait-text:<text>` / `wait-any:<a|b|c>` / `wait-gone:<text>` / `wait-stable`
+- `capture:<var>=<regex>` / `capture-all:<var>=<regex>` (extract text into `{{var}}`)
+- `open-url:<uri>` / `launch:<pkg>` / `shell:<cmd>`
+- `scroll:down|up|left|right` / `scroll-to:<text>` (scaled dynamically to device resolution)
+- `key:HOME|BACK|ENTER|TAB|ESCAPE` / `hide-keyboard` / `dismiss`
+- `tap:x,y` / `tap_pct:x%,y%` / `sleep:<seconds>`

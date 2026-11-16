@@ -202,6 +202,21 @@ class Asm:
     def aget_obj(self, dst: int, arr: int, idx_reg: int) -> None:
         self.words.extend([(dst << 8) | 0x46, (idx_reg << 8) | arr])
 
+    def new_array(self, dst: int, len_reg: int, typ_desc: str) -> None:
+        assert dst < 16 and len_reg < 16
+        tidx = self.pool.type_idx(typ_desc)
+        self.words.extend([(len_reg << 12) | (dst << 8) | 0x23, tidx])
+
+    def iget(self, dst: int, obj: int, cls: str, name: str, typ: str) -> None:
+        assert dst < 16 and obj < 16
+        fidx = self.pool.field_idx(cls, name, typ)
+        self.words.extend([(obj << 12) | (dst << 8) | 0x52, fidx])
+
+    def iput(self, src: int, obj: int, cls: str, name: str, typ: str) -> None:
+        assert src < 16 and obj < 16
+        fidx = self.pool.field_idx(cls, name, typ)
+        self.words.extend([(obj << 12) | (src << 8) | 0x59, fidx])
+
     def iget_obj(self, dst: int, obj: int, cls: str, name: str, typ: str) -> None:
         assert dst < 16 and obj < 16
         fidx = self.pool.field_idx(cls, name, typ)
@@ -291,6 +306,9 @@ class Asm:
 
     def add_int_lit8(self, dst: int, src: int, lit: int) -> None:
         self.words.extend([(dst << 8) | 0xD8, ((lit & 0xFF) << 8) | src])
+
+    def or_int_lit8(self, dst: int, src: int, lit: int) -> None:
+        self.words.extend([(dst << 8) | 0xDE, ((lit & 0xFF) << 8) | src])
 
     def resolve(self) -> None:
         for fix_pos, origin, lbl in self.fixups:

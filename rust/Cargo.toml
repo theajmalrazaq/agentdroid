@@ -1,0 +1,15 @@
+[package]
+name = "agentdroid-fast"
+version = "0.3.0"
+edition = "2021"
+description = "Zero-dependency Rust accelerator for AgentDroid (ADB SmartSocket, streaming XML parser, element scorer, helper/InputDaemon IPC)"
+
+[[bin]]
+name = "agentdroid-fast"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
