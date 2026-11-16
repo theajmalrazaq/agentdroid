@@ -298,7 +298,7 @@ class CompoundPipeline:
                         res.get("error") or f"UI action {act_type} failed at step {idx}"
                     )
                     break
-                time.sleep(0.35)
+                time.sleep(0.75 if act_type in ("type", "fill") else 0.35)
 
             # 11. Wait for text on screen if specified
             for text_needle in spec.wait_for_text:
@@ -382,6 +382,7 @@ class CompoundPipeline:
             report["errors"].append(str(exc))
         finally:
             watcher.stop()
+            self.helper.close()
             report["duration_sec"] = round(time.monotonic() - started, 2)
 
         return report
