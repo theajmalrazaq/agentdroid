@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 from agentdroid.adb import AdbDevice, CrashReport, InstalledAppInfo
-from agentdroid.cli import build_parser, main, normalize_argv
+from agentdroid.cli import build_parser, normalize_argv
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec
 
 
@@ -213,6 +212,7 @@ class TestOneCommandInstaller(unittest.TestCase):
 
             # Re-running should update in-place without duplicating marker blocks
             mounted2 = install_agent_skills_and_rules(home_dir=fake_home)
+            self.assertEqual(len(mounted2["skills_installed"]), len(mounted1["skills_installed"]))
             codex_agents = (fake_home / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
             self.assertEqual(codex_agents.count("<!-- AGENTDROID_RULES_START -->"), 1)
 
@@ -358,6 +358,362 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
                 claude_file = Path(tmp) / ".claude.json"
                 self.assertTrue(claude_file.is_file())
                 self.assertIn("agentdroid", claude_file.read_text())
+
+
+class TestInputDaemonAndContainerConfig(unittest.TestCase):
+    def test_input_daemon_dex_generation_and_checksums(self) -> None:
+        import hashlib
+        import importlib.util
+        import struct
+        import zlib
+
+        repo_root = Path(__file__).resolve().parent.parent
+        script_path = repo_root / "scripts" / "build_input_daemon_dex.py"
+        spec = importlib.util.spec_from_file_location("build_input_daemon_dex", script_path)
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        dex = mod.build_input_daemon_dex()
+        self.assertTrue(dex.startswith(b"dex\n035\x00"))
+        self.assertIn(b"Lcom/agentdroid/InputDaemon;", dex)
+        file_size = struct.unpack_from("<I", dex, 32)[0]
+        self.assertEqual(file_size, len(dex))
+        stored_sha1 = dex[12:32]
+        self.assertEqual(stored_sha1, hashlib.sha1(dex[32:]).digest())
+        stored_adler = struct.unpack_from("<I", dex, 8)[0]
+        self.assertEqual(stored_adler, zlib.adler32(dex[12:]) & 0xFFFFFFFF)
+
+        committed = repo_root / "packages" / "agentdroid-input-daemon" / "agentdroid-input.dex"
+        self.assertEqual(committed.read_bytes(), dex)
+
+    def test_helper_input_daemon_persistent_socket_and_fallback(self) -> None:
+        import socket
+        import threading
+        from agentdroid.helper import AccessibilityHelperClient, DEVICE_PORT, INPUT_DAEMON_PORT
+
+        received: list[str] = []
+        auth_failures_left = [1]
+
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(4)
+        srv_port = srv.getsockname()[1]
+        stop_flag = threading.Event()
+
+        def serve() -> None:
+            while not stop_flag.is_set():
+                try:
+                    srv.settimeout(0.1)
+                    conn, _ = srv.accept()
+                except TimeoutError:
+                    continue
+                except OSError:
+                    break
+                with conn:
+                    rf = conn.makefile("r", encoding="utf-8")
+                    while not stop_flag.is_set():
+                        line = rf.readline()
+                        if not line:
+                            break
+                        received.append(line.strip())
+                        parts = line.strip().split("\t")
+                        if auth_failures_left[0] > 0 and parts[1] != "ping":
+                            auth_failures_left[0] -= 1
+                            conn.sendall(b"ERR auth\n")
+                        elif len(parts) >= 2 and parts[1] == "ping":
+                            conn.sendall(b"OK pong\n")
+                        else:
+                            conn.sendall(b"OK\n")
+
+        t = threading.Thread(target=serve, daemon=True)
+        t.start()
+        try:
+            mock_adb = MagicMock()
+            mock_adb.serial = "127.0.0.1:5555"
+            mock_adb.run_adb.return_value = MagicMock(returncode=0, stdout=f"127.0.0.1:5555 tcp:{srv_port} tcp:{INPUT_DAEMON_PORT}\n")
+
+            helper = AccessibilityHelperClient(mock_adb)
+            helper._token = "deadbeef" * 6
+            helper._request = MagicMock(side_effect=AssertionError("Artemis HTTP should not be hit for tap"))
+            helper._ensure_input_daemon = MagicMock(return_value=True)
+
+            # First tap sees ERR auth once, triggers _ensure_input_daemon(force=True), retries, and succeeds
+            res_tap = helper.action("tap", x=540, y=1200)
+            self.assertTrue(res_tap["success"])
+            self.assertEqual(res_tap["backend"], "input_daemon")
+            self.assertEqual(res_tap["center"], [540, 1200])
+            helper._ensure_input_daemon.assert_called_once_with(force=True)
+
+            # Zero-coordinate swipe preserves 0.00 (no `or` truthiness bug)
+            res_swipe = helper.action("swipe", x1=0, y1=100, x2=0, y2=900, duration=250)
+            self.assertTrue(res_swipe["success"])
+            self.assertEqual(res_swipe["backend"], "input_daemon")
+            self.assertTrue(any("\tswipe\t0.00\t100.00\t0.00\t900.00\t250" in line for line in received))
+
+            # Long press routed cleanly via InputDaemon
+            res_lp = helper.action("long_press", x=100, y=200, duration=800)
+            self.assertTrue(res_lp["success"])
+            self.assertEqual(res_lp["backend"], "input_daemon")
+
+            # Global key still routes to Artemis /action first when ready
+            helper.ensure_ready = MagicMock(return_value=True)
+            helper._request = MagicMock(return_value={"success": True})
+            res_global = helper.action("global", action="HOME")
+            self.assertTrue(res_global["success"])
+            self.assertEqual(res_global["backend"], "helper_ipc")
+
+            # If Artemis /action fails on global or type, falls back to InputDaemon
+            helper._request = MagicMock(side_effect=RuntimeError("helper down"))
+            res_global_fb = helper.action("global", action="RECENTS")
+            self.assertTrue(res_global_fb["success"])
+            self.assertEqual(res_global_fb["backend"], "input_daemon")
+            self.assertEqual(res_global_fb["keycode"], "KEYCODE_APP_SWITCH")
+
+            res_type_fb = helper.action("type", text="hello world", append=False)
+            self.assertTrue(res_type_fb["success"])
+            self.assertEqual(res_type_fb["backend"], "input_daemon")
+
+            # append=True fallback also routes through InputDaemon (no slow adb input text fork)
+            res_type_append_fb = helper.action("type", text="\nappended", append=True)
+            self.assertTrue(res_type_append_fb["success"])
+            self.assertEqual(res_type_append_fb["backend"], "input_daemon")
+
+            # When InputDaemon forward is unreachable, tap falls back to adb_input
+            helper.close()
+            helper._input_local_port = None
+            helper.ensure_ready = MagicMock(return_value=False)
+            mock_adb.run_adb.return_value = MagicMock(returncode=1, stdout="", stderr="offline")
+            res_adb = helper.action("tap", x=10, y=20)
+            self.assertEqual(res_adb["backend"], "adb_input")
+            mock_adb.shell.assert_called_with("input tap 10 20")
+            self.assertEqual(DEVICE_PORT, 18888)
+        finally:
+            stop_flag.set()
+            srv.close()
+            t.join(timeout=1.0)
+
+    def test_input_daemon_timeout_does_not_double_retry(self) -> None:
+        from agentdroid.helper import AccessibilityHelperClient
+
+        mock_adb = MagicMock()
+        mock_adb.serial = "127.0.0.1:5555"
+        helper = AccessibilityHelperClient(mock_adb)
+        helper._input_local_port = 18889
+        helper._send_input_cmd_locked = MagicMock(side_effect=TimeoutError("timed out"))
+        helper._ensure_input_daemon = MagicMock(return_value=True)
+
+        res = helper._input_daemon_exec("tap\t100\t200", timeout=1.0)
+        self.assertIsNone(res)
+        helper._send_input_cmd_locked.assert_called_once()
+        helper._ensure_input_daemon.assert_not_called()
+
+    def test_dump_compact_ui_uses_ping_foreground_without_adb(self) -> None:
+        from agentdroid.helper import AccessibilityHelperClient
+
+        mock_adb = MagicMock()
+        mock_adb.serial = "127.0.0.1:5555"
+        helper = AccessibilityHelperClient(mock_adb)
+        helper._ensure_forward = MagicMock(return_value=18888)
+
+        # Ensure ping() sets _last_ping via real ping logic or side_effect
+        def fake_ping() -> dict[str, object]:
+            data = {
+                "success": True,
+                "authenticated": True,
+                "package": "org.fossify.math",
+                "activity": "org.fossify.math.activities.MainActivity",
+            }
+            helper._last_ping = data
+            return data
+
+        helper.ping = fake_ping
+        xml_body = b'<hierarchy rotation="0"><node text="7" class="android.widget.Button" clickable="true" bounds="[10,20][110,120]" /></hierarchy>'
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.read.return_value = xml_body
+
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            ui = helper.dump_compact_ui(max_elements=20)
+
+        self.assertEqual(ui["backend"], "helper")
+        self.assertEqual(ui["element_count"], 1)
+        self.assertEqual(
+            ui["foreground"],
+            {
+                "package": "org.fossify.math",
+                "activity": "org.fossify.math.activities.MainActivity",
+                "component": "org.fossify.math/org.fossify.math.activities.MainActivity",
+            },
+        )
+        mock_adb.foreground_app.assert_not_called()
+
+        # When ping omits package, falls back to adb.foreground_app()
+        def null_ping() -> dict[str, object]:
+            data = {"success": True, "authenticated": True, "package": "null"}
+            helper._last_ping = data
+            return data
+
+        helper.ping = null_ping
+        mock_adb.foreground_app.return_value = {"package": "fallback.pkg", "activity": ".Act", "component": "fallback.pkg/.Act"}
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            ui2 = helper.dump_compact_ui(max_elements=20)
+        self.assertEqual(ui2["foreground"]["package"], "fallback.pkg")
+        mock_adb.foreground_app.assert_called_once()
+
+        # When ping reports an IME/SoftInputWindow overlay, also falls back to adb.foreground_app()
+        def ime_ping() -> dict[str, object]:
+            data = {
+                "success": True,
+                "authenticated": True,
+                "package": "com.android.inputmethod.latin",
+                "activity": "android.view.View",
+            }
+            helper._last_ping = data
+            return data
+
+        helper.ping = ime_ping
+        mock_adb.foreground_app.reset_mock()
+        mock_adb.foreground_app.return_value = {"package": "net.gsantner.markor", "activity": ".DocumentActivity", "component": "net.gsantner.markor/.DocumentActivity"}
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            ui3 = helper.dump_compact_ui(max_elements=20)
+        self.assertEqual(ui3["foreground"]["package"], "net.gsantner.markor")
+        mock_adb.foreground_app.assert_called_once()
+
+    def test_adb_single_shell_boot_silent_probes_and_clear_logs(self) -> None:
+        adb = AdbDevice("127.0.0.1:5555")
+        adb.connect = MagicMock(return_value=True)
+        adb.shell = MagicMock(
+            side_effect=[
+                "BOOT=1\npackage:/system/framework/framework-res.apk",
+                "0.0\ncom.artemis.helper/.ArtemisAccessibilityService\n1",
+                "0.0\ncom.artemis.helper/.ArtemisAccessibilityService\n0",
+                "1.0\nnull\n1",
+            ]
+        )
+        self.assertTrue(adb.wait_for_boot(timeout=2.0))
+        self.assertTrue(adb.is_provisioned_silent())
+        self.assertFalse(adb.is_provisioned_silent())
+        self.assertFalse(adb.is_provisioned_silent())
+
+        adb.run_adb = MagicMock(return_value=MagicMock(returncode=0))
+        adb.clear_logs()
+        adb.run_adb.assert_called_once_with(["logcat", "-b", "all", "-c"], timeout=10.0)
+
+    def test_helper_ensure_ready_clears_stale_port_and_forces_reprovision(self) -> None:
+        from agentdroid.helper import AccessibilityHelperClient
+
+        mock_adb = MagicMock()
+        mock_adb.serial = "127.0.0.1:5555"
+        mock_adb.provision_silent.return_value = {"provisioned": True, "action": "already_provisioned"}
+        helper = AccessibilityHelperClient(mock_adb)
+        helper._local_port = 19999
+
+        calls = {"n": 0}
+
+        def ping_side_effect() -> dict[str, object] | None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                helper._local_port = None
+                return None
+            return {"success": True, "authenticated": True}
+
+        helper.ping = MagicMock(side_effect=ping_side_effect)
+        self.assertTrue(helper.ensure_ready())
+        mock_adb.provision_silent.assert_not_called()
+
+        # When helper stays down despite already_provisioned, force=True is invoked once
+        helper2 = AccessibilityHelperClient(mock_adb)
+        helper2.ping = MagicMock(side_effect=[None] * 7 + [{"success": True, "authenticated": True}])
+        with patch("time.sleep"):
+            self.assertTrue(helper2.ensure_ready())
+        self.assertEqual(mock_adb.provision_silent.call_count, 2)
+        self.assertTrue(mock_adb.provision_silent.call_args_list[1].kwargs.get("force"))
+
+    def test_container_sigkill_and_uinput_config_invariants(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        dockerfile = (repo_root / "docker" / "redroid" / "Dockerfile").read_text(encoding="utf-8")
+        compose = (repo_root / "docker-compose.yml").read_text(encoding="utf-8")
+        rc = (repo_root / "docker" / "redroid" / "agentdroid-touch.rc").read_text(encoding="utf-8")
+        install_sh = (repo_root / "install.sh").read_text(encoding="utf-8")
+
+        self.assertIn("STOPSIGNAL SIGKILL", dockerfile)
+        self.assertIn("COPY --chmod=0644 docker/redroid/agentdroid-touch.rc", dockerfile)
+        self.assertNotIn("COPY --chmod=0644 packages/", dockerfile)
+        self.assertIn("agentdroid-input.dex", dockerfile)
+        self.assertIn("agentdroid-touch.rc", dockerfile)
+        self.assertIn("stop_signal: SIGKILL", compose)
+        self.assertIn("stop_grace_period: 0s", compose)
+        self.assertIn("/proc/misc", rc)
+        self.assertIn("vendor.agentdroid_uinputd", rc)
+        self.assertNotIn("restart zygote", rc)
+        self.assertIn("modprobe uinput", install_sh)
+
+    def test_probe_adbd_tcp_and_nonblocking_connect(self) -> None:
+        import socket
+        import threading
+        from agentdroid.adb import probe_adbd_tcp
+
+        # 1. Closed/immediate-EOF listener (like docker-proxy before adbd binds) -> False
+        drop_srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        drop_srv.bind(("127.0.0.1", 0))
+        drop_srv.listen(2)
+        drop_port = drop_srv.getsockname()[1]
+
+        def drop_loop() -> None:
+            while True:
+                try:
+                    c, _ = drop_srv.accept()
+                    c.close()
+                except OSError:
+                    break
+
+        t_drop = threading.Thread(target=drop_loop, daemon=True)
+        t_drop.start()
+        try:
+            self.assertFalse(probe_adbd_tcp("127.0.0.1", drop_port, timeout=0.3))
+        finally:
+            drop_srv.close()
+            t_drop.join(timeout=1.0)
+
+        # 2. Active adbd-like listener replying CNXN -> True and checks 24-byte header + payload
+        seen_magic: list[bytes] = []
+        ok_srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ok_srv.bind(("127.0.0.1", 0))
+        ok_srv.listen(2)
+        ok_port = ok_srv.getsockname()[1]
+
+        def ok_loop() -> None:
+            while True:
+                try:
+                    c, _ = ok_srv.accept()
+                except OSError:
+                    break
+                with c:
+                    data = c.recv(64)
+                    seen_magic.append(data[:4])
+                    c.sendall(b"CNXN" + b"\x00" * 20)
+
+        t_ok = threading.Thread(target=ok_loop, daemon=True)
+        t_ok.start()
+        try:
+            self.assertTrue(probe_adbd_tcp("127.0.0.1", ok_port, timeout=0.5))
+            self.assertEqual(seen_magic, [b"CNXN"])
+        finally:
+            ok_srv.close()
+            t_ok.join(timeout=1.0)
+
+        # 3. AdbDevice.connect skips `adb connect` until probe_adbd_tcp succeeds
+        adb = AdbDevice("127.0.0.1:5555")
+        adb.is_connected = MagicMock(side_effect=[False, False, False, False, True])
+        with patch("agentdroid.adb.probe_adbd_tcp", side_effect=[False, True]) as mock_probe, patch(
+            "subprocess.run", return_value=MagicMock(returncode=0, stdout="connected to 127.0.0.1:5555", stderr="")
+        ) as mock_run:
+            self.assertTrue(adb.connect(timeout=5.0))
+        self.assertEqual(mock_probe.call_count, 2)
+        connect_calls = [c for c in mock_run.call_args_list if len(c.args[0]) >= 2 and c.args[0][1] == "connect"]
+        self.assertEqual(len(connect_calls), 1)
 
 
 if __name__ == "__main__":
