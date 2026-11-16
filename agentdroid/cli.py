@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from agentdroid.adb import AdbDevice
-from agentdroid.helper import AccessibilityHelperClient
+from agentdroid.helper import INPUT_DAEMON_PORT, AccessibilityHelperClient
 from agentdroid.installer import install_agent_skills_and_rules, run_one_command_setup
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec, parse_do_step
 from agentdroid.watcher import LiveWatcher
@@ -626,11 +626,28 @@ def _run_doctor_checks(serial: str | None = None) -> dict[str, Any]:
 
     helper = AccessibilityHelperClient(adb)
     helper_ping = helper.ping() if connected else None
+    input_daemon_ok = helper._input_daemon_ping() if connected else False
+    helper.close()
+
+    touchscreen_source = False
+    if connected:
+        try:
+            devs = adb.shell("dumpsys input | grep -E 'Device -?[0-9]+:|Sources:'", timeout=5.0)
+            touchscreen_source = "0x00001002" in devs
+        except Exception:
+            touchscreen_source = False
 
     binder_ok = False
     try:
         filesystems = Path("/proc/filesystems").read_text(encoding="utf-8")
         binder_ok = "binder" in filesystems
+    except OSError:
+        pass
+
+    uinput_ok = False
+    try:
+        misc_devs = Path("/proc/misc").read_text(encoding="utf-8")
+        uinput_ok = any(line.strip().endswith("uinput") for line in misc_devs.splitlines())
     except OSError:
         pass
 
@@ -641,15 +658,18 @@ def _run_doctor_checks(serial: str | None = None) -> dict[str, Any]:
             "scrcpy_installed": bool(shutil.which("scrcpy")),
             "docker_installed": bool(shutil.which("docker")),
             "kernel_binder_loaded": binder_ok,
+            "kernel_uinput_loaded": uinput_ok,
         },
         "device": {
             "serial": adb.serial,
             "connected": connected,
             "root_adb": is_root,
             "silent_provisioned": silent_ok,
+            "touchscreen_source": touchscreen_source,
             "foreground": adb.foreground_app() if connected else None,
         },
         "accessibility_helper": helper_ping or {"reachable": False},
+        "input_daemon": {"reachable": bool(input_daemon_ok), "port": INPUT_DAEMON_PORT},
     }
 
 
@@ -657,15 +677,27 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     report = _run_doctor_checks(serial=args.serial)
     adb = AdbDevice(serial=args.serial)
     helper_ping = report.get("accessibility_helper") or {}
+    input_daemon = report.get("input_daemon") or {}
 
     if args.json:
         print(json.dumps(report, indent=2))
     else:
         print(f"AgentDroid Doctor ({adb.serial})")
-        print(f"  • Host Tools:         adb={report['host']['adb_installed']}, scrcpy={report['host']['scrcpy_installed']}, binder={report['host']['kernel_binder_loaded']}")
-        print(f"  • Device Connected:   {report['device']['connected']} (root={report['device']['root_adb']}, silent_provisioned={report['device']['silent_provisioned']})")
+        print(
+            f"  • Host Tools:         adb={report['host']['adb_installed']}, "
+            f"scrcpy={report['host']['scrcpy_installed']}, "
+            f"binder={report['host']['kernel_binder_loaded']}, "
+            f"uinput={report['host']['kernel_uinput_loaded']}"
+        )
+        print(
+            f"  • Device Connected:   {report['device']['connected']} "
+            f"(root={report['device']['root_adb']}, silent_provisioned={report['device']['silent_provisioned']}, "
+            f"touchscreen={report['device']['touchscreen_source']})"
+        )
         is_reachable = bool(helper_ping.get("reachable") or helper_ping.get("success"))
         print(f"  • Accessibility Helper: {'reachable (v' + str(helper_ping.get('version_name')) + ')' if is_reachable else 'not reachable'}")
+        port = input_daemon.get("port", INPUT_DAEMON_PORT)
+        print(f"  • Input Daemon ({port}): {'reachable' if input_daemon.get('reachable') else 'not reachable'}")
     return 0 if report["ok"] else 1
 
 
