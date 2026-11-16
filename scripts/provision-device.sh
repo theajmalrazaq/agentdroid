@@ -27,6 +27,11 @@ HELPER_RECEIVER="${HELPER_PACKAGE}/.TokenReceiver"
 HELPER_ACTION="${HELPER_PACKAGE}.SET_TOKEN"
 BUNDLED_APK="${REPO_ROOT}/packages/artemis-accessibility-helper/ArtemisAccessibilityHelper.apk"
 DEVICE_FALLBACK_APK="/vendor/etc/artemis/ArtemisAccessibilityHelper.apk"
+BUNDLED_INPUT_DEX="${REPO_ROOT}/packages/agentdroid-input-daemon/agentdroid-input.dex"
+DEVICE_VENDOR_INPUT_DEX="/vendor/etc/artemis/agentdroid-input.dex"
+DEVICE_TMP_INPUT_DEX="/data/local/tmp/agentdroid-input.dex"
+DEVICE_INPUT_TOKEN="/data/local/tmp/.agentdroid_input_token"
+INPUT_DAEMON_PORT="${AGENTDROID_INPUT_PORT:-18889}"
 
 log() {
     if [[ "${QUIET}" != "1" ]]; then
@@ -38,45 +43,65 @@ adb_s() {
     "${ADB_BIN}" -s "${SERIAL}" "$@"
 }
 
+adbd_tcp_ready() {
+    if [[ "${SERIAL}" != *:* ]]; then
+        return 0
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHONPATH="${REPO_ROOT}" python3 -c '
+import sys
+from agentdroid.adb import probe_adbd_tcp
+h, _, p = sys.argv[1].rpartition(":")
+sys.exit(0 if (not p.isdigit() or probe_adbd_tcp(h, int(p), 0.35)) else 1)
+' "${SERIAL}" >/dev/null 2>&1
+        return $?
+    fi
+    return 0
+}
+
 # 1. Connect to TCP device if SERIAL looks like host:port
 if [[ "${SERIAL}" == *:* ]]; then
     log "Connecting to ADB target ${SERIAL}..."
     "${ADB_BIN}" start-server >/dev/null 2>&1 || true
-    "${ADB_BIN}" connect "${SERIAL}" >/dev/null 2>&1 || true
+    if ! adb_s get-state >/dev/null 2>&1 && adbd_tcp_ready; then
+        "${ADB_BIN}" connect "${SERIAL}" >/dev/null 2>&1 || true
+    fi
 fi
 
 log "Waiting for device ${SERIAL} to come online (timeout: ${BOOT_TIMEOUT}s)..."
-elapsed=0
+conn_start="${SECONDS}"
 while ! adb_s get-state >/dev/null 2>&1; do
-    if [[ "${SERIAL}" == *:* ]]; then
+    if [[ "${SERIAL}" == *:* ]] && adbd_tcp_ready; then
         "${ADB_BIN}" connect "${SERIAL}" >/dev/null 2>&1 || true
     fi
-    sleep 1
-    elapsed=$((elapsed + 1))
-    if (( elapsed >= BOOT_TIMEOUT )); then
+    sleep 0.25
+    if (( SECONDS - conn_start >= BOOT_TIMEOUT )); then
         echo "[agentdroid:provision] ERROR: Timed out waiting for ADB device ${SERIAL}" >&2
         exit 1
     fi
 done
 
 # 2. Elevate to root ADB (Redroid runs with ro.secure=0)
-adb_s root >/dev/null 2>&1 || true
-if [[ "${SERIAL}" == *:* ]]; then
-    sleep 1
-    "${ADB_BIN}" connect "${SERIAL}" >/dev/null 2>&1 || true
+if [[ "$(adb_s shell id -u 2>/dev/null | tr -d '\r' || true)" != "0" ]]; then
+    adb_s root >/dev/null 2>&1 || true
+    if [[ "${SERIAL}" == *:* ]]; then
+        sleep 0.5
+        if adbd_tcp_ready; then
+            "${ADB_BIN}" connect "${SERIAL}" >/dev/null 2>&1 || true
+        fi
+    fi
 fi
 
 # 3. Wait for sys.boot_completed=1 and package service
 log "Waiting for Android system boot completion..."
+boot_start="${SECONDS}"
 while true; do
-    boot_done="$(adb_s shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n' || true)"
-    pm_ready="$(adb_s shell pm path android 2>/dev/null | tr -d '\r\n' || true)"
-    if [[ "${boot_done}" == "1" && "${pm_ready}" == package:* ]]; then
+    boot_probe="$(adb_s shell 'if [ "$(getprop sys.boot_completed)" = "1" ]; then echo BOOT=1; pm path android; fi' 2>/dev/null | tr -d '\r' || true)"
+    if [[ "${boot_probe}" == *BOOT=1* && "${boot_probe}" == *package:* ]]; then
         break
     fi
-    sleep 1
-    elapsed=$((elapsed + 1))
-    if (( elapsed >= BOOT_TIMEOUT )); then
+    sleep 0.25
+    if (( SECONDS - boot_start >= BOOT_TIMEOUT )); then
         echo "[agentdroid:provision] ERROR: Timed out waiting for sys.boot_completed on ${SERIAL}" >&2
         exit 1
     fi
@@ -159,12 +184,16 @@ adb_s shell '
 # Enable Accessibility Service in secure settings (retry to ensure AccessibilityManager binds it)
 for attempt in 1 2 3 4 5; do
     current_svcs="$(adb_s shell settings get secure enabled_accessibility_services 2>/dev/null | tr -d '\r\n' || true)"
-    if [[ "${current_svcs}" == "null" || -z "${current_svcs}" ]]; then
+    if [[ ":${current_svcs}:" == *":${HELPER_SERVICE}:"* ]]; then
+        acc_on="$(adb_s shell settings get secure accessibility_enabled 2>/dev/null | tr -d '\r\n' || true)"
+        if [[ "${acc_on}" != "1" ]]; then
+            adb_s shell settings put secure accessibility_enabled 1
+        fi
+        break
+    elif [[ "${current_svcs}" == "null" || -z "${current_svcs}" ]]; then
         new_svcs="${HELPER_SERVICE}"
-    elif [[ ":${current_svcs}:" != *":${HELPER_SERVICE}:"* ]]; then
-        new_svcs="${current_svcs}:${HELPER_SERVICE}"
     else
-        new_svcs="${current_svcs}"
+        new_svcs="${current_svcs}:${HELPER_SERVICE}"
     fi
     adb_s shell settings put secure enabled_accessibility_services "${new_svcs}"
     adb_s shell settings put secure accessibility_enabled 1
@@ -175,18 +204,78 @@ for attempt in 1 2 3 4 5; do
     fi
 done
 
-# Push session token if AGENTDROID_HELPER_TOKEN is provided
-if [[ -n "${AGENTDROID_HELPER_TOKEN:-}" ]]; then
+# Resolve or generate shared session token for Artemis Helper + InputDaemon
+RESOLVED_TOKEN="${AGENTDROID_HELPER_TOKEN:-}"
+if [[ -z "${RESOLVED_TOKEN}" ]]; then
+    for tok_file in \
+        "${TMPDIR:-/tmp}/agentdroid/helper-token/session.token" \
+        "${HOME}/.cache/agentdroid/helper-token/session.token" \
+        "${TMPDIR:-/tmp}/artemis/helper-token/session.token" \
+        "${HOME}/.cache/artemis/helper-token/session.token"; do
+        if [[ -f "${tok_file}" ]]; then
+            RESOLVED_TOKEN="$(tr -d ' \t\r\n' < "${tok_file}" 2>/dev/null || true)"
+            [[ -n "${RESOLVED_TOKEN}" ]] && break
+        fi
+    done
+fi
+if [[ -z "${RESOLVED_TOKEN}" ]]; then
+    tok_dir="${TMPDIR:-/tmp}/agentdroid/helper-token"
+    mkdir -p "${tok_dir}" 2>/dev/null || true
+    RESOLVED_TOKEN="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \t\r\n')"
+    if [[ -n "${RESOLVED_TOKEN}" ]]; then
+        (umask 077 && printf '%s' "${RESOLVED_TOKEN}" > "${tok_dir}/session.token") 2>/dev/null || true
+    fi
+fi
+
+# Push session token to Artemis Helper
+if [[ -n "${RESOLVED_TOKEN}" ]]; then
     adb_s shell am broadcast \
         -n "${HELPER_RECEIVER}" \
         -a "${HELPER_ACTION}" \
-        --es token "${AGENTDROID_HELPER_TOKEN}" >/dev/null 2>&1 || true
+        --es token "${RESOLVED_TOKEN}" >/dev/null 2>&1 || true
+fi
+
+# Activate conditional uinputd if host kernel exposes /dev/uinput and no touchscreen is bound yet
+adb_s shell '
+    if grep -qw uinput /proc/misc 2>/dev/null && ! dumpsys input | grep -q "0x00001002"; then
+        start vendor.agentdroid_uinputd >/dev/null 2>&1 || nohup /vendor/bin/uinputd </dev/null >/dev/null 2>&1 &
+    fi
+' >/dev/null 2>&1 || true
+
+# Deploy and start low-latency AgentDroid InputDaemon (~5ms direct InputManager injection)
+log "Ensuring AgentDroid InputDaemon (127.0.0.1:${INPUT_DAEMON_PORT}) is running..."
+dex_updated=0
+if [[ -f "${BUNDLED_INPUT_DEX}" ]]; then
+    host_dex_size="$(wc -c < "${BUNDLED_INPUT_DEX}" | tr -d ' ')"
+    dev_dex_size="$(adb_s shell "if [ -f ${DEVICE_VENDOR_INPUT_DEX} ] && [ ! -s ${DEVICE_TMP_INPUT_DEX} ]; then cp -f ${DEVICE_VENDOR_INPUT_DEX} ${DEVICE_TMP_INPUT_DEX}; fi; wc -c < ${DEVICE_TMP_INPUT_DEX} 2>/dev/null || echo 0" 2>/dev/null | tr -d '\r\n ' || echo 0)"
+    if [[ "${dev_dex_size}" != "${host_dex_size}" ]]; then
+        if adb_s push "${BUNDLED_INPUT_DEX}" "${DEVICE_TMP_INPUT_DEX}" >/dev/null 2>&1; then
+            dex_updated=1
+        fi
+    fi
+else
+    adb_s shell "if [ -f ${DEVICE_VENDOR_INPUT_DEX} ]; then cp -f ${DEVICE_VENDOR_INPUT_DEX} ${DEVICE_TMP_INPUT_DEX}; fi" >/dev/null 2>&1 || true
+fi
+
+if [[ -n "${RESOLVED_TOKEN}" ]]; then
+    adb_s shell "
+        if [ -s ${DEVICE_TMP_INPUT_DEX} ]; then
+            prev_tok=\"\$(cat ${DEVICE_INPUT_TOKEN} 2>/dev/null | tr -d '\\r\\n' || true)\"
+            umask 077 && printf '%s\\n' '${RESOLVED_TOKEN}' > ${DEVICE_INPUT_TOKEN} && chmod 600 ${DEVICE_INPUT_TOKEN}
+            pids=\"\$(ps -A -o PID,NAME,ARGS | sed -n 's/^[[:space:]]*\\([0-9][0-9]*\\)[[:space:]]\\{1,\\}app_process[^[:space:]]*[[:space:]].*InputDaemon.*/\\1/p')\"
+            if [ \"${dex_updated}\" = '1' ] || [ \"\${prev_tok}\" != '${RESOLVED_TOKEN}' ] || [ -z \"\${pids}\" ]; then
+                for p in \${pids}; do [ \"\${p}\" != \"\$\$\" ] && kill \"\${p}\" 2>/dev/null || true; done
+                CLASSPATH=${DEVICE_TMP_INPUT_DEX} nohup app_process / com.agentdroid.InputDaemon ${INPUT_DAEMON_PORT} ${DEVICE_INPUT_TOKEN} </dev/null >/dev/null 2>&1 &
+            fi
+        fi
+    " >/dev/null 2>&1 || true
 fi
 
 # 5. Grant runtime permissions to all third-party installed apps
 log "Auto-granting runtime permissions to third-party packages..."
 adb_s shell '
     for pkg in $(pm list packages -3 | cut -d: -f2 | tr -d "\r"); do
+        [ "$pkg" = "com.artemis.helper" ] && continue
         for perm in $(dumpsys package "$pkg" | awk "/requested permissions:/{flag=1;next}/install permissions:|runtime permissions:/{flag=0}flag{print \$1}" | grep "^android.permission." | tr -d "\r:"); do
             pm grant "$pkg" "$perm" >/dev/null 2>&1 || true
         done
