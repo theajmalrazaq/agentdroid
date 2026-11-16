@@ -7,12 +7,15 @@ resource-id, or element index), scrolling, and gesture injection so the host AI 
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from pathlib import Path
 import re
 import secrets
+import socket
 import tempfile
+import threading
 import time
 from typing import Any
 import urllib.error
@@ -26,6 +29,27 @@ HELPER_SERVICE = f"{HELPER_PACKAGE}/.ArtemisAccessibilityService"
 HELPER_RECEIVER = f"{HELPER_PACKAGE}/.TokenReceiver"
 HELPER_ACTION = f"{HELPER_PACKAGE}.SET_TOKEN"
 DEVICE_PORT = 18888
+
+INPUT_DAEMON_PORT = 18889
+INPUT_DAEMON_DEX_HOST = (
+    Path(__file__).resolve().parent.parent
+    / "packages"
+    / "agentdroid-input-daemon"
+    / "agentdroid-input.dex"
+)
+INPUT_DAEMON_DEX_DEVICE = "/data/local/tmp/agentdroid-input.dex"
+INPUT_DAEMON_DEX_VENDOR = "/vendor/etc/artemis/agentdroid-input.dex"
+INPUT_DAEMON_TOKEN_DEVICE = "/data/local/tmp/.agentdroid_input_token"
+
+_KEYCODE_MAP = {
+    "BACK": "KEYCODE_BACK",
+    "HOME": "KEYCODE_HOME",
+    "RECENTS": "KEYCODE_APP_SWITCH",
+    "ENTER": "KEYCODE_ENTER",
+    "SEARCH": "KEYCODE_SEARCH",
+    "DELETE": "KEYCODE_DEL",
+    "TAB": "KEYCODE_TAB",
+}
 
 
 def _resolve_shared_token_path() -> Path:
@@ -66,42 +90,262 @@ def get_or_create_helper_token() -> str:
     return token
 
 
+def _parse_swipe_args(params: dict[str, Any]) -> tuple[float, float, float, float, int]:
+    """Normalize swipe coordinate and duration parameter aliases."""
+    def _pick(*keys: str, default: float = 0.0) -> float:
+        for k in keys:
+            if params.get(k) is not None:
+                return float(params[k])
+        return default
+
+    return (
+        _pick("x1", "start_x", "startX"),
+        _pick("y1", "start_y", "startY"),
+        _pick("x2", "end_x", "endX"),
+        _pick("y2", "end_y", "endY"),
+        max(1, int(_pick("duration", "duration_ms", default=300))),
+    )
+
+
 class AccessibilityHelperClient:
-    """Sub-second UI hierarchy, semantic locator, and gesture client backed by ArtemisAccessibilityHelper.apk."""
+    """Sub-second UI hierarchy, semantic locator, and gesture client backed by ArtemisAccessibilityHelper.apk and InputDaemon."""
 
     def __init__(self, adb: AdbDevice) -> None:
         self.adb = adb
         self._local_port: int | None = None
+        self._input_local_port: int | None = None
+        self._input_sock: socket.socket | None = None
+        self._input_rfile: Any = None
+        self._input_lock = threading.Lock()
+        self._last_ping: dict[str, Any] | None = None
         self._token: str = get_or_create_helper_token()
 
-    def _find_existing_forward(self) -> int | None:
+    def close(self) -> None:
+        """Close any cached persistent socket connections."""
+        with self._input_lock:
+            self._close_input_socket()
+
+    def _close_input_socket(self) -> None:
+        if self._input_rfile is not None:
+            try:
+                self._input_rfile.close()
+            except Exception:
+                pass
+            self._input_rfile = None
+        if self._input_sock is not None:
+            try:
+                self._input_sock.close()
+            except Exception:
+                pass
+            self._input_sock = None
+
+    def _find_existing_forward(self, remote_port: int = DEVICE_PORT) -> int | None:
         res = self.adb.run_adb(["forward", "--list"], timeout=5.0)
         for line in (res.stdout or "").splitlines():
             parts = line.split()
             if len(parts) == 3 and parts[0] == self.adb.serial:
                 local, remote = parts[1], parts[2]
-                if remote == f"tcp:{DEVICE_PORT}" and local.startswith("tcp:"):
+                if remote == f"tcp:{remote_port}" and local.startswith("tcp:"):
                     try:
                         return int(local[4:])
                     except ValueError:
                         continue
         return None
 
-    def _ensure_forward(self) -> int:
-        if self._local_port is not None:
+    def _ensure_forward(self, remote_port: int = DEVICE_PORT) -> int:
+        if remote_port == DEVICE_PORT and self._local_port is not None:
             return self._local_port
-        existing = self._find_existing_forward()
+        if remote_port == INPUT_DAEMON_PORT and self._input_local_port is not None:
+            return self._input_local_port
+
+        existing = self._find_existing_forward(remote_port=remote_port)
         if existing is not None:
-            self._local_port = existing
+            if remote_port == DEVICE_PORT:
+                self._local_port = existing
+            elif remote_port == INPUT_DAEMON_PORT:
+                self._input_local_port = existing
             return existing
-        res = self.adb.run_adb(["forward", "tcp:0", f"tcp:{DEVICE_PORT}"], timeout=10.0)
+
+        res = self.adb.run_adb(["forward", "tcp:0", f"tcp:{remote_port}"], timeout=10.0)
         port_str = (res.stdout or "").strip()
         if res.returncode == 0 and port_str.isdigit():
-            self._local_port = int(port_str)
-            return self._local_port
+            local_port = int(port_str)
+            if remote_port == DEVICE_PORT:
+                self._local_port = local_port
+            elif remote_port == INPUT_DAEMON_PORT:
+                self._input_local_port = local_port
+            return local_port
         raise RuntimeError(
-            f"Could not create adb forward to {HELPER_PACKAGE} on {self.adb.serial}: {res.stderr}"
+            f"Could not create adb forward to tcp:{remote_port} on {self.adb.serial}: {res.stderr}"
         )
+
+    def _ensure_input_forward(self) -> int:
+        return self._ensure_forward(remote_port=INPUT_DAEMON_PORT)
+
+    def _send_input_cmd_locked(self, cmd_line: str, *, timeout: float = 3.0) -> str:
+        if self._input_sock is None or self._input_rfile is None:
+            port = self._ensure_input_forward()
+            sock = socket.create_connection(("127.0.0.1", port), timeout=timeout)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            rfile = sock.makefile("r", encoding="utf-8", errors="replace")
+            self._input_sock = sock
+            self._input_rfile = rfile
+
+        try:
+            self._input_sock.settimeout(timeout)
+            payload = f"{self._token}\t{cmd_line}\n".encode("utf-8")
+            self._input_sock.sendall(payload)
+            line = self._input_rfile.readline()
+            if not line:
+                self._close_input_socket()
+                raise ConnectionResetError("InputDaemon closed connection")
+            return line.strip()
+        except Exception:
+            self._close_input_socket()
+            raise
+
+    def _input_daemon_ping(self) -> bool:
+        try:
+            with self._input_lock:
+                resp = self._send_input_cmd_locked("ping", timeout=1.0)
+            return resp == "OK pong"
+        except Exception:
+            with self._input_lock:
+                self._close_input_socket()
+            return False
+
+    def _ensure_input_daemon(self, *, force: bool = False) -> bool:
+        try:
+            self._ensure_input_forward()
+        except Exception:
+            return False
+
+        if not force and self._input_daemon_ping():
+            return True
+
+        host_size = INPUT_DAEMON_DEX_HOST.stat().st_size if INPUT_DAEMON_DEX_HOST.is_file() else 0
+        token_clean = re.sub(r"[^0-9A-Za-z._-]", "", self._token) or "agentdroid"
+        check_cmd = (
+            f"umask 077 && printf '%s\\n' '{token_clean}' > {INPUT_DAEMON_TOKEN_DEVICE} && "
+            f"chmod 600 {INPUT_DAEMON_TOKEN_DEVICE}; "
+            f"if [ -f {INPUT_DAEMON_DEX_VENDOR} ] && [ ! -s {INPUT_DAEMON_DEX_DEVICE} ]; then "
+            f"cp -f {INPUT_DAEMON_DEX_VENDOR} {INPUT_DAEMON_DEX_DEVICE}; fi; "
+            f"wc -c < {INPUT_DAEMON_DEX_DEVICE} 2>/dev/null || echo 0"
+        )
+        out = (self.adb.shell(check_cmd, timeout=6.0) or "").strip()
+        last_line = out.splitlines()[-1].strip() if out else ""
+        dev_size = int(last_line) if last_line.isdigit() else 0
+
+        if host_size and dev_size != host_size:
+            push_res = self.adb.run_adb(
+                ["push", str(INPUT_DAEMON_DEX_HOST), INPUT_DAEMON_DEX_DEVICE], timeout=15.0
+            )
+            if push_res.returncode != 0 and dev_size == 0:
+                return False
+        elif dev_size == 0:
+            return False
+
+        with self._input_lock:
+            self._close_input_socket()
+
+        kill_prefix = (
+            'for p in $(ps -A -o PID,NAME,ARGS | sed -n "s/^[[:space:]]*\\([0-9][0-9]*\\)[[:space:]]\\{1,\\}app_process[^[:space:]]*[[:space:]].*InputDaemon.*/\\1/p"); '
+            'do [ "$p" != "$$" ] && kill "$p" 2>/dev/null || true; done; '
+            if force
+            else ""
+        )
+        launch_cmd = (
+            f"{kill_prefix}CLASSPATH={INPUT_DAEMON_DEX_DEVICE} "
+            f"nohup app_process / com.agentdroid.InputDaemon "
+            f"{INPUT_DAEMON_PORT} {INPUT_DAEMON_TOKEN_DEVICE} </dev/null >/dev/null 2>&1 &"
+        )
+        self.adb.shell(launch_cmd, timeout=5.0)
+        for _ in range(15):
+            if self._input_daemon_ping():
+                return True
+            time.sleep(0.05)
+        return False
+
+    def _input_daemon_exec(self, cmd_line: str, *, timeout: float = 3.0) -> str | None:
+        try:
+            self._ensure_input_forward()
+        except Exception:
+            return None
+
+        for attempt in range(2):
+            try:
+                with self._input_lock:
+                    resp = self._send_input_cmd_locked(cmd_line, timeout=timeout)
+                if resp.startswith("OK"):
+                    return resp
+                if resp.startswith("ERR auth") and attempt == 0:
+                    if self._ensure_input_daemon(force=True):
+                        continue
+                return None
+            except TimeoutError:
+                with self._input_lock:
+                    self._close_input_socket()
+                return None
+            except Exception:
+                with self._input_lock:
+                    self._close_input_socket()
+                if attempt == 0:
+                    self._input_local_port = None
+                    if self._input_daemon_ping():
+                        continue
+                    if self._ensure_input_daemon(force=True):
+                        continue
+                return None
+        return None
+
+    def _input_daemon_action(self, cmd: str, **params: Any) -> dict[str, Any] | None:
+        c = cmd.strip().lower()
+        if c == "tap":
+            x, y = float(params["x"]), float(params["y"])
+            resp = self._input_daemon_exec(f"tap\t{x:.2f}\t{y:.2f}", timeout=3.0)
+            if resp:
+                return {"success": True, "backend": "input_daemon", "center": [round(x), round(y)]}
+            return None
+        if c == "long_press":
+            x, y = float(params["x"]), float(params["y"])
+            dur = max(1, int(params.get("duration", 1000)))
+            resp = self._input_daemon_exec(
+                f"long_press\t{x:.2f}\t{y:.2f}\t{dur}",
+                timeout=max(3.0, dur / 1000.0 + 2.0),
+            )
+            if resp:
+                return {"success": True, "backend": "input_daemon", "center": [round(x), round(y)]}
+            return None
+        if c == "swipe":
+            x1, y1, x2, y2, dur = _parse_swipe_args(params)
+            resp = self._input_daemon_exec(
+                f"swipe\t{x1:.2f}\t{y1:.2f}\t{x2:.2f}\t{y2:.2f}\t{dur}",
+                timeout=max(3.0, dur / 1000.0 + 2.0),
+            )
+            if resp:
+                return {"success": True, "backend": "input_daemon"}
+            return None
+        if c == "global":
+            act = re.sub(r"\s+", "", str(params.get("action", "")).upper())
+            if not act:
+                return None
+            keycode = _KEYCODE_MAP.get(act, act if act.startswith("KEYCODE_") else f"KEYCODE_{act}")
+            resp = self._input_daemon_exec(f"key\t{keycode}", timeout=3.0)
+            if resp:
+                return {"success": True, "backend": "input_daemon", "keycode": keycode}
+            return None
+        if c == "type":
+            text_str = str(params.get("text", ""))
+            if text_str.isascii():
+                b64 = base64.b64encode(text_str.encode("utf-8")).decode("ascii")
+                resp = self._input_daemon_exec(
+                    f"text_b64\t{b64}",
+                    timeout=max(5.0, len(text_str) * 0.1 + 3.0),
+                )
+                if resp:
+                    return {"success": True, "backend": "input_daemon"}
+            return None
+        return None
 
     def push_token(self) -> bool:
         res = self.adb.run_adb(
@@ -158,35 +402,62 @@ class AccessibilityHelperClient:
                 if not res.get("authenticated"):
                     self.push_token()
                     res = self._request("GET", "/ping", timeout=2.5, retry_auth=False)
+                self._last_ping = res
                 return res
         except Exception:
-            pass
+            self._local_port = None
+        self._last_ping = None
         return None
 
     def ensure_ready(self) -> bool:
         """Ensure the helper APK is installed, service is bound, and HTTP server answers."""
         if self.ping() is not None:
             return True
-        self.adb.provision_silent(force=False, quiet=True)
+        # ping() clears a stale cached forward port on error; retry once before provisioning
+        if self.ping() is not None:
+            return True
+        prov = self.adb.provision_silent(force=False, quiet=True)
         self._local_port = None
+        self._input_local_port = None
+        with self._input_lock:
+            self._close_input_socket()
         for _ in range(5):
             if self.ping() is not None:
                 return True
             time.sleep(0.4)
+        if isinstance(prov, dict) and prov.get("action") == "already_provisioned":
+            self.adb.provision_silent(force=True, quiet=True)
+            self._local_port = None
+            for _ in range(3):
+                if self.ping() is not None:
+                    return True
+                time.sleep(0.4)
         return False
 
     def action(self, cmd: str, **params: Any) -> dict[str, Any]:
-        """Execute a low-latency action via the Accessibility Helper (/action)."""
-        if not self.ensure_ready():
-            return self._fallback_adb_action(cmd, **params)
-        payload = {"cmd": cmd, **params}
-        try:
-            res = self._request("POST", "/action", payload, timeout=5.0)
-            if res.get("success"):
+        """Execute a low-latency action via InputDaemon (touch/gesture) or Accessibility Helper (/action)."""
+        c = cmd.strip().lower()
+        if c in ("tap", "long_press", "swipe"):
+            res = self._input_daemon_action(c, **params)
+            if res is not None:
                 return res
-            return self._fallback_adb_action(cmd, **params)
-        except Exception:
-            return self._fallback_adb_action(cmd, **params)
+
+        if self.ensure_ready():
+            payload = {"cmd": cmd, **params}
+            try:
+                res = self._request("POST", "/action", payload, timeout=5.0)
+                if res.get("success"):
+                    res.setdefault("backend", "helper_ipc")
+                    return res
+            except Exception:
+                pass
+
+        if c in ("global", "type"):
+            res = self._input_daemon_action(c, **params)
+            if res is not None:
+                return res
+
+        return self._fallback_adb_action(cmd, **params)
 
     def _fallback_adb_action(self, cmd: str, **params: Any) -> dict[str, Any]:
         c = cmd.lower()
@@ -200,12 +471,8 @@ class AccessibilityHelperClient:
             self.adb.shell(f"input swipe {x} {y} {x} {y} {dur}")
             return {"success": True, "backend": "adb_input", "center": [x, y]}
         if c == "swipe":
-            x1 = int(params.get("x1") or params.get("start_x") or params.get("startX", 0))
-            y1 = int(params.get("y1") or params.get("start_y") or params.get("startY", 0))
-            x2 = int(params.get("x2") or params.get("end_x") or params.get("endX", 0))
-            y2 = int(params.get("y2") or params.get("end_y") or params.get("endY", 0))
-            dur = int(params.get("duration") or params.get("duration_ms", 300))
-            self.adb.shell(f"input swipe {x1} {y1} {x2} {y2} {dur}")
+            sx1, sy1, sx2, sy2, dur = _parse_swipe_args(params)
+            self.adb.shell(f"input swipe {int(sx1)} {int(sy1)} {int(sx2)} {int(sy2)} {dur}")
             return {"success": True, "backend": "adb_input"}
         if c == "type":
             text = str(params.get("text", "")).replace(" ", "%s").replace("'", "")
@@ -213,16 +480,7 @@ class AccessibilityHelperClient:
             return {"success": True, "backend": "adb_input"}
         if c == "global":
             act = str(params.get("action", "")).upper()
-            keymap = {
-                "BACK": "KEYCODE_BACK",
-                "HOME": "KEYCODE_HOME",
-                "RECENTS": "KEYCODE_APP_SWITCH",
-                "ENTER": "KEYCODE_ENTER",
-                "SEARCH": "KEYCODE_SEARCH",
-                "DELETE": "KEYCODE_DEL",
-                "TAB": "KEYCODE_TAB",
-            }
-            keycode = keymap.get(act, act if act.startswith("KEYCODE_") else f"KEYCODE_{act}")
+            keycode = _KEYCODE_MAP.get(act, act if act.startswith("KEYCODE_") else f"KEYCODE_{act}")
             self.adb.shell(f"input keyevent {keycode}")
             return {"success": True, "backend": "adb_input"}
         return {"success": False, "error": f"Unsupported fallback action: {cmd}"}
@@ -331,9 +589,28 @@ class AccessibilityHelperClient:
         """Return a token-efficient compact list of interactive/labelled UI elements on screen."""
         xml_str = ""
         backend = "helper"
-        fg = self.adb.foreground_app()
+        fg: dict[str, str | None] | None = None
 
+        self._last_ping = None
         if self.ensure_ready():
+            ping_res = self._last_ping
+            if isinstance(ping_res, dict):
+                pkg = ping_res.get("package")
+                act = ping_res.get("activity")
+                if pkg and str(pkg).lower() != "null":
+                    pkg_str = str(pkg)
+                    act_str = str(act) if act and str(act).lower() != "null" else None
+                    is_overlay = (
+                        "inputmethod" in pkg_str.lower()
+                        or pkg_str == "com.android.systemui"
+                        or act_str in ("android.view.View", "android.inputmethodservice.SoftInputWindow")
+                    )
+                    if not is_overlay:
+                        fg = {
+                            "package": pkg_str,
+                            "activity": act_str,
+                            "component": f"{pkg_str}/{act_str}" if act_str else None,
+                        }
             try:
                 port = self._ensure_forward()
                 req = urllib.request.Request(
@@ -345,6 +622,9 @@ class AccessibilityHelperClient:
                     xml_str = resp.read().decode("utf-8", errors="replace")
             except Exception:
                 xml_str = ""
+
+        if fg is None:
+            fg = self.adb.foreground_app()
 
         if not xml_str or "<hierarchy" not in xml_str:
             backend = "uiautomator"
