@@ -51,73 +51,54 @@ Redroid runs Android as a container on the host kernel (no QEMU VM), so it typic
 
 ## Benchmark & Architecture: AgentDroid vs. Artemis vs. AndroidWorld vs. Mobilebox
 
-While [Google Artemis](https://github.com/google/artemis) (Pixel Test Engineering) was designed as an autonomous standalone agent daemon running an internal observe-and-act LLM loop, **AgentDroid** embeds Artemis's accessibility perception into a silent, zero-overhead execution runtime driven directly by your existing AI coding assistant (Claude Code, Antigravity, Codex, Cursor).
+While [Google Artemis](https://github.com/google/artemis) runs an autonomous standalone LLM agent loop (`Flash` ~3–5 s/step, `Pro` ~15–40 s/step), **AgentDroid** embeds Artemis's accessibility helper APK (`v1.2.0`) into a local execution runtime driven directly by your existing AI coding assistant via compound pipelines or MCP.
 
-### Architecture Comparison (Artemis vs. AgentDroid)
+> **Verification & Scope Note (2026-11-16):** Every AgentDroid figure below was measured live on `redroid11_x86_64` (Android 11, `1080x2400`, zero mocked or simulated runs) and saved in [`benchmarks/results/`](benchmarks/results/). External figures come strictly from primary published sources without extrapolating missing per-app metrics:
+> - **Mobilebox (`mobilebox-dev/mobilebox`):** [`benchmarks/results/summary.csv`](https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv) (`2026-11-08`), [`benchmarks/README.md`](https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/README.md), `README.md`, and [`examples/RUNS.md`](https://github.com/mobilebox-dev/mobilebox/blob/main/examples/RUNS.md).
+> - **Google Research AndroidWorld:** Rawles et al. ([arXiv:2405.14573v3](https://arxiv.org/html/2405.14573v3), Table 3 & Section 4.3).
+> - **Google Artemis (`google/artemis`):** Repository `README.md` & [`androidworld_leaderboard.png`](https://github.com/google/artemis/blob/main/docs/assets/androidworld_leaderboard.png) (**99.1% Pass@1** across `116` tasks).
 
-| Capability / Metric | Google Artemis (`google/artemis`) | AgentDroid (`agentdroid`) | Advantage |
-| :--- | :--- | :--- | :--- |
-| **Brain / LLM Key** | Requires standalone `.env` & secondary Gemini API key | **Zero external keys** — your host coding assistant is the brain | No extra bill or credential leaks |
-| **Execution Paradigm** | Turn-by-turn reactive loop (1 LLM call per tap/type) | **Compound single-call pipeline** (`--do`, `mobile_run_workflow`) | Eliminates multi-turn network roundtrips |
-| **Turn-by-Turn Latency** | **Flash:** 3–5s / step<br>**Pro:** 15–40s / step | **Sub-second** accessibility gestures via in-kernel IPC (**52.2 ms** tap) | **5× to 10× faster** gesture dispatch |
-| **Token Consumption** | Re-sends full UI hierarchy & screenshots every turn (**15k–45k tokens**) | Compact numbered index hierarchy returned once (**~600–1,500 tokens**) | **90%+ token reduction** |
-| **Device Virtualization** | Android Studio QEMU VM or physical USB device | Headless in-kernel **Redroid** container with GPU passthrough | Boots in **2.3s**; 80% less RAM |
-| **User Observability** | Raw terminal stdout or separate manual emulator window | Silent `--headless` background or sleek docked floating simulator (`--watch`) | Unobtrusive side-by-side pair programming |
+### 1. Infrastructure Parity Benchmark (`benchmarks/benchmark_agentdroid.py`)
 
-### Master 4-Way Head-to-Head Comparison
+Measured against Mobilebox's published benchmark methodology using [`org.fossify.math`](https://f-droid.org/packages/org.fossify.math/) (`7.05 MB` F-Droid APK here vs `~4 MB` v1.4.0 in Mobilebox's suite). AgentDroid runs in a persistent local Redroid Docker container (`STOPSIGNAL SIGKILL` + ADB `CNXN` pre-probe); cold-start rows below measure a full `docker restart agentdroid-device` (`n=3`), whereas normal warm container usage starts with `0 ms` boot wait. Cloud providers (`Mobilebox`, `Limrun`) serve pre-warmed / pooled cloud instances from Nuremberg.
 
-| Metric / Dimension | AgentDroid (Host AI + Redroid) | Google Artemis (`google/artemis`) | Google AndroidWorld (arXiv:2405.14573) | Mobilebox (`mobilebox-dev/mobilebox`) |
-|---|---|---|---|---|
-| **Markor Note Creation & Save** | **7.35 s** (6 steps, 758 tok) | **~68.0 s** (9 steps, 41k tok) | **~68.4 s** (11 steps, 18.5k tok) | **~49.2 s** (10 steps, 16k tok) |
-| **DeskClock Alarm Configure** | **6.29 s** (7 steps, 3,033 tok) | **~65.0 s** (6 steps, 28k tok) | **~62.1 s** (9 steps, 15.5k tok) | **~44.5 s** (8 steps, 14k tok) |
-| **Settings Deep Audit** | **5.59 s** (7 steps, 2,936 tok) | **~82.0 s** (7 steps, 34.5k tok) | **~58.7 s** (8 steps, 14k tok) | **~39.8 s** (8 steps, 13.5k tok) |
-| **APK Sideload & Install** | **102.8 ms** (cached pm install) | ~3,500 – 5,500 ms (AVD pm) | ~5,500 ms (AVD package manager) | **1,172 ms** (`summary.csv` line 20) |
-| **Cold-Start to Screen** | **2,325 ms** | ~40,000 – 60,000 ms (AVD boot) | ~45,000 – 75,000 ms (AVD setup) | **19,353 ms** (`summary.csv` line 21) |
-| **Perception Turnaround**| **46 – 190 ms** (compact UI) | ~350 ms (raw XML dump) | ~4,100 ms (screencap + XML) | **1,448 ms** (tap-to-screenshot, line 26) |
-| **Single Tap Latency** | **52.2 ms** (Artemis IPC tap) | ~500 ms (IPC) + 3–15s LLM wait | ~1,200 ms (ADB shell tap + sleep) | **517 ms** (`summary.csv` line 25) |
-| **Token Cost / Task** | **~750 – 3,000 tokens** | **18,000 – 45,000 tokens** | **15,000 – 35,000 tokens** | **16,000 – 25,000 tokens** |
-| **Infrastructure Cost** | **\$0.00** (local container) | Host compute + Gemini Pro API | Host compute + GPT-4V tokens (\$0.15) | **\$0.01 / task** (\$0.01/min container) |
-| **Root Shell Access** | **Full root (`su 0`) default** | Restricted user shell on AVD | Restricted user shell on AVD | Sandboxed non-root container |
-
-### Empirical Benchmarks (Identical Android Tasks)
-
-Comparison across canonical Android task flows evaluated in Google's Android automation literature and reproducible via `benchmarks/run_actual_app_benchmark.py`:
-- **AgentDroid figures:** Measured live on local Redroid device (`127.0.0.1:5555`) with full disk/system verification.
-- **Google Artemis figures:** Calculated directly from Google Pixel Test Engineering's published execution profiles in [google/artemis](https://github.com/google/artemis) and the [AndroidWorld](https://github.com/google-research/android_world) benchmark.
-- **Mobilebox figures:** Official empirical benchmark suite from [mobilebox-dev/mobilebox](https://github.com/mobilebox-dev/mobilebox) (`benchmarks/results/summary.csv`).
-
-#### 1. Canonical Settings Navigation & App Inspection (`com.android.settings`)
-*Task: Cold-launch Settings, navigate to Apps & notifications, inspect Markor app permissions/storage, and verify screen assertion.*
-
-| Framework | Execution Model | Total Time | Tool / LLM Calls | Token Footprint | Result |
+| Metric | AgentDroid (Local Redroid `127.0.0.1:5555`) | Mobilebox EU (Nuremberg, `summary.csv`) | Limrun (Nuremberg, `summary.csv`) | Local AVD KVM On (`summary.csv`) | Local AVD KVM Off (`summary.csv`) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Google Artemis (Flash)** | Step-by-step LLM reactive | ~24.5s | 5 turns | ~18,200 tokens | Pass |
-| **Google Artemis (Pro)** | Graph-orchestrated verification | ~82.0s | 7 turns + checks | ~34,500 tokens | Pass |
-| **Google AndroidWorld (M3A)** | Turn-by-turn multimodal agent | ~58.7s | 8 environment turns | ~14,000 tokens | Pass |
-| **Mobilebox (Cloud Device)** | Remote WebSocket API loop | ~39.8s | 8 remote turns | ~13,500 tokens | Pass |
-| **AgentDroid (Compound)** | Single-call compound pipeline | **5.59s** | **1 compound call** | **2,936 tokens** | **Pass (7× to 14× faster)** |
+| **Cold-Start `ready` (median)** | **9,767 ms** (`n=3`, p90 `9,886`) | **17,833 ms** (`n=10`, p90 `18,072`) | **338 ms** (`n=10`, p90 `454`) | **49,231 ms** (+`75,307 ms` setup) | **782,342 ms** (`13.0 min`) |
+| **`cold_start_to_screenshot` (median)** | **10,963 ms** (`n=3`, p90 `11,096`) | **19,353 ms** (`n=10`, p90 `19,487`) | **977 ms** (`n=10`, p90 `1,067`) | **50,009 ms** (`n=5`, p90 `50,278`) | **812,681 ms** (`13.5 min`) |
+| **APK Install (`org.fossify.math`)** | **675 ms** fresh (`n=3`) · **648 ms** `-r` (`n=5`) | **1,172 ms** (`n=10`, p90 `1,544`) | **850 ms** (`n=10`, p90 `954`) | **6,091 ms** (`n=5`, p90 `7,307`) | **125,911 ms** (`n=1`) |
+| **Single Tap (median)** | **1.82 ms** `InputDaemon` (`n=10`) · **3.06 ms** IPC global (`n=20`)* | **517 ms** (`n=100`, p90 `526`) | **76 ms** (`n=100`, p90 `78`) | **150 ms** (`n=50`, p90 `383`) | **1,880 ms** (`n=10`, p90 `5,107`) |
+| **`tap_to_screenshot` (median)** | **758 ms** (`adb tap` + `adb screencap`, `n=10`, p90 `767`) | **1,448 ms** (`n=100`, p90 `1,487`) | **384 ms** (`n=100`, p90 `402`) | **1,035 ms** (`n=50`, p90 `3,523`) | **18,691 ms** (`n=10`, p90 `23,373`) |
+| **Perception Turnaround (AgentDroid IPC)** | **5.67 ms** UI dump (`n=20`) · **6.46 ms** `tap_to_ui_dump` (`n=10`) · **72.0 ms** atomic XML+PNG (`n=10`) | Screenshot-first (`1,448 ms`) | Screenshot-first (`384 ms`) | AVD ADB pull (`1,035 ms`) | AVD ADB pull (`18,691 ms`) |
+| **Container Billing** | **\$0.00 / min** (local host Docker) | **\$0.01 / min** (parked free) | Managed cloud pricing | Local CI / host VM | Local CI (non-KVM) |
 
-#### 2. End-to-End File Lifecycle & Editor Automation (Markor)
-*Task: Push markdown document, open in Markor, append checklist item 'Verified by AgentDroid', save to disk, and pull verified artifact back to host.*
+*\*Architectural note on tap latency & cold restarts: On hosts where Linux `uinput` is unloaded (`has_touchscreen_source: false`), headless Redroid only exposes a virtual keyboard (`0x00000301`), causing Android's `AccessibilityService.dispatchGesture` (`/action cmd=tap`) to return `success=False`. Instead of falling back to `adb shell input tap` (`552.38 ms` median, `n=20`), `AccessibilityHelperClient` routes gestures over a persistent loopback TCP daemon (`com.agentdroid.InputDaemon` on `127.0.0.1:18889` calling `InputManager.injectInputEvent` directly) in **`1.82 ms`** median (`p90 1.95 ms`, `n=10`), while `dump_compact_ui` derives non-overlay foreground package/activity from `/ping` in **`5.67 ms`** median (`p90 7.07 ms`). Setting `STOPSIGNAL SIGKILL` and pre-probing `adbd` with a 24-byte `CNXN` check before `adb connect` eliminates Docker's 10s `SIGTERM` wait and `adb` server handshake stalls during `docker restart` (`9,767 ms` `ready`, `10,963 ms` `cold_start_to_screenshot`). See [`benchmarks/README.md`](benchmarks/README.md) for all `summary.csv` rows including `Mobilebox CI` and `Phone Harness`.*
 
-| Framework | Execution Model | Total Time | Tool / LLM Calls | Token Footprint | Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Google Artemis (Pro)** | Turn-by-turn external agent | ~68.0s | 9 turns | ~41,000 tokens | Pass |
-| **Google AndroidWorld (M3A)** | Turn-by-turn multimodal agent | ~68.4s | 11 environment turns | ~18,500 tokens | Pass |
-| **Mobilebox (Cloud Device)** | Remote WebSocket API loop | ~49.2s | 10 remote turns | ~16,000 tokens | Pass |
-| **AgentDroid (Compound)** | Single compound workflow (`--push`, `-a`, `-d`, `--pull`) | **7.35s** | **1 compound call** | **758 tokens** | **Pass (9× faster, 95% token savings)** |
+### 2. Measured Real-App End-to-End Workflows vs. Published Agent Baselines
 
-#### 3. System Alarm Configuration (DeskClock)
-*Task: Cold-launch DeskClock, navigate to Alarm tab, add and configure alarm, confirm time picker, and assert registered alarm.*
+AgentDroid tasks below run end-to-end against live Android apps (`benchmarks/run_actual_app_benchmark.py`) with strict state-delta or disk verification (`all_passed: true`), executing **4–8 UI actions per single compound host-agent turn** (`1` LLM decision turn per workflow once screen layout is known):
 
-| Framework | Execution Model | Total Time | Tool / LLM Calls | Token Footprint | Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Google Artemis (Flash)** | Step-by-step LLM reactive | ~22.0s | 6 turns | ~16,000 tokens | Pass |
-| **Google AndroidWorld (M3A)** | Turn-by-turn multimodal agent | ~62.1s | 9 environment turns | ~15,500 tokens | Pass |
-| **Mobilebox (Cloud Device)** | Remote WebSocket API loop | ~44.5s | 8 remote turns | ~14,000 tokens | Pass |
-| **AgentDroid (Compound)** | Single compound workflow | **6.29s** | **1 compound call** | **3,033 tokens** | **Pass (10× faster)** |
+| Workflow / Published Benchmark | System & Execution Model | Measured Time / Cadence | Measured Steps / Turns & Verification | Source |
+| :--- | :--- | :--- | :--- | :--- |
+| **Markor Markdown Note Append & Save** (`net.gsantner.markor`) | **AgentDroid** (`CompoundPipeline`, single turn) | **3.15 s** wall-clock | **4 UI steps**, 1 host turn; disk pull `50 B → 81 B`, exact marker & header verified | [`benchmark_actual_apps_results.json`](benchmarks/results/benchmark_actual_apps_results.json) |
+| **DeskClock Alarm Add & State Delta** (`com.android.deskclock`) | **AgentDroid** (`AndroidEngine` single workflow) | **2.54 s** wall-clock | **4 UI steps**, 1 host turn; `digital_clock` count **`2 → 3`**, `ON` count **`0 → 1`** verified | [`benchmark_actual_apps_results.json`](benchmarks/results/benchmark_actual_apps_results.json) |
+| **Settings App Permissions Audit** (`com.android.settings`) | **AgentDroid CLI** (`agentdroid run --headless`) | **7.68 s** subprocess (`7.53 s` internal) | **8 UI steps**, 1 host turn; asserted `"Permissions"` + `"Storage"` (`0` crashes) | [`benchmark_actual_apps_results.json`](benchmarks/results/benchmark_actual_apps_results.json) |
+| **Fossify Math Install + `42 + 58 = 100`** (`org.fossify.math`) | **AgentDroid CLI** (`adb install` + `--headless`) | **0.59 s** install + **4.05 s** E2E (**4.64 s** total) | **7 UI steps**, 1 host turn; asserted `result == "100"` (`0` crashes) | [`benchmark_actual_apps_results.json`](benchmarks/results/benchmark_actual_apps_results.json) |
+| **Wikipedia Matterhorn Demo** (Cloud Android 14) | **Mobilebox** (MCP turn-by-turn demo) | **24.6 s** (from home screen) | **8 MCP calls**; cloud container `@ \$0.01/min` | [`mobilebox/README.md`](https://github.com/mobilebox-dev/mobilebox) |
+| **Settings > Display Brightness E2E** (incl. phone create+delete) | **Mobilebox** (curl / TS / Python / LLM SDKs) | **24.7 – 37.9 s** | Multi-call REST/MCP flows (`examples/RUNS.md`, `2026-11-04/05`) | [`mobilebox/examples/RUNS.md`](https://github.com/mobilebox-dev/mobilebox/blob/main/examples/RUNS.md) |
+| **AndroidWorld 116-Task Suite Avg** (20 apps, GPT-4 Turbo) | **AndroidWorld M3A** (turn-by-turn VLM / text) | **234 s** (`3.9 min`) multimodal · **150 s** (`2.5 min`) text-only | **30.6%** SR (M3A a11y tree), **25.4%** SR (M3A SoM), **80.0%** Human (`116` tasks) | [`arXiv:2405.14573v3`](https://arxiv.org/html/2405.14573v3) (Table 3 & §4.3) |
+| **AndroidWorld 116-Task Suite SOTA** (Multi-model VLM agent) | **Google Artemis** (Flash / Pro autonomous graph) | **~3–5 s/step** (Flash) · **~15–40 s/step** (Pro) | **99.1% Pass@1** completion rate across `116` AndroidWorld tasks | [`google/artemis`](https://github.com/google/artemis) · [`leaderboard`](https://github.com/google/artemis/blob/main/docs/assets/androidworld_leaderboard.png) |
 
-All raw benchmark JSONs and reproduction scripts are located in [`benchmarks/`](benchmarks/).
+### 3. Live Perception Payload & Token Comparison (`1080x2400`)
+
+Measured directly from live app windows via `benchmarks/benchmark_agentdroid.py`:
+
+| Live App Window | Raw XML (`uiautomator` / `/snapshot?fields=xml`) | AgentDroid `formatted_text` (`AndroidEngine`) | Reduction vs. Raw XML | High-Detail Screenshot (`1080x2400` PNG) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Fossify Math** (`34` XML nodes) | `13,721 B` (`~3,430` est. tok @ 4 chars/tok) | **`1,730 chars`** (**`~433` est. tok**, 28 elements) | **87.4% smaller** (`7.9x`) | `54,662 B` · **1,445 tok** (OpenAI `2x4` tiles) / **1,477 tok** (Anthropic `706x1568`) |
+| **Android Settings** (`47` XML nodes) | `18,959 B` (`~4,740` est. tok @ 4 chars/tok) | **`2,774 chars`** (**`~694` est. tok**, 40 elements) | **85.4% smaller** (`6.8x`) | `125,747 B` · **1,445 tok** (OpenAI `2x4` tiles) / **1,477 tok** (Anthropic `706x1568`) |
+
+All reproduction scripts and raw JSON datasets live under [`benchmarks/`](benchmarks/).
 
 ## Troubleshooting
 
