@@ -1,30 +1,403 @@
 {
-  "tap_ms": {
-    "artemis_ipc_median_ms": 837.5,
-    "artemis_ipc_p90_ms": 2021.55,
-    "adb_shell_median_ms": 714.37
+  "timestamp_utc": "2026-11-16T04:55:52.899885+00:00",
+  "device_serial": "127.0.0.1:5555",
+  "device_model": "redroid11_x86_64",
+  "android_release": "11",
+  "wm_size": "Physical size: 1080x2400",
+  "helper_ping": {
+    "success": true,
+    "service": "ArtemisAccessibilityService",
+    "version_code": 6,
+    "version_name": "1.2.0",
+    "protocol_version": 2,
+    "port": 18888,
+    "auth_required": true,
+    "token_set": true,
+    "authenticated": true,
+    "package": "com.android.launcher3",
+    "activity": "com.android.launcher3.uioverrides.QuickstepLauncher"
   },
-  "tap_to_screenshot_ms": {
-    "n": 5,
-    "median": 1692.24,
-    "min": 1646.04,
-    "max": 3130.34
+  "environment_probes": {
+    "helper_direct_tap_response": {
+      "success": false
+    },
+    "has_touchscreen_source": false,
+    "input_daemon_reachable": true,
+    "note": "Headless Redroid registers only Virtual keyboard input (-1, 0x00000301) without host uinput; AccessibilityService.dispatchGesture returns success=False, so AccessibilityHelperClient routes tap/swipe/long_press through the persistent loop InputDaemon (127.0.0.1:18889, ~5-7ms) instead of 670ms adb shell input fallback."
   },
-  "artemis_ui_perception_ms": {
-    "n": 10,
-    "median": 58.13,
-    "p90": 95.03,
-    "min": 53.23,
-    "max": 98.75
+  "container_cold_restart": {
+    "container": "agentdroid-device",
+    "ready": {
+      "n": 3,
+      "median_ms": 9767.21,
+      "mean_ms": 9794.01,
+      "min_ms": 9728.49,
+      "p90_ms": 9886.34,
+      "max_ms": 9886.34,
+      "samples_ms": [
+        9886.34,
+        9728.49,
+        9767.21
+      ]
+    },
+    "cold_start_to_screenshot": {
+      "n": 3,
+      "median_ms": 10962.79,
+      "mean_ms": 10967.95,
+      "min_ms": 10844.68,
+      "p90_ms": 11096.39,
+      "max_ms": 11096.39,
+      "samples_ms": [
+        11096.39,
+        10844.68,
+        10962.79
+      ]
+    },
+    "post_boot_helper_ready": {
+      "n": 3,
+      "median_ms": 242.87,
+      "mean_ms": 222.97,
+      "min_ms": 174.01,
+      "p90_ms": 252.03,
+      "max_ms": 252.03,
+      "samples_ms": [
+        174.01,
+        252.03,
+        242.87
+      ]
+    }
   },
-  "tokens_per_step": {
-    "artemis_indexed_tree_tokens": 614,
-    "vision_screenshot_tokens": 1600,
-    "token_reduction_pct": 61.6
+  "apk_operations": {
+    "fossify_math_apk_bytes": 7047681,
+    "apk_install_fossify_math_fresh": {
+      "n": 3,
+      "median_ms": 674.69,
+      "mean_ms": 677.68,
+      "min_ms": 639.79,
+      "p90_ms": 718.57,
+      "max_ms": 718.57,
+      "samples_ms": [
+        718.57,
+        674.69,
+        639.79
+      ]
+    },
+    "apk_install_fossify_math_reinstall": {
+      "n": 5,
+      "median_ms": 647.63,
+      "mean_ms": 650.6,
+      "min_ms": 640.43,
+      "p90_ms": 660.97,
+      "max_ms": 660.97,
+      "samples_ms": [
+        659.18,
+        640.43,
+        647.63,
+        660.97,
+        644.8
+      ]
+    },
+    "markor_apk_bytes": 11849016,
+    "apk_install_markor_reinstall": {
+      "n": 3,
+      "median_ms": 1023.94,
+      "mean_ms": 1020.32,
+      "min_ms": 1005.51,
+      "p90_ms": 1031.5,
+      "max_ms": 1031.5,
+      "samples_ms": [
+        1005.51,
+        1023.94,
+        1031.5
+      ]
+    },
+    "package_installed_check": {
+      "n": 10,
+      "median_ms": 23.2,
+      "mean_ms": 24.53,
+      "min_ms": 21.46,
+      "p90_ms": 29.73,
+      "max_ms": 30.22,
+      "samples_ms": [
+        30.22,
+        29.73,
+        26.45,
+        23.76,
+        24.0,
+        22.52,
+        22.05,
+        22.64,
+        22.51,
+        21.46
+      ]
+    }
   },
-  "apk_install_ms": {
-    "fast_path_check_ms": 51.9,
-    "local_pm_reinstall_ms": 37.03
+  "micro_benchmarks": {
+    "artemis_ipc_global_home": {
+      "n": 20,
+      "median_ms": 3.06,
+      "mean_ms": 3.12,
+      "min_ms": 1.89,
+      "p90_ms": 4.7,
+      "max_ms": 5.25,
+      "samples_ms": [
+        2.08,
+        1.94,
+        3.07,
+        3.6,
+        2.59,
+        2.48,
+        3.17,
+        5.25,
+        4.7,
+        2.67,
+        2.95,
+        2.33,
+        3.72,
+        3.46,
+        3.14,
+        1.89,
+        3.05,
+        5.15,
+        3.19,
+        1.99
+      ]
+    },
+    "adb_input_tap": {
+      "n": 20,
+      "median_ms": 552.38,
+      "mean_ms": 555.76,
+      "min_ms": 547.81,
+      "p90_ms": 568.58,
+      "max_ms": 581.35,
+      "samples_ms": [
+        581.35,
+        548.6,
+        556.84,
+        568.94,
+        550.03,
+        560.77,
+        551.0,
+        547.81,
+        556.29,
+        551.58,
+        554.99,
+        568.58,
+        550.69,
+        549.35,
+        549.36,
+        553.18,
+        551.45,
+        558.29,
+        557.14,
+        548.98
+      ]
+    },
+    "helper_action_tap": {
+      "n": 10,
+      "median_ms": 1.82,
+      "mean_ms": 1.8,
+      "min_ms": 1.12,
+      "p90_ms": 1.95,
+      "max_ms": 3.33,
+      "samples_ms": [
+        1.91,
+        1.47,
+        1.95,
+        3.33,
+        1.78,
+        1.46,
+        1.16,
+        1.12,
+        1.95,
+        1.86
+      ],
+      "backends": [
+        "input_daemon"
+      ]
+    },
+    "artemis_ui_dump_roundtrip": {
+      "n": 20,
+      "median_ms": 5.67,
+      "mean_ms": 6.06,
+      "min_ms": 4.89,
+      "p90_ms": 7.07,
+      "max_ms": 12.01,
+      "samples_ms": [
+        12.01,
+        6.29,
+        5.69,
+        5.68,
+        5.7,
+        7.21,
+        6.91,
+        5.5,
+        5.21,
+        5.14,
+        5.66,
+        7.07,
+        5.83,
+        5.53,
+        5.59,
+        5.25,
+        5.07,
+        6.08,
+        4.9,
+        4.89
+      ]
+    },
+    "artemis_ui_dump_on_device_ms": null,
+    "tap_to_ui_dump": {
+      "n": 10,
+      "median_ms": 6.46,
+      "mean_ms": 6.6,
+      "min_ms": 5.91,
+      "p90_ms": 7.47,
+      "max_ms": 7.52,
+      "samples_ms": [
+        7.52,
+        7.47,
+        6.26,
+        6.7,
+        6.21,
+        5.91,
+        6.09,
+        6.58,
+        6.91,
+        6.35
+      ]
+    },
+    "tap_to_screenshot_adb": {
+      "n": 10,
+      "median_ms": 757.85,
+      "mean_ms": 758.51,
+      "min_ms": 749.27,
+      "p90_ms": 767.08,
+      "max_ms": 768.38,
+      "samples_ms": [
+        768.38,
+        753.55,
+        760.57,
+        755.13,
+        762.49,
+        763.08,
+        751.82,
+        753.75,
+        767.08,
+        749.27
+      ]
+    },
+    "artemis_atomic_snapshot_roundtrip": {
+      "n": 10,
+      "median_ms": 71.97,
+      "mean_ms": 81.0,
+      "min_ms": 69.54,
+      "p90_ms": 77.38,
+      "max_ms": 157.23,
+      "samples_ms": [
+        157.23,
+        69.54,
+        70.71,
+        70.81,
+        72.14,
+        72.37,
+        71.42,
+        71.81,
+        76.61,
+        77.38
+      ]
+    },
+    "artemis_atomic_snapshot_on_device_ms": {
+      "n": 10,
+      "median_ms": 68.0,
+      "mean_ms": 76.8,
+      "min_ms": 65.0,
+      "p90_ms": 73.0,
+      "max_ms": 153.0,
+      "samples_ms": [
+        153.0,
+        65.0,
+        66.0,
+        66.0,
+        68.0,
+        68.0,
+        68.0,
+        68.0,
+        73.0,
+        73.0
+      ]
+    },
+    "compound_burst_3_actions": {
+      "n": 5,
+      "median_ms": 310.57,
+      "mean_ms": 311.13,
+      "min_ms": 309.62,
+      "p90_ms": 314.44,
+      "max_ms": 314.44,
+      "samples_ms": [
+        314.44,
+        310.18,
+        309.62,
+        310.57,
+        310.82
+      ]
+    },
+    "adb_single_shell_chain_3_actions": {
+      "n": 5,
+      "median_ms": 1652.23,
+      "mean_ms": 1652.11,
+      "min_ms": 1647.39,
+      "p90_ms": 1657.99,
+      "max_ms": 1657.99,
+      "samples_ms": [
+        1657.99,
+        1652.23,
+        1650.65,
+        1647.39,
+        1652.3
+      ]
+    }
   },
-  "compound_burst_3_actions_ms": 2197.08
+  "perception_payloads": {
+    "fossify_math": {
+      "package": "org.fossify.math",
+      "node_count_xml": 34,
+      "element_count_compact": 28,
+      "raw_xml_bytes": 13721,
+      "raw_xml_est_tokens_chars_div_4": 3430,
+      "compact_json_bytes": 2864,
+      "formatted_text_chars": 1730,
+      "formatted_text_est_tokens_chars_div_4": 433,
+      "screenshot_png_bytes": 54662,
+      "screenshot_base64_bytes": 72884,
+      "vision_tokens": {
+        "native_resolution": "1080x2400",
+        "openai_scaled": "768x1707",
+        "openai_tiles": "2x4=8",
+        "openai_high_detail_tokens": 1445,
+        "anthropic_scaled": "706x1568",
+        "anthropic_vision_tokens": 1477
+      }
+    },
+    "android_settings": {
+      "package": "com.android.settings",
+      "node_count_xml": 47,
+      "element_count_compact": 40,
+      "raw_xml_bytes": 18959,
+      "raw_xml_est_tokens_chars_div_4": 4740,
+      "compact_json_bytes": 3932,
+      "formatted_text_chars": 2774,
+      "formatted_text_est_tokens_chars_div_4": 694,
+      "screenshot_png_bytes": 125747,
+      "screenshot_base64_bytes": 167664,
+      "vision_tokens": {
+        "native_resolution": "1080x2400",
+        "openai_scaled": "768x1707",
+        "openai_tiles": "2x4=8",
+        "openai_high_detail_tokens": 1445,
+        "anthropic_scaled": "706x1568",
+        "anthropic_vision_tokens": 1477
+      }
+    }
+  }
 }
