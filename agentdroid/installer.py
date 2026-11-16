@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
