@@ -17,6 +17,7 @@ import base64
 from datetime import datetime, timezone
 import json
 import math
+import os
 from pathlib import Path
 import statistics
 import subprocess
@@ -27,7 +28,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from agentdroid.adb import AdbDevice
+from agentdroid.adb import AdbDevice, probe_adbd_tcp
 from agentdroid.engine import AndroidEngine
 from agentdroid.helper import AccessibilityHelperClient
 
@@ -35,9 +36,6 @@ CACHE_DIR = Path.home() / ".cache" / "agentdroid" / "apks"
 FOSSIFY_APK = CACHE_DIR / "org.fossify.math_10.apk"
 MARKOR_APK = CACHE_DIR / "net.gsantner.markor_164.apk"
 RESULTS_PATH = PROJECT_ROOT / "benchmarks" / "results" / "benchmark_agentdroid_results.json"
-ARTIFACT_PATH = Path(
-    "/home/theajmalrazaq/.gemini/antigravity/brain/1c28a521-619a-43a8-884d-64ad1867f93a/benchmark_agentdroid_results.json"
-)
 
 
 def summarize(samples: list[float]) -> dict[str, Any]:
@@ -88,26 +86,37 @@ def measure_container_cold_starts(serial: str, container_name: str, runs: int) -
         if proc.returncode != 0:
             raise RuntimeError(f"docker restart {container_name} failed: {proc.stderr.strip()}")
 
-        # Poll adb connect + Android boot completion + PackageManager availability.
+        subprocess.run(["adb", "disconnect", serial], capture_output=True, text=True, timeout=3)
+
+        # Wait until adbd replies CNXN/AUTH before invoking adb connect (prevents adb server stall
+        # while docker-proxy accepts connections early) and verify sys.boot_completed + pm readiness.
+        host, _, port_s = serial.rpartition(":")
         while True:
-            subprocess.run(["adb", "connect", serial], capture_output=True, text=True, timeout=5)
-            boot = subprocess.run(
-                ["adb", "-s", serial, "shell", "getprop sys.boot_completed"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if boot.returncode == 0 and boot.stdout.strip() == "1":
-                pm = subprocess.run(
-                    ["adb", "-s", serial, "shell", "pm path android"],
+            if time.perf_counter() - t0 > 120:
+                raise TimeoutError(f"Container {container_name} did not reach ready state within 120s")
+            try:
+                if host and port_s.isdigit() and not probe_adbd_tcp(host, int(port_s), timeout=0.35):
+                    time.sleep(0.15)
+                    continue
+                subprocess.run(["adb", "connect", serial], capture_output=True, text=True, timeout=4)
+                probe = subprocess.run(
+                    [
+                        "adb",
+                        "-s",
+                        serial,
+                        "shell",
+                        'if [ "$(getprop sys.boot_completed)" = "1" ]; then echo BOOT=1; pm path android; fi',
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=5,
                 )
-                if pm.returncode == 0 and "package:" in pm.stdout:
+                if probe.returncode == 0 and "BOOT=1" in probe.stdout and "package:" in probe.stdout:
                     break
-            if time.perf_counter() - t0 > 120:
-                raise TimeoutError(f"Container {container_name} did not reach ready state within 120s")
+                if probe.returncode != 0:
+                    subprocess.run(["adb", "disconnect", serial], capture_output=True, text=True, timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
             time.sleep(0.15)
 
         ready_ms = (time.perf_counter() - t0) * 1000.0
@@ -149,7 +158,7 @@ def measure_container_cold_starts(serial: str, container_name: str, runs: int) -
 def compute_vision_tokens(width: int, height: int) -> dict[str, Any]:
     """Compute documented high-detail vision token costs from exact screen pixel dimensions."""
     # OpenAI high-detail: scale so longest <= 2048, then shortest == 768 (preserve aspect), tile 512px.
-    long_side, short_side = max(width, height), min(width, height)
+    long_side = max(width, height)
     scale = min(2048.0 / long_side, 1.0)
     w_s, h_s = width * scale, height * scale
     if min(w_s, h_s) > 768.0:
@@ -185,9 +194,12 @@ def measure_payload_and_tokens(
     for label, pkg in targets:
         dev.shell(f"am force-stop {pkg}")
         dev.launch_app(pkg)
-        time.sleep(1.0)
+        time.sleep(1.2)
 
         snap = helper._request("GET", "/snapshot?fields=xml")
+        if not snap.get("has_screenshot"):
+            time.sleep(1.2)
+            snap = helper._request("GET", "/snapshot?fields=xml")
         xml_str = snap.get("xml", "")
         png_bytes = base64.b64decode(snap.get("screenshot_base64", "") or b"")
         dump = helper.dump_compact_ui(max_elements=80)
@@ -242,16 +254,34 @@ def main() -> None:
     # 1. Probe direct /action tap support on this kernel/input stack
     direct_tap_resp = helper._request("POST", "/action", {"cmd": "tap", "x": 540, "y": 1200})
     input_devs = dev.shell("dumpsys input | grep -E 'Device -?[0-9]+:|Sources:'")
+    has_touchscreen = "0x00001002" in input_devs
+    input_daemon_ok = helper._ensure_input_daemon(force=False)
+    if has_touchscreen:
+        env_note = (
+            "Touchscreen input source (0x00001002) present; both InputDaemon (127.0.0.1:18889) "
+            "and AccessibilityService.dispatchGesture are active."
+        )
+    else:
+        env_note = (
+            "Headless Redroid registers only Virtual keyboard input (-1, 0x00000301) without host uinput; "
+            "AccessibilityService.dispatchGesture returns success=False, so AccessibilityHelperClient "
+            "routes tap/swipe/long_press through the persistent loop InputDaemon (127.0.0.1:18889) "
+            "instead of spawning adb shell input processes."
+        )
     results["environment_probes"] = {
         "helper_direct_tap_response": direct_tap_resp,
-        "has_touchscreen_source": "0x00001002" in input_devs,
-        "note": (
-            "Headless Redroid registers only Virtual keyboard input (-1, 0x00000301); "
-            "AccessibilityService.dispatchGesture returns success=False, so "
-            "AccessibilityHelperClient transparently falls back to adb input."
-        ),
+        "has_touchscreen_source": has_touchscreen,
+        "input_daemon_reachable": input_daemon_ok,
+        "note": env_note,
     }
-    print("Direct tap probe:", direct_tap_resp, "| has_touchscreen:", results["environment_probes"]["has_touchscreen_source"])
+    print(
+        "Direct tap probe:",
+        direct_tap_resp,
+        "| has_touchscreen:",
+        has_touchscreen,
+        "| input_daemon:",
+        input_daemon_ok,
+    )
 
     # 2. Container Cold Restarts
     print(f"Measuring container cold starts (n={args.cold_starts})...")
@@ -262,6 +292,7 @@ def main() -> None:
     dev = AdbDevice(serial=args.serial)
     dev.connect(timeout=5.0)
     helper = wait_helper_ready(dev, timeout=25.0)
+    helper._ensure_input_daemon(force=False)
     engine = AndroidEngine(adb=dev)
 
     # 3. APK Installations (Fossify Math 7.0 MB matching Mobilebox, plus Markor 11.8 MB)
@@ -364,14 +395,18 @@ def main() -> None:
 
     atomic_snap: list[float] = []
     atomic_snap_internal: list[float] = []
+    # Android 11 API 30 enforces ~1s minimum cooldown between AccessibilityService.takeScreenshot() calls
+    # (ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT=3); sleep between timed samples.
+    time.sleep(1.1)
     for _ in range(10):
         t0 = time.perf_counter()
         s = helper._request("GET", "/snapshot?fields=xml")
         atomic_snap.append((time.perf_counter() - t0) * 1000.0)
         if not s.get("has_screenshot"):
-            raise RuntimeError("Atomic snapshot did not return screenshot")
+            raise RuntimeError(f"Atomic snapshot did not return screenshot: {s.get('screenshot_error')}")
         if s.get("atomic_elapsed_ms") is not None:
             atomic_snap_internal.append(float(s["atomic_elapsed_ms"]))
+        time.sleep(1.1)
 
     burst_3: list[float] = []
     for _ in range(5):
@@ -403,11 +438,15 @@ def main() -> None:
     print("Measuring perception payload sizes and token estimates...")
     results["perception_payloads"] = measure_payload_and_tokens(dev, helper, engine)
 
+    payload_text = json.dumps(results, indent=2) + "\n"
     RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(results, indent=2) + "\n")
-    ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    ARTIFACT_PATH.write_text(json.dumps(results, indent=2) + "\n")
-    print(f"Saved results to {RESULTS_PATH} and {ARTIFACT_PATH}")
+    RESULTS_PATH.write_text(payload_text)
+    artifact_dir = os.environ.get("AGENTDROID_BENCHMARK_ARTIFACT_DIR")
+    if artifact_dir:
+        art_path = Path(artifact_dir).expanduser() / RESULTS_PATH.name
+        art_path.parent.mkdir(parents=True, exist_ok=True)
+        art_path.write_text(payload_text)
+    print(f"Saved results to {RESULTS_PATH}")
 
 
 if __name__ == "__main__":
