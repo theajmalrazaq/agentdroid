@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
+import struct
 import subprocess
 import tempfile
 import time
@@ -37,6 +39,40 @@ SPECIAL_APPOPS = (
     "REQUEST_INSTALL_PACKAGES",
     "SCHEDULE_EXACT_ALARM",
 )
+
+
+def probe_adbd_tcp(host: str, port: int, timeout: float = 0.35) -> bool:
+    """Return True if an ADB daemon on host:port actively replies CNXN or AUTH.
+
+    Prevents the host adb server daemon from blocking inside `adb connect` when a
+    port-forwarder (such as docker-proxy during container startup) accepts TCP
+    connections before `adbd` inside the container is listening.
+    """
+    payload = b"host::\x00"
+    hdr = struct.pack(
+        "<6I",
+        0x4E584E43,  # CNXN
+        0x01000001,
+        256 * 1024,
+        len(payload),
+        sum(payload) & 0xFFFFFFFF,
+        0x4E584E43 ^ 0xFFFFFFFF,
+    )
+    sock: socket.socket | None = None
+    try:
+        sock = socket.create_connection((host.strip("[]"), port), timeout=timeout)
+        sock.settimeout(timeout)
+        sock.sendall(hdr + payload)
+        resp = sock.recv(24)
+        return len(resp) >= 4 and resp[:4] in (b"CNXN", b"AUTH")
+    except OSError:
+        return False
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
 
 @dataclass
@@ -155,6 +191,8 @@ class AdbDevice:
 
     def connect(self, timeout: float = 30.0) -> bool:
         """Connect to TCP ADB device if needed and verify online state."""
+        if self.is_connected():
+            return True
         try:
             subprocess.run(
                 [self.adb_bin, "start-server"],
@@ -168,21 +206,37 @@ class AdbDevice:
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if self.is_connected():
+                return True
             if ":" in self.serial:
+                host, _, port_s = self.serial.rpartition(":")
+                if host and port_s.isdigit():
+                    if not probe_adbd_tcp(host, int(port_s), timeout=0.35):
+                        time.sleep(0.15)
+                        continue
                 try:
-                    subprocess.run(
+                    c_proc = subprocess.run(
                         [self.adb_bin, "connect", self.serial],
                         stdin=subprocess.DEVNULL,
                         capture_output=True,
-                        timeout=5.0,
+                        text=True,
+                        timeout=4.0,
                         check=False,
                     )
+                    if "already connected" in (c_proc.stdout or "") and not self.is_connected():
+                        subprocess.run(
+                            [self.adb_bin, "disconnect", self.serial],
+                            stdin=subprocess.DEVNULL,
+                            capture_output=True,
+                            timeout=3.0,
+                            check=False,
+                        )
+                        continue
                 except Exception:
                     return False
-            state = self.run_adb(["get-state"], timeout=5.0)
-            if state.returncode == 0 and (state.stdout or "").strip() == "device":
+            if self.is_connected():
                 return True
-            time.sleep(0.5)
+            time.sleep(0.2)
         return False
 
     def ensure_root(self) -> bool:
@@ -198,22 +252,49 @@ class AdbDevice:
 
     def wait_for_boot(self, timeout: float = 90.0) -> bool:
         """Wait until sys.boot_completed=1 and package manager is responsive."""
-        if not self.connect(timeout=min(timeout, 20.0)):
+        if not self.connect(timeout=min(timeout, 25.0)):
             return False
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            boot = self.shell("getprop sys.boot_completed", timeout=5.0)
-            pm = self.shell("pm path android", timeout=5.0)
-            if boot == "1" and pm.startswith("package:"):
+            out = self.shell(
+                'boot=$(getprop sys.boot_completed); '
+                'if [ "$boot" = "1" ]; then echo BOOT=1; pm path android; fi',
+                timeout=5.0,
+            )
+            if "BOOT=1" in out and "package:" in out:
                 return True
-            time.sleep(1.0)
+            if not out and not self.is_connected():
+                if ":" in self.serial:
+                    subprocess.run(
+                        [self.adb_bin, "disconnect", self.serial],
+                        stdin=subprocess.DEVNULL,
+                        capture_output=True,
+                        timeout=3.0,
+                        check=False,
+                    )
+                self.connect(timeout=max(1.0, min(5.0, deadline - time.monotonic())))
+                continue
+            time.sleep(0.15)
         return False
 
     def is_provisioned_silent(self) -> bool:
         """Fast check whether animations are disabled and Artemis Helper is enabled."""
-        anim = self.shell("settings get global window_animation_scale", timeout=5.0)
-        svcs = self.shell("settings get secure enabled_accessibility_services", timeout=5.0)
-        return anim in ("0", "0.0") and "com.artemis.helper/.ArtemisAccessibilityService" in svcs
+        out = self.shell(
+            'printf "%s\\n%s\\n%s\\n" '
+            '"$(settings get global window_animation_scale)" '
+            '"$(settings get secure enabled_accessibility_services)" '
+            '"$(settings get secure accessibility_enabled)"',
+            timeout=5.0,
+        )
+        lines = out.splitlines()
+        anim = lines[0].strip() if len(lines) > 0 else ""
+        svcs = lines[1].strip() if len(lines) > 1 else ""
+        acc_on = lines[2].strip() if len(lines) > 2 else ""
+        return (
+            anim in ("0", "0.0")
+            and "com.artemis.helper/.ArtemisAccessibilityService" in svcs
+            and acc_on == "1"
+        )
 
     def provision_silent(self, *, force: bool = False, quiet: bool = True) -> dict[str, Any]:
         """Configure device for silent, zero-popup AI agent operation."""
@@ -228,6 +309,21 @@ class AdbDevice:
             env = os.environ.copy()
             env["QUIET"] = "1" if quiet else "0"
             env["ADB_BIN"] = self.adb_bin
+            if "AGENTDROID_HELPER_TOKEN" not in env:
+                for candidate in (
+                    Path(tempfile.gettempdir()) / "agentdroid" / "helper-token" / "session.token",
+                    Path.home() / ".cache" / "agentdroid" / "helper-token" / "session.token",
+                    Path(tempfile.gettempdir()) / "artemis" / "helper-token" / "session.token",
+                    Path.home() / ".cache" / "artemis" / "helper-token" / "session.token",
+                ):
+                    try:
+                        if candidate.is_file():
+                            tok = candidate.read_text(encoding="utf-8").strip()
+                            if tok:
+                                env["AGENTDROID_HELPER_TOKEN"] = tok
+                                break
+                    except OSError:
+                        pass
             res = subprocess.run(
                 ["bash", str(PROVISION_SCRIPT), self.serial],
                 env=env,
@@ -733,7 +829,9 @@ class AdbDevice:
         return str(dest)
 
     def clear_logs(self) -> None:
-        self.run_adb(["logcat", "-c"], timeout=10.0)
+        res = self.run_adb(["logcat", "-b", "all", "-c"], timeout=10.0)
+        if res.returncode != 0:
+            self.run_adb(["logcat", "-c"], timeout=10.0)
 
     def collect_crashes(self, package_filter: str | None = None) -> CrashReport:
         """Inspect logcat crash buffer and ANR traces."""
