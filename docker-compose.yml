@@ -9,6 +9,8 @@ services:
     image: agentdroid/redroid-silent:latest
     container_name: agentdroid-device
     privileged: true
+    stop_signal: SIGKILL
+    stop_grace_period: 0s
     restart: unless-stopped
     ports:
       - "127.0.0.1:${REDROID_ADB_PORT:-5555}:5555"
