@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -35,9 +36,6 @@ from agentdroid.pipeline import CompoundPipeline, PipelineSpec
 
 FOSSIFY_APK = Path.home() / ".cache" / "agentdroid" / "apks" / "org.fossify.math_10.apk"
 RESULTS_PATH = PROJECT_ROOT / "benchmarks" / "results" / "benchmark_actual_apps_results.json"
-ARTIFACT_PATH = Path(
-    "/home/theajmalrazaq/.gemini/antigravity/brain/1c28a521-619a-43a8-884d-64ad1867f93a/benchmark_actual_apps_results.json"
-)
 
 
 def run_cli_json(args: list[str], timeout: float = 90.0) -> tuple[float, dict[str, Any]]:
@@ -74,7 +72,7 @@ def task1_markor_note_workflow(dev: AdbDevice) -> dict[str, Any]:
         {
             "serial": dev.serial,
             "headless": True,
-            "provision": False,
+            "auto_provision": False,
             "push_files": [f"{local_in}:{remote_path}"],
             "open_url": f"file://{remote_path}",
             "ui_actions": [
@@ -337,15 +335,19 @@ def main() -> None:
     payload = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "device_serial": args.serial,
-        "helper_version": (helper.ping() or {}).get("version"),
+        "helper_version": (helper.ping() or {}).get("version_name"),
         "all_passed": all_passed,
         "tasks": tasks,
     }
 
+    payload_text = json.dumps(payload, indent=2) + "\n"
     RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(payload, indent=2) + "\n")
-    ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    ARTIFACT_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+    RESULTS_PATH.write_text(payload_text)
+    artifact_dir = os.environ.get("AGENTDROID_BENCHMARK_ARTIFACT_DIR")
+    if artifact_dir:
+        art_path = Path(artifact_dir).expanduser() / RESULTS_PATH.name
+        art_path.parent.mkdir(parents=True, exist_ok=True)
+        art_path.write_text(payload_text)
     print(f"Saved E2E results (all_passed={all_passed}) to {RESULTS_PATH}")
     if not all_passed:
         sys.exit(1)
