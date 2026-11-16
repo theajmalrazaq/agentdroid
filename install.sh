@@ -85,9 +85,17 @@ if [[ "$(uname -s)" == "Linux" ]]; then
         fi
         run_privileged modprobe binder_linux devices="binder,hwbinder,vndbinder" >/dev/null 2>&1 || true
         run_privileged modprobe ashmem_linux >/dev/null 2>&1 || true
-        if [[ -d /etc/modules-load.d ]]; then
-            printf "binder_linux\nashmem_linux\n" | run_privileged tee /etc/modules-load.d/agentdroid.conf >/dev/null 2>&1 || true
+    fi
+    if ! grep -qw uinput /proc/misc 2>/dev/null; then
+        info "Loading Linux uinput kernel module for Redroid virtual touchscreen..."
+        run_privileged modprobe uinput >/dev/null 2>&1 || true
+    fi
+    if [[ -d /etc/modules-load.d ]]; then
+        modules_conf="binder_linux\nashmem_linux\n"
+        if grep -qw uinput /proc/misc 2>/dev/null || modinfo uinput >/dev/null 2>&1; then
+            modules_conf+="uinput\n"
         fi
+        printf "%b" "${modules_conf}" | run_privileged tee /etc/modules-load.d/agentdroid.conf >/dev/null 2>&1 || true
     fi
 fi
 
