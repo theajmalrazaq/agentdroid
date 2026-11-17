@@ -34,6 +34,7 @@ KNOWN_SUBCOMMANDS = {
     "pipeline",
     "doctor",
     "mcp",
+    "daemon",
     "-h",
     "--help",
     "--version",
@@ -256,8 +257,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         dump_ui=bool(args.dump_ui),
     )
 
-    pipeline = CompoundPipeline(spec)
-    report = pipeline.run()
+    report: dict[str, Any] | None = None
+    if headless_mode and os.environ.get("AGENTDROID_NO_DAEMON") != "1":
+        from agentdroid.daemon import run_via_daemon
+
+        report = run_via_daemon(spec)
+    if report is None:
+        pipeline = CompoundPipeline(spec)
+        report = pipeline.run()
     _print_output(report, as_json=bool(args.json))
     return 0 if report.get("ok") else 1
 
@@ -615,8 +622,14 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
     elif args.headless:
         spec.headless = True
         spec.watch = False
-    pipeline = CompoundPipeline(spec)
-    report = pipeline.run()
+    report: dict[str, Any] | None = None
+    if headless_mode and os.environ.get("AGENTDROID_NO_DAEMON") != "1":
+        from agentdroid.daemon import run_via_daemon
+
+        report = run_via_daemon(spec)
+    if report is None:
+        pipeline = CompoundPipeline(spec)
+        report = pipeline.run()
     _print_output(report, as_json=bool(args.json))
     return 0 if report.get("ok") else 1
 
@@ -750,6 +763,26 @@ def cmd_mcp(args: argparse.Namespace) -> int:
 
     server = McpServer(serial=getattr(args, "serial", None))
     server.run_stdio()
+    return 0
+
+
+def cmd_daemon(args: argparse.Namespace) -> int:
+    from agentdroid.daemon import daemon_status, serve_daemon, start_daemon, stop_daemon
+
+    action = str(getattr(args, "action", "status"))
+    if action == "serve":
+        return serve_daemon()
+    if action == "start":
+        res = start_daemon()
+    elif action == "stop":
+        res = stop_daemon()
+    else:
+        res = daemon_status()
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+    else:
+        print(json.dumps(res))
     return 0
 
 
@@ -1011,6 +1044,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mcp_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     mcp_p.set_defaults(func=cmd_mcp)
+
+    # --- daemon ---
+    daemon_p = subparsers.add_parser(
+        "daemon",
+        help="Manage the persistent warm local Unix-socket daemon (eliminates CLI startup overhead).",
+    )
+    daemon_p.add_argument(
+        "action",
+        choices=["start", "stop", "status", "serve"],
+        help="Daemon lifecycle action.",
+    )
+    daemon_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
+    daemon_p.set_defaults(func=cmd_daemon)
 
     return parser
 

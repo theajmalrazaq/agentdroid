@@ -1,0 +1,911 @@
+[
+  {
+    "task": "AudioRecorderRecordAudio",
+    "app": "Audio Recorder",
+    "goal": "Record an audio clip using Audio Recorder app and save it.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 62.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "AudioRecorderRecordAudioWithFileName",
+    "app": "Audio Recorder",
+    "goal": "$13c",
+    "complexity": 6.0,
+    "duration_sec_vostride": 479.0,
+    "actions_vostride": 46,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeAddMultipleRecipesFromImage",
+    "app": "Broccoli",
+    "goal": "Add the recipes from recipes.jpg in Simple Gallery Pro to the Broccoli recipe app.",
+    "complexity": 6.0,
+    "duration_sec_vostride": 505.0,
+    "actions_vostride": 47,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeAddMultipleRecipesFromMarkor",
+    "app": "Broccoli",
+    "goal": "Add the recipes from recipes.txt in Markor to the Broccoli recipe app.",
+    "complexity": 6.0,
+    "duration_sec_vostride": 898.0,
+    "actions_vostride": 66,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeAddMultipleRecipesFromMarkor2",
+    "app": "Broccoli",
+    "goal": "Add the recipes from recipes.txt in Markor that take 10 mins to prepare into the Broccoli recipe app.",
+    "complexity": 6.0,
+    "duration_sec_vostride": 566.0,
+    "actions_vostride": 50,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeAddSingleRecipe",
+    "app": "Broccoli",
+    "goal": "Delete all but one of any recipes in the Broccoli app that are exact duplicates, ensuring at least one instance of each unique recipe remains",
+    "complexity": 1.0,
+    "duration_sec_vostride": 115.0,
+    "actions_vostride": 10,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteDuplicateRecipes2",
+    "app": "Broccoli",
+    "goal": "Delete all but one of any recipes in the Broccoli app that are exact duplicates, ensuring at least one instance of each unique recipe remains",
+    "complexity": 2.4,
+    "duration_sec_vostride": 295.0,
+    "actions_vostride": 25,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteDuplicateRecipes3",
+    "app": "Broccoli",
+    "goal": "Delete all but one of any recipes in the Broccoli app that are exact duplicates, ensuring at least one instance of each unique recipe remains",
+    "complexity": 3.4,
+    "duration_sec_vostride": 374.0,
+    "actions_vostride": 30,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteMultipleRecipes",
+    "app": "Broccoli",
+    "goal": "Delete the following recipes from Broccoli app: Zucchini Noodles with Pesto, Garlic Butter Shrimp, Lentil Soup.",
+    "complexity": 2.4,
+    "duration_sec_vostride": 140.0,
+    "actions_vostride": 14,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteMultipleRecipesWithConstraint",
+    "app": "Broccoli",
+    "goal": "Delete the recipes from Broccoli app that use black garlic in the directions.",
+    "complexity": 4.0,
+    "duration_sec_vostride": 672.0,
+    "actions_vostride": 67,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteMultipleRecipesWithNoise",
+    "app": "Broccoli",
+    "goal": "Delete the following recipes from Broccoli app: Chicken Alfredo Pasta, Tomato Basil Bruschetta, Grilled Cheese with Tomato and Basil.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 195.0,
+    "actions_vostride": 18,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteSingleRecipe",
+    "app": "Broccoli",
+    "goal": "Delete the following recipes from Broccoli app: Thai Peanut Noodle Salad.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 77.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "RecipeDeleteSingleWithRecipeWithNoise",
+    "app": "Broccoli",
+    "goal": "Delete the following recipes from Broccoli app: Classic Margherita Pizza.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 92.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "CameraTakePhoto",
+    "app": "Camera",
+    "goal": "Take one photo.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 72.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "CameraTakeVideo",
+    "app": "Camera",
+    "goal": "Take one video.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 92.0,
+    "actions_vostride": 9,
+    "passed_vostride": true
+  },
+  {
+    "task": "BrowserDraw",
+    "app": "Chrome",
+    "goal": "Open the file task.html in Downloads in the file manager; when prompted open it with Chrome. Then create a drawing using the three colors shown at the top and hit submit.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 164.0,
+    "actions_vostride": 16,
+    "passed_vostride": true
+  },
+  {
+    "task": "BrowserMaze",
+    "app": "Chrome",
+    "goal": "Open the file task.html in Downloads in the file manager; when prompted open it with Chrome. Then navigate the X to the bottom-right cell, by using the direction buttons.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 182.0,
+    "actions_vostride": 17,
+    "passed_vostride": true
+  },
+  {
+    "task": "BrowserMultiply",
+    "app": "Chrome",
+    "goal": "Open the file task.html in Downloads in the file manager; when prompted open it with Chrome. Then click the button 5 times, remember the numbers displayed, and enter their product in the form.",
+    "complexity": 2.2,
+    "duration_sec_vostride": 208.0,
+    "actions_vostride": 19,
+    "passed_vostride": true
+  },
+  {
+    "task": "ClockStopWatchPausedVerify",
+    "app": "Clock",
+    "goal": "Pause the stopwatch.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 97.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "ClockStopWatchRunning",
+    "app": "Clock",
+    "goal": "Run the stopwatch.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 38.0,
+    "actions_vostride": 2,
+    "passed_vostride": true
+  },
+  {
+    "task": "ClockTimerEntry",
+    "app": "Clock",
+    "goal": "Create a timer with 0 hours, 16 minutes, and 35 seconds. Do not start the timer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 57.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "ContactsAddContact",
+    "app": "Contacts",
+    "goal": "Create a new contact for Hugo Pereira. Their number is +13920741751.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 81.0,
+    "actions_vostride": 7,
+    "passed_vostride": true
+  },
+  {
+    "task": "ContactsNewContactDraft",
+    "app": "Contacts",
+    "goal": "Go to the new contact screen and enter the following details: First Name: Grace, Last Name: Taylor, Phone: 799-802-1530, Phone Label: Work. Do NOT hit save.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 179.0,
+    "actions_vostride": 16,
+    "passed_vostride": true
+  },
+  {
+    "task": "FilesDeleteFile",
+    "app": "Files",
+    "goal": "Delete the file q2a8_fancy_banana.mp3 from the Android filesystem located in the Notifications folder within the sdk_gphone_x86_64 storage area.",
+    "complexity": 2.2,
+    "duration_sec_vostride": 167.0,
+    "actions_vostride": 15,
+    "passed_vostride": true
+  },
+  {
+    "task": "FilesMoveFile",
+    "app": "Files",
+    "goal": "Move the file holiday_photos.jpg from Podcasts within the sdk_gphone_x86_64 storage area to the DCIM within the same sdk_gphone_x86_64 storage area in the Android filesystem.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 153.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "NotesIsTodo",
+    "app": "Joplin",
+    "goal": "Is the note titled 'To-Do List' in the Joplin app marked as a todo item? Respond with either 'True' if it is a todo or 'False' if not.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 25.0,
+    "actions_vostride": 2,
+    "passed_vostride": true
+  },
+  {
+    "task": "NotesMeetingAttendeeCount",
+    "app": "Joplin",
+    "goal": "How many attendees were present in the meeting titled 'Employee Performance Evaluation' in the Joplin app? Express your answer as just a single number.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 76.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "NotesRecipeIngredientCount",
+    "app": "Joplin",
+    "goal": "How many to-dos do I have in the 'Ideas' folder in the Joplin app? Express your answer as just a single number.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 154.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorAddNoteHeader",
+    "app": "Markor",
+    "goal": "Create a new folder in Markor named folder_20260928_182944.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 51.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorCreateNote",
+    "app": "Markor",
+    "goal": "Create a new note in Markor named 2023_01_26_wise_yacht.md with the following text: Ignorance is bliss.",
+    "complexity": 1.6,
+    "duration_sec_vostride": 64.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorCreateNoteAndSms",
+    "app": "Markor",
+    "goal": "Create a new note in Markor named fair_ant_XOdi.txt with the following text: Actions speak louder than words.. Share the entire content of the note with the phone number +13192815309 via SMS using Simple SMS Messenger",
+    "complexity": 1.8,
+    "duration_sec_vostride": 141.0,
+    "actions_vostride": 15,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorCreateNoteFromClipboard",
+    "app": "Markor",
+    "goal": "Create a note in Markor named 2023_09_08_active_umbrella.txt. Perform a paste operation in the note and save the note.",
+    "complexity": 1.4,
+    "duration_sec_vostride": 85.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorDeleteAllNotes",
+    "app": "Markor",
+    "goal": "Delete all my notes in Markor.",
+    "complexity": 1.4,
+    "duration_sec_vostride": 77.0,
+    "actions_vostride": 7,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorDeleteNewestNote",
+    "app": "Markor",
+    "goal": "Delete the newest note in Markor.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 47.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorDeleteNote",
+    "app": "Markor",
+    "goal": "Delete the note in Markor named bold_king_edited.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 53.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorEditNote",
+    "app": "Markor",
+    "goal": "Edit note_SiFbv.txt in Markor. Add to the top of the note Hello, World!",
+    "complexity": 1.2,
+    "duration_sec_vostride": 46.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorMergeNotes",
+    "app": "Markor",
+    "goal": "Merge the contents of Markor notes tough_frog_2023_08_05.txt, proud_cat_edited.txt and 2023_08_21_friendly_koala.md (in the same order) into a new Markor note named mIObBbo4 and save it. Add a new line between the content of each note.",
+    "complexity": 7.8,
+    "duration_sec_vostride": 221.0,
+    "actions_vostride": 17,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorMoveNote",
+    "app": "Markor",
+    "goal": "In Markor, move the note shy_king_copy.md from StudyGuides to MeetingMinutes.",
+    "complexity": 1.4,
+    "duration_sec_vostride": 121.0,
+    "actions_vostride": 12,
+    "passed_vostride": true
+  },
+  {
+    "task": "MarkorTranscribeReceipt",
+    "app": "Markor",
+    "goal": "How many running activities did I do this week in the OpenTracks app? Assume the week starts from Monday. Express your answer as a single integer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 108.0,
+    "actions_vostride": 10,
+    "passed_vostride": true
+  },
+  {
+    "task": "SportsTrackerActivitiesOnDate",
+    "app": "OpenTracks",
+    "goal": "What activities did I do October 01 in the OpenTracks app? Answer with the activity type only. If there are multiple types, format your answer in a comma separated list.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 478.0,
+    "actions_vostride": 32,
+    "passed_vostride": true
+  },
+  {
+    "task": "SportsTrackerActivityDuration",
+    "app": "OpenTracks",
+    "goal": "How long was my skiing activity October 12 2023 in the OpenTracks app? Express your answer in minutes as a single integer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 79.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SportsTrackerLongestDistanceActivity",
+    "app": "OpenTracks",
+    "goal": "What was the longest distance covered in a mountain biking activity in the OpenTracks app this week? Assume the week starts from Monday. Express your answer as a single number in meters rounded to the nearest integer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 96.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "SportsTrackerTotalDistanceForCategoryOverInterval",
+    "app": "OpenTracks",
+    "goal": "What was the total distance covered for kayaking activities in the OpenTracks app from October 09 2023 to October 10 2023? Express your answer as a single number in meters rounded to the nearest integer.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 120.0,
+    "actions_vostride": 11,
+    "passed_vostride": true
+  },
+  {
+    "task": "SportsTrackerTotalDurationForCategoryThisWeek",
+    "app": "OpenTracks",
+    "goal": "What was the total duration of running activities in the OpenTracks app this week? Assume the week starts from Monday. Express your answer in minutes as a single integer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 75.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "OsmAndFavorite",
+    "app": "OsmAnd",
+    "goal": "Add a favorite location marker for 47.1303814, 9.5930117 in the OsmAnd maps app.",
+    "complexity": 1.3,
+    "duration_sec_vostride": 93.0,
+    "actions_vostride": 7,
+    "passed_vostride": true
+  },
+  {
+    "task": "OsmAndMarker",
+    "app": "OsmAnd",
+    "goal": "Add a location marker for Planken, Liechtenstein in the OsmAnd maps app.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 135.0,
+    "actions_vostride": 12,
+    "passed_vostride": true
+  },
+  {
+    "task": "OsmAndTrack",
+    "app": "OsmAnd",
+    "goal": "Save a track with waypoints SchÃ¶nberg, Liechtenstein, Triesen, Liechtenstein, Bendern, Liechtenstein in the OsmAnd maps app in the same order as listed.",
+    "complexity": 12.0,
+    "duration_sec_vostride": 690.0,
+    "actions_vostride": 58,
+    "passed_vostride": true
+  },
+  {
+    "task": "OpenAppTaskEval",
+    "app": "Other",
+    "goal": "Open the contacts app. Clear any pop-ups that may appear by granting all permissions that are required.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 93.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseAddMultiple",
+    "app": "Pro Expense",
+    "goal": "Add the expenses from expenses.jpg in Simple Gallery Pro to pro expense.",
+    "complexity": 6.0,
+    "duration_sec_vostride": 379.0,
+    "actions_vostride": 31,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseAddMultipleFromMarkor",
+    "app": "Pro Expense",
+    "goal": "Go through the transactions in my_expenses.txt in Markor. Log the reimbursable transactions in the pro expense.",
+    "complexity": 6.0,
+    "duration_sec_vostride": 351.0,
+    "actions_vostride": 27,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseAddSingle",
+    "app": "Pro Expense",
+    "goal": "Delete all but one of any expenses in pro expense that are exact duplicates, ensuring at least one instance of each unique expense remains.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 177.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseDeleteDuplicates2",
+    "app": "Pro Expense",
+    "goal": "Delete all but one of any expenses in pro expense that are exact duplicates, ensuring at least one instance of each unique expense remains.",
+    "complexity": 1.8,
+    "duration_sec_vostride": 154.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseDeleteMultiple",
+    "app": "Pro Expense",
+    "goal": "Delete the following expenses from pro expense: Ride-Sharing, Flight Tickets, Taxi Fare.",
+    "complexity": 2.0,
+    "duration_sec_vostride": 154.0,
+    "actions_vostride": 15,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseDeleteMultiple2",
+    "app": "Pro Expense",
+    "goal": "Delete the following expenses from pro expense: Streaming Services, Unexpected Expenses, Pet Supplies.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 178.0,
+    "actions_vostride": 18,
+    "passed_vostride": true
+  },
+  {
+    "task": "ExpenseDeleteSingle",
+    "app": "Pro Expense",
+    "goal": "Delete the following expenses from pro expense: Rental Income.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 132.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "RetroCreatePlaylist",
+    "app": "Retro Music",
+    "goal": "Add the following songs, in order, Through the Storm, Hidden Paths, Forever Young, Whispers of the Past, Heartbeat Away to my playing queue in Retro music.",
+    "complexity": 3.2,
+    "duration_sec_vostride": 1058.0,
+    "actions_vostride": 21,
+    "passed_vostride": true
+  },
+  {
+    "task": "RetroPlaylistDuration",
+    "app": "Retro Music",
+    "goal": "Turn bluetooth off.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 43.0,
+    "actions_vostride": 3,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBluetoothTurnOffVerify",
+    "app": "Settings",
+    "goal": "Turn bluetooth off.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 38.0,
+    "actions_vostride": 3,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBluetoothTurnOn",
+    "app": "Settings",
+    "goal": "Turn bluetooth on.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 43.0,
+    "actions_vostride": 3,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBluetoothTurnOnVerify",
+    "app": "Settings",
+    "goal": "Turn bluetooth on.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 40.0,
+    "actions_vostride": 3,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBrightnessMax",
+    "app": "Settings",
+    "goal": "Turn brightness to the max value.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 77.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBrightnessMaxVerify",
+    "app": "Settings",
+    "goal": "Turn brightness to the max value.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 80.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBrightnessMin",
+    "app": "Settings",
+    "goal": "Turn brightness to the min value.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 63.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemBrightnessMinVerify",
+    "app": "Settings",
+    "goal": "Turn brightness to the min value.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 66.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemCopyToClipboard",
+    "app": "Settings",
+    "goal": "Copy the following text to the clipboard: Tracking #: 5K672F4C",
+    "complexity": 1.0,
+    "duration_sec_vostride": 133.0,
+    "actions_vostride": 11,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemWifiTurnOff",
+    "app": "Settings",
+    "goal": "Turn wifi off.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 46.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemWifiTurnOffVerify",
+    "app": "Settings",
+    "goal": "Turn wifi off.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 50.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemWifiTurnOn",
+    "app": "Settings",
+    "goal": "Turn wifi on.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 60.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SystemWifiTurnOnVerify",
+    "app": "Settings",
+    "goal": "Turn wifi on.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 74.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "TurnOffWifiAndTurnOnBluetooth",
+    "app": "Settings",
+    "goal": "Turn off WiFi, then enable bluetooth",
+    "complexity": 2.0,
+    "duration_sec_vostride": 76.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "TurnOnWifiAndOpenApp",
+    "app": "Settings",
+    "goal": "Turn on Wifi, then open the settings app",
+    "complexity": 2.0,
+    "duration_sec_vostride": 110.0,
+    "actions_vostride": 9,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAddOneEvent",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, create a calendar event on 2023-10-29 at 13h with the title 'Call with the Team' and the description 'We will understand upcoming project milestones.'. The event should last for 60 mins.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 184.0,
+    "actions_vostride": 19,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAddOneEventInTwoWeeks",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, create a calendar event in two weeks from today at 17h with the title 'Meeting with the Team' and the description 'We will prepare for annual budget.'. The event should last for 30 mins.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 273.0,
+    "actions_vostride": 24,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAddOneEventRelativeDay",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, create a calendar event for this Thursday at 5h with the title 'Call with the Team' and the description 'We will celebrate team roles.'. The event should last for 60 mins.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 228.0,
+    "actions_vostride": 20,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAddOneEventTomorrow",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, create a calendar event for tomorrow at 20h with the title 'Call with the Team' and the description 'We will prepare for team roles.'. The event should last for 30 mins.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 330.0,
+    "actions_vostride": 25,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAddRepeatingEvent",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, create a recurring calendar event titled 'Review session for Budget Planning' starting on 2023-10-15 at 14h. The event recurs weekly, forever, and lasts for 60 minutes each occurrence. The event description should be 'We will understand business objectives. Remember to confirm attendance.'.",
+    "complexity": 3.4,
+    "duration_sec_vostride": 189.0,
+    "actions_vostride": 17,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarAnyEventsOnDate",
+    "app": "Simple Calendar",
+    "goal": "Do I have any events October 28 in Simple Calendar Pro? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 144.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarDeleteEvents",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, delete all the calendar events on 2023-10-27",
+    "complexity": 1.4,
+    "duration_sec_vostride": 132.0,
+    "actions_vostride": 12,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarDeleteEventsOnRelativeDay",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, delete all events scheduled for this Monday.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 126.0,
+    "actions_vostride": 11,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarDeleteOneEvent",
+    "app": "Simple Calendar",
+    "goal": "In Simple Calendar Pro, delete the calendar event on 2023-10-24 at 23h with the title 'Workshop on Project X'",
+    "complexity": 1.2,
+    "duration_sec_vostride": 64.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarEventOnDateAtTime",
+    "app": "Simple Calendar",
+    "goal": "What is on my schedule for October 27 2023 at 8:00pm in Simple Calendar Pro? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 61.0,
+    "actions_vostride": 4,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarEventsInNextWeek",
+    "app": "Simple Calendar",
+    "goal": "What events do I have in the next week in Simple Calendar Pro? Assume the week starts from Monday. Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 217.0,
+    "actions_vostride": 13,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarEventsInTimeRange",
+    "app": "Simple Calendar",
+    "goal": "Do I have any events between 4:15pm and 8pm Friday in Simple Calendar Pro? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 119.0,
+    "actions_vostride": 9,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarEventsOnDate",
+    "app": "Simple Calendar",
+    "goal": "What events do I have October 24 in Simple Calendar Pro? Answer with the titles only. If there are multiple titles, format your answer as a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 162.0,
+    "actions_vostride": 14,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarFirstEventAfterStartTime",
+    "app": "Simple Calendar",
+    "goal": "What is my first event after 5:20pm October 29 2023 in Simple Calendar Pro? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 95.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarLocationOfEvent",
+    "app": "Simple Calendar",
+    "goal": "What is the location of my Family reunion event in Simple Calendar Pro? Answer with the location only.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 57.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarNextEvent",
+    "app": "Simple Calendar",
+    "goal": "What is my next upcoming event in Simple Calendar Pro? Answer with the title only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 53.0,
+    "actions_vostride": 5,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleCalendarNextMeetingWithPerson",
+    "app": "Simple Calendar",
+    "goal": "Create a new drawing in Simple Draw Pro. Name it adipiscing_fair_jelly_final.png. Save it in the Pictures folder within the sdk_gphone_x86_64 storage area.",
+    "complexity": 1.8,
+    "duration_sec_vostride": 126.0,
+    "actions_vostride": 10,
+    "passed_vostride": true
+  },
+  {
+    "task": "SaveCopyOfReceiptTaskEval",
+    "app": "Simple Gallery",
+    "goal": "In Simple Gallery Pro, copy receipt_2023_01_22_sure_frog.jpg in DCIM and save a copy with the same name in Download",
+    "complexity": 1.6,
+    "duration_sec_vostride": 114.0,
+    "actions_vostride": 11,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsReply",
+    "app": "Simple SMS",
+    "goal": "Reply to +18407874306 with message: Yoga class every Tuesday and Thursday at 6 PM. in Simple SMS Messenger",
+    "complexity": 1.2,
+    "duration_sec_vostride": 73.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsReplyMostRecent",
+    "app": "Simple SMS",
+    "goal": "Reply to the most recent text message using Simple SMS Messenger with message: A quick brown fox.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 70.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsResend",
+    "app": "Simple SMS",
+    "goal": "Resend the message I just sent to Noa Mohammed in Simple SMS Messenger",
+    "complexity": 1.2,
+    "duration_sec_vostride": 160.0,
+    "actions_vostride": 12,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsSend",
+    "app": "Simple SMS",
+    "goal": "Send a text message using Simple SMS Messenger to +16597910719 with message: Beauty is in the eye of the beholder.",
+    "complexity": 1.2,
+    "duration_sec_vostride": 92.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsSendClipboardContent",
+    "app": "Simple SMS",
+    "goal": "Send a message to +15459061746 with the clipboard content in Simple SMS Messenger",
+    "complexity": 1.2,
+    "duration_sec_vostride": 101.0,
+    "actions_vostride": 9,
+    "passed_vostride": true
+  },
+  {
+    "task": "SimpleSmsSendReceivedAddress",
+    "app": "Simple SMS",
+    "goal": "Text the address of the event to Gabriel Ibrahim that Oscar Mohamed just sent me in Simple SMS Messenger",
+    "complexity": 1.8,
+    "duration_sec_vostride": 83.0,
+    "actions_vostride": 7,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksCompletedTasksForDate",
+    "app": "Tasks",
+    "goal": "Which tasks have I completed for October 16 2023 in Tasks app? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 182.0,
+    "actions_vostride": 11,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksDueNextWeek",
+    "app": "Tasks",
+    "goal": "How many tasks do I have due next week in Tasks app? Assume the week starts from Monday. Express your answer as a single integer.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 410.0,
+    "actions_vostride": 38,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksDueOnDate",
+    "app": "Tasks",
+    "goal": "What tasks do I have due October 24 2023 in Tasks app? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 100.0,
+    "actions_vostride": 8,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksHighPriorityTasks",
+    "app": "Tasks",
+    "goal": "What are my high priority tasks in Tasks app? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 59.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksHighPriorityTasksDueOnDate",
+    "app": "Tasks",
+    "goal": "Which tasks with high priority are due October 18 2023 in the Tasks app? Answer with the title only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 262.0,
+    "actions_vostride": 21,
+    "passed_vostride": true
+  },
+  {
+    "task": "TasksIncompleteTasksOnDate",
+    "app": "Tasks",
+    "goal": "What incomplete tasks do I have still have to do by Thursday in Tasks app? Answer with the titles only. If there are multiples titles, format your answer in a comma separated list.",
+    "complexity": 1.0,
+    "duration_sec_vostride": 60.0,
+    "actions_vostride": 6,
+    "passed_vostride": true
+  }
+]

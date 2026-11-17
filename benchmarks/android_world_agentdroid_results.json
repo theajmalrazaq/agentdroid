@@ -1,0 +1,134 @@
+[
+  {
+    "task": "AudioRecorderRecordAudio",
+    "goal": "Record an audio clip using Audio Recorder app and save it.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 8.65,
+    "agentdroid_steps": 9,
+    "vostride_sec": 62.0,
+    "vostride_actions": 6,
+    "speedup": "7.17x",
+    "artifact": "/sdcard/Android/data/com.dimowner.audiorecorder/files/Music/records/Record-1.m4a"
+  },
+  {
+    "task": "AudioRecorderRecordAudioWithFileName",
+    "goal": "$13c",
+    "agentdroid_success": false,
+    "agentdroid_sec": 48.13,
+    "agentdroid_steps": 10,
+    "vostride_sec": 479.0,
+    "vostride_actions": 46,
+    "speedup": "9.95x",
+    "artifact": null
+  },
+  {
+    "task": "ClockStopWatchRunning",
+    "goal": "Run the stopwatch.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.47,
+    "agentdroid_steps": 4,
+    "vostride_sec": 38.0,
+    "vostride_actions": 2,
+    "speedup": "80.85x",
+    "artifact": "stopwatch_running=True"
+  },
+  {
+    "task": "ClockStopWatchPausedVerify",
+    "goal": "Pause the stopwatch.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.21,
+    "agentdroid_steps": 2,
+    "vostride_sec": 97.0,
+    "vostride_actions": 4,
+    "speedup": "461.90x",
+    "artifact": "stopwatch_paused=True"
+  },
+  {
+    "task": "ClockTimerEntry",
+    "goal": "Create a timer with 0 hours, 16 minutes, and 35 seconds. Do not start the timer.",
+    "agentdroid_success": false,
+    "agentdroid_sec": 6.58,
+    "agentdroid_steps": 7,
+    "vostride_sec": 57.0,
+    "vostride_actions": 6,
+    "speedup": "8.66x",
+    "artifact": "timer_16m35s=False"
+  },
+  {
+    "task": "SystemCopyToClipboard",
+    "goal": "Copy the following text to the clipboard: Tracking #: 5K672F4C",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.02,
+    "agentdroid_steps": 1,
+    "vostride_sec": 133.0,
+    "vostride_actions": 11,
+    "speedup": "6650.00x",
+    "artifact": "clipboard=Tracking #: 5K672F4C"
+  },
+  {
+    "task": "SystemWifiTurnOn",
+    "goal": "Turn wifi on.",
+    "agentdroid_success": false,
+    "agentdroid_sec": 0.02,
+    "agentdroid_steps": 1,
+    "vostride_sec": 60.0,
+    "vostride_actions": 5,
+    "speedup": "3000.00x",
+    "artifact": "Wi-Fi is disabled"
+  },
+  {
+    "task": "SystemWifiTurnOff",
+    "goal": "Turn wifi off.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.02,
+    "agentdroid_steps": 1,
+    "vostride_sec": 46.0,
+    "vostride_actions": 4,
+    "speedup": "2300.00x",
+    "artifact": "Wi-Fi is disabled"
+  },
+  {
+    "task": "SystemBluetoothTurnOn",
+    "goal": "Turn bluetooth on.",
+    "agentdroid_success": false,
+    "agentdroid_sec": 0.55,
+    "agentdroid_steps": 1,
+    "vostride_sec": 43.0,
+    "vostride_actions": 3,
+    "speedup": "78.18x",
+    "artifact": "No shell command implementation."
+  },
+  {
+    "task": "SystemBluetoothTurnOff",
+    "goal": null,
+    "agentdroid_success": false,
+    "agentdroid_sec": 0.55,
+    "agentdroid_steps": 1,
+    "vostride_sec": 0.0,
+    "vostride_actions": 0,
+    "speedup": "1.00x",
+    "artifact": "No shell command implementation."
+  },
+  {
+    "task": "SystemBrightnessMax",
+    "goal": "Turn brightness to the max value.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.02,
+    "agentdroid_steps": 1,
+    "vostride_sec": 77.0,
+    "vostride_actions": 5,
+    "speedup": "3850.00x",
+    "artifact": "screen_brightness=255"
+  },
+  {
+    "task": "SystemBrightnessMin",
+    "goal": "Turn brightness to the min value.",
+    "agentdroid_success": true,
+    "agentdroid_sec": 0.02,
+    "agentdroid_steps": 1,
+    "vostride_sec": 63.0,
+    "vostride_actions": 5,
+    "speedup": "3150.00x",
+    "artifact": "screen_brightness=0"
+  }
+]

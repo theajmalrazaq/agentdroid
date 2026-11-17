@@ -13,6 +13,7 @@ pub struct UiElement {
     pub resource_id: Option<String>,
     pub clickable: bool,
     pub editable: bool,
+    pub systemui: bool,
 }
 
 impl UiElement {
@@ -43,6 +44,9 @@ impl UiElement {
         }
         if self.editable {
             pairs.push(("editable", Json::Bool(true)));
+        }
+        if self.systemui {
+            pairs.push(("systemui", Json::Bool(true)));
         }
         obj(pairs)
     }
@@ -379,6 +383,7 @@ pub fn parse_hierarchy_xml(
             resource_id: rid_opt,
             clickable,
             editable,
+            systemui: node_pkg == "com.android.systemui",
         });
         idx += 1;
     }
@@ -408,11 +413,12 @@ pub fn select_element<'a>(elements: &'a [UiElement], selector: &str) -> Option<&
         return None;
     }
 
-    let idx_str = sel.strip_prefix('#').unwrap_or(sel);
-    if !idx_str.is_empty() && idx_str.bytes().all(|b| b.is_ascii_digit()) {
-        if let Ok(target_id) = idx_str.parse::<usize>() {
-            if let Some(el) = elements.iter().find(|e| e.id == target_id) {
-                return Some(el);
+    if let Some(idx_str) = sel.strip_prefix('#') {
+        if !idx_str.is_empty() && idx_str.bytes().all(|b| b.is_ascii_digit()) {
+            if let Ok(target_id) = idx_str.parse::<usize>() {
+                if let Some(el) = elements.iter().find(|e| e.id == target_id) {
+                    return Some(el);
+                }
             }
         }
     }
@@ -471,6 +477,7 @@ pub fn select_element<'a>(elements: &'a [UiElement], selector: &str) -> Option<&
 
         let interactive_bonus = if el.clickable || el.editable { 20 } else { 0 };
         let non_webview_bonus = if el.class_short == "WebView" { 0 } else { 5 };
+        let sysui_penalty = if el.systemui { -60 } else { 0 };
 
         let candidate_fields: Vec<(&str, i32)> = match mode {
             "id" => el.resource_id.as_deref().map(|s| vec![(s, 3)]).unwrap_or_default(),
@@ -513,7 +520,7 @@ pub fn select_element<'a>(elements: &'a [UiElement], selector: &str) -> Option<&
             continue;
         }
 
-        let total_score = field_score + interactive_bonus + non_webview_bonus;
+        let total_score = field_score + interactive_bonus + non_webview_bonus + sysui_penalty;
         match best {
             None => best = Some((total_score, pos, el)),
             Some((b_score, b_pos, _)) => {
@@ -524,7 +531,15 @@ pub fn select_element<'a>(elements: &'a [UiElement], selector: &str) -> Option<&
         }
     }
 
-    best.map(|(_, _, el)| el)
+    if let Some((_, _, el)) = best {
+        return Some(el);
+    }
+    if sel.bytes().all(|b| b.is_ascii_digit()) {
+        if let Ok(target_id) = sel.parse::<usize>() {
+            return elements.iter().find(|e| e.id == target_id);
+        }
+    }
+    None
 }
 
 #[cfg(test)]

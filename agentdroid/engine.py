@@ -42,6 +42,20 @@ SYSTEM_DIALOG_DISMISS_TARGETS = [
 ]
 
 
+def _split_wait_timeout(arg: str) -> tuple[str, float | None]:
+    """Extract optional trailing '@<seconds>' timeout from wait-* step arguments."""
+    if "@" in arg:
+        head, tail = arg.rsplit("@", 1)
+        tail_s = tail.strip()
+        try:
+            secs = float(tail_s)
+            if secs > 0:
+                return head.strip(), secs
+        except ValueError:
+            pass
+    return arg, None
+
+
 def parse_do_step(step_str: str) -> dict[str, Any]:
     """Parse a compact `--do` or burst step string into a structured action dictionary.
 
@@ -73,6 +87,20 @@ def parse_do_step(step_str: str) -> dict[str, Any]:
             return {"type": "dismiss"}
         if v in ("wait-stable", "wait_stable"):
             return {"type": "wait_stable"}
+        if v.startswith(("wait-stable@", "wait_stable@")):
+            _, to = _split_wait_timeout(raw)
+            out: dict[str, Any] = {"type": "wait_stable"}
+            if to is not None:
+                out["timeout"] = to
+            return out
+        if v in ("wait-change", "wait_change"):
+            return {"type": "wait_change"}
+        if v.startswith(("wait-change@", "wait_change@")):
+            _, to = _split_wait_timeout(raw)
+            out: dict[str, Any] = {"type": "wait_change"}
+            if to is not None:
+                out["timeout"] = to
+            return out
         if v in ("hide-keyboard", "hide_keyboard", "hide-ime", "hide_ime"):
             return {"type": "hide_keyboard"}
         return {"type": "click", "selector": raw}
@@ -103,14 +131,46 @@ def parse_do_step(step_str: str) -> dict[str, Any]:
     if v in ("scroll-to", "scroll_to"):
         return {"type": "scroll_to", "text": arg}
     if v in ("wait", "wait-text", "wait_text"):
-        return {"type": "wait_text", "text": arg}
+        txt, to = _split_wait_timeout(arg)
+        out = {"type": "wait_text", "text": txt}
+        if to is not None:
+            out["timeout"] = to
+        return out
     if v in ("wait-any", "wait_any"):
-        pats = [p.strip() for p in arg.split("|") if p.strip()]
-        return {"type": "wait_any", "patterns": pats}
+        raw_pats, to = _split_wait_timeout(arg)
+        pats = [p.strip() for p in raw_pats.split("|") if p.strip()]
+        out = {"type": "wait_any", "patterns": pats}
+        if to is not None:
+            out["timeout"] = to
+        return out
     if v in ("wait-gone", "wait_gone"):
-        return {"type": "wait_gone", "text": arg}
+        txt, to = _split_wait_timeout(arg)
+        out = {"type": "wait_gone", "text": txt}
+        if to is not None:
+            out["timeout"] = to
+        return out
     if v in ("wait-stable", "wait_stable"):
-        return {"type": "wait_stable"}
+        _, to = _split_wait_timeout(arg)
+        if to is None and arg.strip():
+            try:
+                to = float(arg.strip())
+            except ValueError:
+                pass
+        out = {"type": "wait_stable"}
+        if to is not None:
+            out["timeout"] = to
+        return out
+    if v in ("wait-change", "wait_change"):
+        _, to = _split_wait_timeout(arg)
+        if to is None and arg.strip():
+            try:
+                to = float(arg.strip())
+            except ValueError:
+                pass
+        out = {"type": "wait_change"}
+        if to is not None:
+            out["timeout"] = to
+        return out
     if v in ("hide-keyboard", "hide_keyboard", "hide-ime", "hide_ime"):
         return {"type": "hide_keyboard"}
     if v in ("if-visible", "if_visible", "if-missing", "if_missing"):
@@ -165,6 +225,7 @@ class AndroidEngine:
         self.helper = AccessibilityHelperClient(self.adb)
         self.vars: dict[str, str] = {}
         self.locked_app_package: str | None = None
+        self._last_ui_blob: str | None = None
 
     def render_vars(self, val: Any) -> Any:
         if isinstance(val, str):
@@ -349,11 +410,20 @@ class AndroidEngine:
         if act_type in ("wait_stable", "wait-stable"):
             return self.wait_condition("stable", [], timeout=float(act.get("timeout", 15.0)))
 
+        if act_type in ("wait_change", "wait-change"):
+            return self.wait_condition(
+                "change",
+                [],
+                timeout=float(act.get("timeout", 10.0)),
+                prev_sig=self._last_ui_blob or getattr(self.helper, "_last_ui_blob", None),
+            )
+
         if act_type in ("if_visible", "if-visible", "if_missing", "if-missing"):
-            needle = str(act.get("needle") or "").lower()
+            needle_raw = str(act.get("needle") or "")
+            needles = [n.strip().lower() for n in needle_raw.split("|") if n.strip()]
             ui = self.helper.dump_compact_ui(max_elements=100, allow_sparse_fallback=False)
             blob = self._elements_search_blob(ui.get("elements") or [])
-            present = bool(needle and needle in blob)
+            present = any(n in blob for n in needles)
             should_run = (not present) if "missing" in act_type else present
             if should_run:
                 inner_res = self.execute_action(dict(act["step"]))
@@ -456,8 +526,15 @@ class AndroidEngine:
             and getattr(self.helper.ping, "__func__", None) is AccessibilityHelperClient.ping
         )
 
-    def wait_condition(self, mode: str, patterns: list[str], *, timeout: float = 25.0) -> dict[str, Any]:
-        """Adaptive non-blocking wait supporting modes: 'any', 'all', 'gone', 'stable'."""
+    def wait_condition(
+        self,
+        mode: str,
+        patterns: list[str],
+        *,
+        timeout: float = 25.0,
+        prev_sig: str | None = None,
+    ) -> dict[str, Any]:
+        """Adaptive non-blocking wait supporting modes: 'any', 'all', 'gone', 'stable', 'change'."""
         if self._can_use_rust_wait():
             try:
                 from agentdroid import rust_bridge
@@ -478,7 +555,8 @@ class AndroidEngine:
         needles = [p.strip().lower() for p in patterns if p.strip()]
         started = time.monotonic()
         deadline = started + max(0.2, timeout)
-        prev_sig: str | None = None
+        prev_sig_val: str | None = None
+        initial_sig: str | None = prev_sig if mode == "change" else None
         while time.monotonic() < deadline:
             elapsed = time.monotonic() - started
             ui = self.helper.dump_compact_ui(
@@ -487,26 +565,37 @@ class AndroidEngine:
             )
             els = ui.get("elements") or []
             blob = self._elements_search_blob(els)
-            if mode == "gone":
+            if mode == "change":
+                if initial_sig is None:
+                    if els:
+                        initial_sig = blob
+                elif blob != initial_sig:
+                    self._last_ui_blob = blob
+                    return {"success": True, "elapsed_sec": round(elapsed, 2), "ui": ui}
+            elif mode == "gone":
                 if els and not any(n in blob for n in needles):
+                    self._last_ui_blob = blob
                     return {"success": True, "elapsed_sec": round(elapsed, 2), "ui": ui}
             elif mode == "stable":
-                if els and prev_sig == blob:
+                if els and prev_sig_val == blob:
+                    self._last_ui_blob = blob
                     return {"success": True, "elapsed_sec": round(elapsed, 2), "ui": ui}
-                prev_sig = blob if els else None
+                prev_sig_val = blob if els else None
             elif mode == "all":
                 if all(n in blob for n in needles):
+                    self._last_ui_blob = blob
                     return {"success": True, "elapsed_sec": round(elapsed, 2), "ui": ui}
             else:
                 for idx, n in enumerate(needles):
                     if n in blob:
+                        self._last_ui_blob = blob
                         return {
                             "success": True,
                             "matched": patterns[idx],
                             "elapsed_sec": round(elapsed, 2),
                             "ui": ui,
                         }
-            time.sleep(0.15)
+            time.sleep(0.05)
         return {"success": False, "elapsed_sec": round(time.monotonic() - started, 2)}
 
     def _wait_for_text(self, text_needle: str, timeout: float = 25.0) -> bool:

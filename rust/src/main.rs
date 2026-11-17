@@ -51,6 +51,7 @@ fn json_elements_to_vec(arr: &[Json]) -> Vec<UiElement> {
         let resource_id = item.get_str("resource_id").map(|s| s.to_string());
         let clickable = item.get_bool("clickable").unwrap_or(false);
         let editable = item.get_bool("editable").unwrap_or(false);
+        let systemui = item.get_bool("systemui").unwrap_or(false);
         out.push(UiElement {
             id,
             label,
@@ -61,6 +62,7 @@ fn json_elements_to_vec(arr: &[Json]) -> Vec<UiElement> {
             resource_id,
             clickable,
             editable,
+            systemui,
         });
     }
     out

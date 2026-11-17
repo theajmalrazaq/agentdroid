@@ -152,6 +152,7 @@ pub struct SessionState {
     pub forwards: BTreeMap<(String, u16), u16>,
     pub input_socks: BTreeMap<String, BufReader<TcpStream>>,
     pub last_sparse_fallback: BTreeMap<String, Instant>,
+    pub last_ui_sig: BTreeMap<String, String>,
 }
 
 impl SessionState {
@@ -344,32 +345,59 @@ impl SessionState {
             }
         };
 
-        // Bounded multi-window recovery only when persistent helper dump shows systemui + <=2 app stubs
+        // Bounded multi-window recovery when persistent helper dump shows systemui + <=2 app stubs
+        // OR when a WebView is present on screen and helper may lack descendant child text.
+        let has_webview = parsed.elements.iter().any(|e| e.class_short == "WebView");
+        let need_rich_dump = (parsed.has_systemui && parsed.non_sysui_count <= 2) || has_webview;
         let now = Instant::now();
         let cooled = self
             .last_sparse_fallback
             .get(serial)
-            .map(|t| now.duration_since(*t) >= Duration::from_millis(1500))
+            .map(|t| now.duration_since(*t) >= Duration::from_millis(if has_webview { 100 } else { 1500 }))
             .unwrap_or(true);
-        if allow_sparse_fallback
+        if (allow_sparse_fallback || has_webview)
             && backend == "helper"
-            && parsed.has_systemui
-            && parsed.non_sysui_count <= 2
-            && cooled
+            && need_rich_dump
         {
-            self.last_sparse_fallback.insert(serial.to_string(), now);
-            let (fb_backend, uia_xml) = if let Some(fast_xml) = self.fast_dump_xml(serial, token) {
-                ("fast_dump", fast_xml)
-            } else {
-                ("uiautomator", bounded_uiautomator_dump(serial))
-            };
-            if let Ok(uia_parsed) = parse_hierarchy_xml(&uia_xml, max_elements, include_ime) {
-                if uia_parsed.non_sysui_count > parsed.non_sysui_count {
-                    backend = fb_backend;
-                    parsed = uia_parsed;
+            if let Some(fast_xml) = self.fast_dump_xml(serial, token) {
+                if let Ok(fast_parsed) = parse_hierarchy_xml(&fast_xml, max_elements, include_ime) {
+                    if fast_parsed.non_sysui_count > parsed.non_sysui_count
+                        || (has_webview && fast_parsed.elements.len() >= parsed.elements.len())
+                    {
+                        backend = "fast_dump";
+                        parsed = fast_parsed;
+                    }
+                }
+            } else if allow_sparse_fallback && cooled && parsed.non_sysui_count <= 2 {
+                self.last_sparse_fallback.insert(serial.to_string(), now);
+                let uia_xml = bounded_uiautomator_dump(serial);
+                if let Ok(uia_parsed) = parse_hierarchy_xml(&uia_xml, max_elements, include_ime) {
+                    if uia_parsed.non_sysui_count > parsed.non_sysui_count {
+                        backend = "uiautomator";
+                        parsed = uia_parsed;
+                    }
                 }
             }
         }
+
+        let mut sig = String::new();
+        for el in &parsed.elements {
+            sig.push_str(&el.label);
+            sig.push('\n');
+            if let Some(ref ft) = el.full_text {
+                sig.push_str(ft);
+                sig.push('\n');
+            }
+            if let Some(ref d) = el.desc {
+                sig.push_str(d);
+                sig.push('\n');
+            }
+            if let Some(ref r) = el.resource_id {
+                sig.push_str(r);
+                sig.push('\n');
+            }
+        }
+        self.last_ui_sig.insert(serial.to_string(), sig.to_ascii_lowercase());
 
         Ok(parsed_to_json(backend, fg.unwrap_or(Json::Null), &parsed))
     }
@@ -425,6 +453,11 @@ impl SessionState {
             .filter(|s| !s.is_empty())
             .collect();
         let mut prev_sig: Option<String> = None;
+        let mut initial_sig: Option<String> = if mode == "change" {
+            self.last_ui_sig.get(serial).cloned()
+        } else {
+            None
+        };
         let mut poll_ms = 50u64;
 
         loop {
@@ -445,10 +478,28 @@ impl SessionState {
                     blob.push_str(d);
                     blob.push('\n');
                 }
+                if let Some(r) = el.get_str("resource_id") {
+                    blob.push_str(r);
+                    blob.push('\n');
+                }
             }
             let blob_low = blob.to_ascii_lowercase();
 
             match mode {
+                "change" => {
+                    let sig = blob_low.clone();
+                    if let Some(ref init) = initial_sig {
+                        if &sig != init {
+                            return Ok(obj(vec![
+                                ("success", Json::Bool(true)),
+                                ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                                ("ui", ui_json),
+                            ]));
+                        }
+                    } else if !elements.is_empty() {
+                        initial_sig = Some(sig);
+                    }
+                }
                 "gone" => {
                     let any_present = needles.iter().any(|n| blob_low.contains(n));
                     if !any_present && !elements.is_empty() {
@@ -562,7 +613,7 @@ fn resolve_fg_via_adb(serial: &str) -> Json {
 fn bounded_uiautomator_dump(serial: &str) -> String {
     adb_shell(
         serial,
-        "timeout 4 uiautomator dump /sdcard/agentdroid_ui.xml >/dev/null 2>&1 || true; cat /sdcard/agentdroid_ui.xml 2>/dev/null || true",
+        "rm -f /sdcard/agentdroid_ui.xml; timeout 4 uiautomator dump /sdcard/agentdroid_ui.xml >/dev/null 2>&1 || true; cat /sdcard/agentdroid_ui.xml 2>/dev/null || true",
         5500,
     )
     .unwrap_or_default()

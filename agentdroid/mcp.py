@@ -59,7 +59,7 @@ TOOL_DEFINITIONS = [
                 "do": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Ordered UI steps: 'click:<target|#id|btn:X|edit:X|exact:X>', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-text:<txt>', 'wait-any:<a|b>', 'wait-gone:<txt>', 'wait-stable', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'capture-all:<var>=<regex>', 'hide-keyboard', 'scroll:down', 'scroll-to:<txt>', 'key:<KEY>', 'tap:x,y', 'sleep:<sec>'. Supports {{var}} interpolation.",
+                    "description": "Ordered UI steps: 'click:<target|#id|btn:X|edit:X|exact:X>', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-text:<txt>[@sec]', 'wait-any:<a|b>[@sec]', 'wait-gone:<txt>[@sec]', 'wait-stable[@sec]', 'wait-change[@sec]', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'capture-all:<var>=<regex>', 'hide-keyboard', 'scroll:down', 'scroll-to:<txt>', 'key:<KEY>', 'tap:x,y', 'sleep:<sec>'. Supports {{var}} interpolation.",
                 },
                 "pull": {
                     "type": "array",
@@ -175,7 +175,7 @@ TOOL_DEFINITIONS = [
                 "actions": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of action strings: 'click:<sel|#id|btn:X|edit:X>', 'tap:x,y', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-any:<a|b>', 'wait-gone:<txt>', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'hide-keyboard', 'key:<KEY>', 'scroll:down', 'scroll-to:<txt>', 'sleep:<sec>'.",
+                    "description": "List of action strings: 'click:<sel|#id|btn:X|edit:X>', 'tap:x,y', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-text:<txt>[@sec]', 'wait-any:<a|b>[@sec]', 'wait-gone:<txt>[@sec]', 'wait-stable[@sec]', 'wait-change[@sec]', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'hide-keyboard', 'key:<KEY>', 'scroll:down', 'scroll-to:<txt>', 'sleep:<sec>'.",
                 }
             },
             "required": ["actions"],

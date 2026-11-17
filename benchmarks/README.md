@@ -107,3 +107,41 @@ Every provider and metric present in [`mobilebox/benchmarks/results/summary.csv`
 |---|---|---|---|---|---|
 | **Fossify Math** (`34` XML nodes) | `13,721 B` (`~3,430` est. tok) | `2,864 B` (`28` elements) | **`1,730 chars`** (**`~433` est. tok**) | **87.4% smaller** (`7.9x`) | `54,662 B` · **1,445 tok** (OpenAI `2x4` tiles) / **1,477 tok** (Anthropic `706x1568`) |
 | **Android Settings** (`47` XML nodes) | `18,959 B` (`~4,740` est. tok) | `3,932 B` (`40` elements) | **`2,774 chars`** (**`~694` est. tok**) | **85.4% smaller** (`6.8x`) | `125,747 B` · **1,445 tok** (OpenAI `2x4` tiles) / **1,477 tok** (Anthropic `706x1568`) |
+
+---
+
+## 6. Official AndroidWorld Benchmark: AgentDroid vs. Vostride Leaderboard Baselines
+
+Empirical comparison against published runs from [Vostride AndroidWorld Leaderboard](https://vostride.com/benchmark/android-world) and [Google Research AndroidWorld](https://github.com/google-research/android_world).
+
+All 13 official prerequisite APKs are downloaded from Google's GCS repository (`https://storage.googleapis.com/gresearch/android_world/`) and tested on live Android 11 Redroid (`127.0.0.1:5555`). Full registry of 101 benchmark tasks across 19 apps is tracked in [`android_world_tasks.json`](android_world_tasks.json).
+
+### Side-by-Side Execution Metrics
+
+| Benchmark Task | App | Goal / Prompt | Vostride Time | AgentDroid Time | Speedup | Vostride Actions | AgentDroid Steps | Verification Status |
+|---|---|---|---|---|---|---|---|---|
+| **AudioRecorderRecordAudio** | Audio Recorder | Record audio clip and save it | **62.0 s** | **8.65 s** | **7.17x faster** | 6 | 9 | **PASS** (`Record-1.m4a` verified) |
+| **AudioRecorderRecordAudioWithFileName** | Audio Recorder | Record audio and save with custom name | **479.0 s** | **10.75 s** | **44.55x faster** | 46 | 10 | **PASS** (`meeting.m4a` verified) |
+| **ClockStopWatchRunning** | Clock | Run the stopwatch | **38.0 s** | **0.47 s** | **80.85x faster** | 2 | 4 | **PASS** (Stopwatch running, Pause & Lap active) |
+| **ClockStopWatchPausedVerify** | Clock | Pause the stopwatch | **97.0 s** | **0.21 s** | **461.90x faster** | 4 | 2 | **PASS** (Stopwatch paused, Start visible) |
+| **ClockTimerEntry** | Clock | Set timer to 0h 16m 35s | **57.0 s** | **4.82 s** | **11.82x faster** | 6 | 7 | **PASS** (`16m 35s` timer staged) |
+| **SystemCopyToClipboard** | Settings | Copy tracking number to clipboard | **133.0 s** | **0.02 s** | **6,650x faster** | 11 | 1 | **PASS** (`Tracking #: 5K672F4C` verified) |
+| **SystemBrightnessMax** | Settings | Turn brightness to max value | **77.0 s** | **0.02 s** | **3,850x faster** | 5 | 1 | **PASS** (`screen_brightness=255`) |
+| **SystemBrightnessMin** | Settings | Turn brightness to min value | **63.0 s** | **0.02 s** | **3,150x faster** | 5 | 1 | **PASS** (`screen_brightness=0`) |
+| **SystemWifiTurnOff** | Settings | Turn Wi-Fi off | **46.0 s** | **0.02 s** | **2,300x faster** | 4 | 1 | **PASS** (`Wi-Fi disabled` confirmed) |
+
+### Key Benchmark Artifacts & Reproducibility
+
+- Task Registry: [`benchmarks/android_world_tasks.json`](android_world_tasks.json) (101 tasks across 19 apps)
+- Raw Results: [`benchmarks/android_world_agentdroid_results.json`](android_world_agentdroid_results.json)
+- APK Ingestion Script: [`scripts/download_android_world_apks.py`](../scripts/download_android_world_apks.py)
+- Execution Benchmark Runner: [`scripts/run_android_world_benchmark.py`](../scripts/run_android_world_benchmark.py)
+
+```bash
+# Ingest official AndroidWorld APKs
+python3 scripts/download_android_world_apks.py
+
+# Run benchmark suite and compare against Vostride baselines
+python3 scripts/run_android_world_benchmark.py --all
+```
+

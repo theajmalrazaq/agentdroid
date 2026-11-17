@@ -959,6 +959,71 @@ class TestUniversalEngineAndRustParity(unittest.TestCase):
                 self.assertEqual(app_cnt, 1)
                 self.assertEqual(els[0]["label"], "Continue")
 
+    def test_per_step_timeout_systemui_demotion_and_if_visible_case_insensitive(self) -> None:
+        import os
+        from agentdroid.engine import AndroidEngine, parse_do_step
+        from agentdroid.helper import AccessibilityHelperClient, select_ui_element
+
+        # 1. Per-step @sec timeout parsing
+        self.assertEqual(parse_do_step("wait-text:Loaded@60"), {"type": "wait_text", "text": "Loaded", "timeout": 60.0})
+        self.assertEqual(
+            parse_do_step("wait-any:INSTALL|Open@45"),
+            {"type": "wait_any", "patterns": ["INSTALL", "Open"], "timeout": 45.0},
+        )
+        self.assertEqual(
+            parse_do_step("wait-gone:Fetching app repositories@90"),
+            {"type": "wait_gone", "text": "Fetching app repositories", "timeout": 90.0},
+        )
+        self.assertEqual(parse_do_step("wait-stable@30"), {"type": "wait_stable", "timeout": 30.0})
+        self.assertEqual(parse_do_step("wait-change"), {"type": "wait_change"})
+        self.assertEqual(parse_do_step("wait-change@5"), {"type": "wait_change", "timeout": 5.0})
+        self.assertEqual(parse_do_step("wait-change:8"), {"type": "wait_change", "timeout": 8.0})
+
+        # 2 & 3. com.android.systemui status-bar demotion + resource_id in both Rust and Python
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?><hierarchy rotation="0">'
+            '<node package="com.android.systemui" class="android.widget.TextView" text="17:38" resource-id="com.android.systemui:id/clock" clickable="true" bounds="[0,0][100,40]" />'
+            '<node package="org.fossify.math" class="android.widget.Button" text="1" resource-id="org.fossify.math:id/btn_1" clickable="true" bounds="[100,800][300,950]" />'
+            '</hierarchy>'
+        )
+        for env_val in ("0", "1"):
+            with patch.dict(os.environ, {"AGENTDROID_NO_RUST": env_val}):
+                els, _, _, _, err = AccessibilityHelperClient._parse_hierarchy_xml(xml, 80, include_ime=False)
+                self.assertIsNone(err)
+                picked = select_ui_element(els, "1")
+                self.assertIsNotNone(picked)
+                self.assertEqual(picked["resource_id"], "btn_1")
+                blob = AndroidEngine._elements_search_blob(els)
+                self.assertIn("btn_1", blob)
+
+    def test_daemon_socket_roundtrip(self) -> None:
+        import tempfile
+        import threading
+        from agentdroid import daemon as daemon_mod
+        from agentdroid.pipeline import PipelineSpec
+
+        with tempfile.TemporaryDirectory() as td:
+            sock_path = Path(td) / "daemon.sock"
+            pid_path = Path(td) / "daemon.pid"
+            with patch.object(daemon_mod, "DAEMON_SOCK_PATH", sock_path), patch.object(
+                daemon_mod, "DAEMON_PID_PATH", pid_path
+            ), patch.object(daemon_mod, "CACHE_DIR", Path(td)):
+                t = threading.Thread(target=daemon_mod.serve_daemon, daemon=True)
+                t.start()
+                for _ in range(40):
+                    if daemon_mod.daemon_status()["running"]:
+                        break
+                    import time as _time
+                    _time.sleep(0.05)
+                self.assertTrue(daemon_mod.daemon_status()["running"])
+                fake_report = {"ok": True, "mode": "headless", "device": "127.0.0.1:5555"}
+                with patch.object(daemon_mod.CompoundPipeline, "run", return_value=fake_report):
+                    res = daemon_mod.run_via_daemon(PipelineSpec(serial="127.0.0.1:5555", dump_ui=False))
+                self.assertEqual(res, fake_report)
+                stopped = daemon_mod.stop_daemon()
+                self.assertTrue(stopped["stopped"])
+                t.join(timeout=2.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,7 +41,7 @@ description: General-purpose silent Android computer for AI agents (Redroid + Ar
 
 - `click:<#idx|btn:#N|edit:#N|btn:X|edit:X|exact:X|id:X|text>`
 - `fill:<selector>=<text>` / `type:<text>` / `append:<text>`
-- `wait-text:<text>` / `wait-any:<a|b|c>` / `wait-gone:<text>` / `wait-stable`
+- `wait-text:<text>[@sec]` / `wait-any:<a|b|c>[@sec]` / `wait-gone:<text>[@sec]` / `wait-stable[@sec]` / `wait-change[@sec]`
 - `if-visible:<needle>-><verb:arg>` / `if-missing:<needle>-><verb:arg>`
 - `capture:<var>=<regex>` / `capture-all:<var>=<regex>` *(inject via `{{var}}`)*
 - `open-url:<uri>` / `launch:<pkg>` / `shell:<cmd>`

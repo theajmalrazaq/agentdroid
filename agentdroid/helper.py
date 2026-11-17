@@ -137,9 +137,8 @@ def select_ui_element(elements: list[dict[str, Any]], selector: str) -> dict[str
     except Exception:
         pass
 
-    idx_str = sel[1:] if sel.startswith("#") else sel
-    if idx_str.isdigit():
-        target_id = int(idx_str)
+    if sel.startswith("#") and sel[1:].isdigit():
+        target_id = int(sel[1:])
         for el in elements:
             if el.get("id") == target_id:
                 return el
@@ -184,6 +183,7 @@ def select_ui_element(elements: list[dict[str, Any]], selector: str) -> dict[str
 
         interactive_bonus = 20 if (clickable or editable) else 0
         non_webview_bonus = 0 if cls_name == "WebView" else 5
+        sysui_penalty = -60 if el.get("systemui") else 0
 
         if mode == "id":
             fields = [(str(el.get("resource_id") or ""), 5)]
@@ -213,11 +213,18 @@ def select_ui_element(elements: list[dict[str, Any]], selector: str) -> dict[str
         if field_score == 0:
             continue
 
-        total_score = field_score + interactive_bonus + non_webview_bonus
+        total_score = field_score + interactive_bonus + non_webview_bonus + sysui_penalty
         if best is None or total_score > best[0]:
             best = (total_score, pos, el)
 
-    return best[2] if best is not None else None
+    if best is not None:
+        return best[2]
+    if sel.isdigit():
+        target_id = int(sel)
+        for el in elements:
+            if el.get("id") == target_id:
+                return el
+    return None
 
 
 class AccessibilityHelperClient:
@@ -234,6 +241,7 @@ class AccessibilityHelperClient:
         self._last_sparse_fallback_at: float = 0.0
         self._display_size: tuple[int, int] | None = None
         self._token: str = get_or_create_helper_token()
+        self._last_ui_blob: str | None = None
 
     def get_display_size(self) -> tuple[int, int]:
         if self._display_size is not None:
@@ -575,9 +583,11 @@ class AccessibilityHelperClient:
     def ensure_ready(self) -> bool:
         """Ensure the helper APK is installed, service is bound, and HTTP server answers."""
         if self.ping() is not None:
+            self._ensure_fast_dump()
             return True
         # ping() clears a stale cached forward port on error; retry once before provisioning
         if self.ping() is not None:
+            self._ensure_fast_dump()
             return True
         prov = self.adb.provision_silent(force=False, quiet=True)
         self._local_port = None
@@ -586,6 +596,7 @@ class AccessibilityHelperClient:
             self._close_input_socket()
         for _ in range(5):
             if self.ping() is not None:
+                self._ensure_fast_dump()
                 return True
             time.sleep(0.4)
         if isinstance(prov, dict) and prov.get("action") == "already_provisioned":
@@ -593,8 +604,10 @@ class AccessibilityHelperClient:
             self._local_port = None
             for _ in range(3):
                 if self.ping() is not None:
+                    self._ensure_fast_dump()
                     return True
                 time.sleep(0.4)
+        self._ensure_fast_dump()
         return False
 
     def action(self, cmd: str, **params: Any) -> dict[str, Any]:
@@ -915,6 +928,8 @@ class AccessibilityHelperClient:
                     item["clickable"] = True
                 if editable:
                     item["editable"] = True
+                if node_pkg == "com.android.systemui":
+                    item["systemui"] = True
                 elements.append(item)
                 if node_pkg != "com.android.systemui":
                     non_sysui_count += 1
@@ -1001,23 +1016,50 @@ class AccessibilityHelperClient:
                 "parse_error": parse_error,
             }
 
-        # Recover rich WebView/multi-window nodes when helper only sees system bar + sparse stub
-        if (
-            allow_sparse_fallback
-            and backend == "helper"
-            and has_systemui
-            and non_sysui_count <= 2
-            and (time.monotonic() - self._last_sparse_fallback_at) >= 1.5
-        ):
-            self._last_sparse_fallback_at = time.monotonic()
-            uia_xml = self._dump_uiautomator_xml()
-            uia_els, uia_non_sysui, _, uia_disp, uia_err = self._parse_hierarchy_xml(
-                uia_xml, max_elements, include_ime=include_ime
-            )
-            if uia_err is None and uia_non_sysui > non_sysui_count:
-                backend = "uiautomator"
-                elements = uia_els
-                self._display_size = uia_disp
+        # Recover rich WebView/multi-window nodes when helper only sees system bar + sparse stub,
+        # OR when a WebView is present on screen and helper may lack descendant child text.
+        has_webview = any(el.get("class") == "WebView" for el in elements)
+        need_rich_dump = (has_systemui and non_sysui_count <= 2) or has_webview
+        if (allow_sparse_fallback or has_webview) and backend == "helper" and need_rich_dump:
+            fast_xml = self._fast_dump_xml()
+            if fast_xml:
+                fast_els, fast_non_sysui, _, fast_disp, fast_err = self._parse_hierarchy_xml(
+                    fast_xml, max_elements, include_ime=include_ime
+                )
+                if fast_err is None and (
+                    fast_non_sysui > non_sysui_count
+                    or (has_webview and len(fast_els) >= len(elements))
+                ):
+                    backend = "fast_dump"
+                    elements = fast_els
+                    self._display_size = fast_disp
+            elif allow_sparse_fallback and (
+                (has_webview and (time.monotonic() - self._last_sparse_fallback_at) >= 0.1)
+                or (
+                    (time.monotonic() - self._last_sparse_fallback_at) >= 1.5
+                    and non_sysui_count <= 2
+                )
+            ):
+                self._last_sparse_fallback_at = time.monotonic()
+                uia_xml = self._dump_uiautomator_xml()
+                uia_els, uia_non_sysui, _, uia_disp, uia_err = self._parse_hierarchy_xml(
+                    uia_xml, max_elements, include_ime=include_ime
+                )
+                if uia_err is None and (
+                    uia_non_sysui > non_sysui_count
+                    or (has_webview and len(uia_els) >= len(elements))
+                ):
+                    backend = "uiautomator"
+                    elements = uia_els
+                    self._display_size = uia_disp
+
+        parts: list[str] = []
+        for el in elements:
+            for k in ("full_text", "label", "desc", "resource_id"):
+                v = el.get(k)
+                if v:
+                    parts.append(str(v).strip().lower())
+        self._last_ui_blob = "\n".join(parts)
 
         return {
             "backend": backend,

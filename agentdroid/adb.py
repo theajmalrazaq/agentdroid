@@ -546,7 +546,7 @@ class AdbDevice:
 
     def install_apk(
         self,
-        apk_source: str,
+        apk_source: str | Path,
         *,
         grant_permissions: bool = True,
         clear_data: bool = False,
@@ -555,12 +555,13 @@ class AdbDevice:
         """Install an APK from a local path, HTTP(S) URL, or 'fdroid:<query_or_pkg>' and auto-grant permissions."""
         started = time.monotonic()
         temp_file: str | None = None
-        resolved_source = apk_source
+        apk_source_str = str(apk_source).strip()
+        resolved_source = apk_source_str
         cache_dir = Path.home() / ".cache" / "agentdroid" / "apks"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        if apk_source.startswith("fdroid:"):
-            query = apk_source.split(":", 1)[1].strip()
+        if apk_source_str.startswith("fdroid:"):
+            query = apk_source_str.split(":", 1)[1].strip()
             # Fast path: skip download/install if app is already installed
             if "." in query and self.is_package_installed(query):
                 main_activity = self.resolve_main_activity(query)

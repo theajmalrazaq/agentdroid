@@ -32,6 +32,9 @@ DEVICE_VENDOR_INPUT_DEX="/vendor/etc/artemis/agentdroid-input.dex"
 DEVICE_TMP_INPUT_DEX="/data/local/tmp/agentdroid-input.dex"
 DEVICE_INPUT_TOKEN="/data/local/tmp/.agentdroid_input_token"
 INPUT_DAEMON_PORT="${AGENTDROID_INPUT_PORT:-18889}"
+BUNDLED_FAST_DUMP_DEX="${REPO_ROOT}/packages/agentdroid-fast-dump/agentdroid-fast-dump.dex"
+DEVICE_TMP_FAST_DUMP_DEX="/data/local/tmp/agentdroid-fast-dump.dex"
+FAST_DUMP_PORT="${AGENTDROID_FAST_DUMP_PORT:-18890}"
 
 log() {
     if [[ "${QUIET}" != "1" ]]; then
@@ -269,6 +272,23 @@ if [[ -n "${RESOLVED_TOKEN}" ]]; then
             fi
         fi
     " >/dev/null 2>&1 || true
+
+    # Pre-warm FastDump (127.0.0.1:18890) for instant multi-window / WebView hierarchy dumps
+    if [[ -f "${BUNDLED_FAST_DUMP_DEX}" ]]; then
+        fast_host_size="$(wc -c < "${BUNDLED_FAST_DUMP_DEX}" | tr -d ' ')"
+        fast_dev_size="$(adb_s shell "wc -c < ${DEVICE_TMP_FAST_DUMP_DEX} 2>/dev/null || echo 0" 2>/dev/null | tr -d '\r\n ' || echo 0)"
+        if [[ "${fast_dev_size}" != "${fast_host_size}" ]]; then
+            adb_s push "${BUNDLED_FAST_DUMP_DEX}" "${DEVICE_TMP_FAST_DUMP_DEX}" >/dev/null 2>&1 || true
+        fi
+        adb_s shell "
+            if [ -s ${DEVICE_TMP_FAST_DUMP_DEX} ]; then
+                pids=\"\$(ps -A -o PID,NAME,ARGS | sed -n 's/^[[:space:]]*\\([0-9][0-9]*\\)[[:space:]]\\{1,\\}app_process[^[:space:]]*[[:space:]].*FastDump.*/\\1/p')\"
+                if [ -z \"\${pids}\" ]; then
+                    CLASSPATH=/system/framework/uiautomator.jar:${DEVICE_TMP_FAST_DUMP_DEX} nohup app_process / com.agentdroid.FastDump ${FAST_DUMP_PORT} ${DEVICE_INPUT_TOKEN} </dev/null >/dev/null 2>&1 &
+                fi
+            fi
+        " >/dev/null 2>&1 || true
+    fi
 fi
 
 # 5. Grant runtime permissions to all third-party installed apps
