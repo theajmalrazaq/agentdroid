@@ -1,0 +1,810 @@
+2026-11-18 11:23:04,179 [INFO] Loaded 116 tasks total (0 already completed).
+2026-11-18 11:23:04,179 [INFO] === [1/116] Executing: Audio Recorder Record Audio (Audio Recorder) ===
+2026-11-18 11:23:04,180 [INFO] Vostride Baseline: 1m 2s (62.0s)
+2026-11-18 11:23:06,500 [INFO]   Step 1: tap_15 [conf=1.00, 690.6ms]
+2026-11-18 11:23:07,657 [INFO]   Step 2: tap_12 [conf=0.81, 424.8ms]
+2026-11-18 11:23:08,752 [INFO]   Step 3: tap_12 [conf=0.99, 378.6ms]
+2026-11-18 11:23:10,039 [INFO]   Step 4: tap_12 [conf=0.59, 555.3ms]
+2026-11-18 11:23:10,768 [INFO] Done [1/116] Audio Recorder Record Audio: 4.96s vs 1m 2s (12.5x speedup)
+2026-11-18 11:23:10,768 [INFO] === [2/116] Executing: Audio Recorder Record Audio With File Name (Audio Recorder) ===
+2026-11-18 11:23:10,768 [INFO] Vostride Baseline: 1m 46s (106.0s)
+2026-11-18 11:23:12,861 [INFO]   Step 1: tap_15 [conf=0.96, 405.0ms]
+2026-11-18 11:23:13,987 [INFO]   Step 2: tap_12 [conf=0.88, 408.2ms]
+2026-11-18 11:23:15,228 [INFO]   Step 3: tap_12 [conf=0.95, 524.3ms]
+2026-11-18 11:23:16,533 [INFO]   Step 4: tap_12 [conf=0.68, 560.8ms]
+2026-11-18 11:23:17,265 [INFO] Done [2/116] Audio Recorder Record Audio With File Name: 4.79s vs 1m 46s (22.1x speedup)
+2026-11-18 11:23:17,265 [INFO] === [3/116] Executing: Recipe Add Multiple Recipes (Broccoli) ===
+2026-11-18 11:23:17,265 [INFO] Vostride Baseline: 7m 59s (479.0s)
+2026-11-18 11:23:19,578 [INFO]   Step 1: tap_14 [conf=0.88, 401.9ms]
+2026-11-18 11:23:20,862 [INFO]   Step 2: tap_10 [conf=0.45, 572.4ms]
+2026-11-18 11:23:22,063 [INFO]   Step 3: tap_11 [conf=0.46, 445.0ms]
+2026-11-18 11:23:23,196 [INFO]   Step 4: tap_11 [conf=0.64, 380.1ms]
+2026-11-18 11:23:23,923 [INFO] Done [3/116] Recipe Add Multiple Recipes: 4.76s vs 7m 59s (100.6x speedup)
+2026-11-18 11:23:23,923 [INFO] === [4/116] Executing: Recipe Add Multiple Recipes From Image (Broccoli) ===
+2026-11-18 11:23:23,923 [INFO] Vostride Baseline: 8m 25s (505.0s)
+2026-11-18 11:23:26,271 [INFO]   Step 1: tap_14 [conf=0.85, 377.6ms]
+2026-11-18 11:23:27,407 [INFO]   Step 2: tap_8 [conf=0.87, 423.7ms]
+2026-11-18 11:23:28,713 [INFO]   Step 3: tap_6 [conf=0.79, 595.8ms]
+2026-11-18 11:23:30,138 [INFO]   Step 4: back [conf=0.14, 399.3ms]
+2026-11-18 11:23:30,869 [INFO] Done [4/116] Recipe Add Multiple Recipes From Image: 4.99s vs 8m 25s (101.2x speedup)
+2026-11-18 11:23:30,869 [INFO] === [5/116] Executing: Recipe Add Multiple Recipes From Markor (Broccoli) ===
+2026-11-18 11:23:30,869 [INFO] Vostride Baseline: 14m 58s (898.0s)
+2026-11-18 11:23:33,195 [INFO]   Step 1: tap_14 [conf=0.73, 452.3ms]
+2026-11-18 11:23:34,454 [INFO]   Step 2: tap_10 [conf=0.53, 547.5ms]
+2026-11-18 11:23:35,599 [INFO]   Step 3: tap_11 [conf=0.74, 387.6ms]
+2026-11-18 11:23:36,702 [INFO]   Step 4: tap_11 [conf=0.63, 362.0ms]
+2026-11-18 11:23:37,426 [INFO] Done [5/116] Recipe Add Multiple Recipes From Markor: 4.70s vs 14m 58s (191.2x speedup)
+2026-11-18 11:23:38,449 [INFO] === [6/116] Executing: Recipe Add Multiple Recipes From Markor2 (Broccoli) ===
+2026-11-18 11:23:38,449 [INFO] Vostride Baseline: 9m 26s (566.0s)
+2026-11-18 11:23:41,042 [INFO]   Step 1: tap_14 [conf=0.71, 599.3ms]
+2026-11-18 11:23:42,164 [INFO]   Step 2: tap_10 [conf=0.56, 405.2ms]
+2026-11-18 11:23:43,502 [INFO]   Step 3: tap_11 [conf=0.66, 566.6ms]
+2026-11-18 11:23:44,664 [INFO]   Step 4: tap_11 [conf=0.63, 411.2ms]
+2026-11-18 11:23:45,412 [INFO] Done [6/116] Recipe Add Multiple Recipes From Markor2: 4.96s vs 9m 26s (114.1x speedup)
+2026-11-18 11:23:45,412 [INFO] === [7/116] Executing: Recipe Add Single Recipe (Broccoli) ===
+2026-11-18 11:23:45,413 [INFO] Vostride Baseline: 2m 18s (138.0s)
+2026-11-18 11:23:47,945 [INFO]   Step 1: tap_14 [conf=1.00, 388.8ms]
+2026-11-18 11:23:49,058 [INFO]   Step 2: tap_10 [conf=0.53, 399.3ms]
+2026-11-18 11:23:50,255 [INFO]   Step 3: tap_11 [conf=0.69, 439.0ms]
+2026-11-18 11:23:51,434 [INFO]   Step 4: tap_11 [conf=0.68, 432.9ms]
+2026-11-18 11:23:52,161 [INFO] Done [7/116] Recipe Add Single Recipe: 4.65s vs 2m 18s (29.7x speedup)
+2026-11-18 11:23:52,161 [INFO] === [8/116] Executing: Recipe Delete Duplicate Recipes (Broccoli) ===
+2026-11-18 11:23:52,161 [INFO] Vostride Baseline: 1m 55s (115.0s)
+2026-11-18 11:23:54,667 [INFO]   Step 1: tap_5 [conf=0.89, 515.6ms]
+2026-11-18 11:23:55,795 [INFO]   Step 2: tap_8 [conf=0.53, 411.5ms]
+2026-11-18 11:23:56,886 [INFO]   Step 3: tap_5 [conf=0.89, 379.6ms]
+2026-11-18 11:23:58,013 [INFO]   Step 4: tap_8 [conf=0.55, 408.8ms]
+2026-11-18 11:23:58,740 [INFO] Done [8/116] Recipe Delete Duplicate Recipes: 4.63s vs 1m 55s (24.8x speedup)
+2026-11-18 11:23:58,740 [INFO] === [9/116] Executing: Recipe Delete Duplicate Recipes2 (Broccoli) ===
+2026-11-18 11:23:58,740 [INFO] Vostride Baseline: 4m 55s (295.0s)
+2026-11-18 11:24:01,207 [INFO]   Step 1: tap_5 [conf=0.87, 396.9ms]
+2026-11-18 11:24:02,293 [INFO]   Step 2: tap_8 [conf=0.53, 374.0ms]
+2026-11-18 11:24:03,424 [INFO]   Step 3: tap_5 [conf=0.91, 421.2ms]
+2026-11-18 11:24:04,682 [INFO]   Step 4: tap_8 [conf=0.51, 545.0ms]
+2026-11-18 11:24:05,410 [INFO] Done [9/116] Recipe Delete Duplicate Recipes2: 4.61s vs 4m 55s (64.0x speedup)
+2026-11-18 11:24:05,410 [INFO] === [10/116] Executing: Recipe Delete Duplicate Recipes3 (Broccoli) ===
+2026-11-18 11:24:05,410 [INFO] Vostride Baseline: 6m 14s (374.0s)
+2026-11-18 11:24:07,784 [INFO]   Step 1: tap_5 [conf=0.88, 407.6ms]
+2026-11-18 11:24:09,053 [INFO]   Step 2: tap_8 [conf=0.52, 554.2ms]
+2026-11-18 11:24:10,127 [INFO]   Step 3: tap_5 [conf=0.91, 361.8ms]
+2026-11-18 11:24:11,279 [INFO]   Step 4: tap_8 [conf=0.56, 435.1ms]
+2026-11-18 11:24:12,019 [INFO] Done [10/116] Recipe Delete Duplicate Recipes3: 4.64s vs 6m 14s (80.6x speedup)
+2026-11-18 11:24:12,983 [INFO] === [11/116] Executing: Recipe Delete Multiple Recipes (Broccoli) ===
+2026-11-18 11:24:12,983 [INFO] Vostride Baseline: 2m 20s (140.0s)
+2026-11-18 11:24:15,882 [INFO]   Step 1: tap_5 [conf=0.71, 571.7ms]
+2026-11-18 11:24:16,996 [INFO]   Step 2: tap_8 [conf=0.67, 401.2ms]
+2026-11-18 11:24:18,126 [INFO]   Step 3: tap_5 [conf=0.74, 419.9ms]
+2026-11-18 11:24:19,388 [INFO]   Step 4: tap_8 [conf=0.64, 550.5ms]
+2026-11-18 11:24:20,114 [INFO] Done [11/116] Recipe Delete Multiple Recipes: 4.79s vs 2m 20s (29.2x speedup)
+2026-11-18 11:24:20,114 [INFO] === [12/116] Executing: Recipe Delete Multiple Recipes With Constraint (Broccoli) ===
+2026-11-18 11:24:20,114 [INFO] Vostride Baseline: 11m 12s (672.0s)
+2026-11-18 11:24:22,589 [INFO]   Step 1: tap_5 [conf=0.50, 379.2ms]
+2026-11-18 11:24:23,708 [INFO]   Step 2: tap_8 [conf=0.66, 405.2ms]
+2026-11-18 11:24:24,984 [INFO]   Step 3: tap_5 [conf=0.57, 564.0ms]
+2026-11-18 11:24:26,069 [INFO]   Step 4: tap_8 [conf=0.66, 371.7ms]
+2026-11-18 11:24:26,794 [INFO] Done [12/116] Recipe Delete Multiple Recipes With Constraint: 4.59s vs 11m 12s (146.3x speedup)
+2026-11-18 11:24:26,795 [INFO] === [13/116] Executing: Recipe Delete Multiple Recipes With Noise (Broccoli) ===
+2026-11-18 11:24:26,795 [INFO] Vostride Baseline: 3m 15s (195.0s)
+2026-11-18 11:24:29,309 [INFO]   Step 1: tap_5 [conf=0.56, 399.8ms]
+2026-11-18 11:24:30,388 [INFO]   Step 2: tap_8 [conf=0.68, 364.2ms]
+2026-11-18 11:24:31,711 [INFO]   Step 3: tap_5 [conf=0.54, 611.0ms]
+2026-11-18 11:24:32,850 [INFO]   Step 4: tap_8 [conf=0.62, 427.3ms]
+2026-11-18 11:24:33,577 [INFO] Done [13/116] Recipe Delete Multiple Recipes With Noise: 4.68s vs 3m 15s (41.7x speedup)
+2026-11-18 11:24:33,577 [INFO] === [14/116] Executing: Recipe Delete Single Recipe (Broccoli) ===
+2026-11-18 11:24:33,577 [INFO] Vostride Baseline: 1m 17s (77.0s)
+2026-11-18 11:24:36,083 [INFO]   Step 1: tap_10 [conf=0.44, 489.4ms]
+2026-11-18 11:24:37,222 [INFO]   Step 2: tap_10 [conf=0.40, 428.6ms]
+2026-11-18 11:24:38,318 [INFO]   Step 3: tap_10 [conf=0.36, 386.6ms]
+2026-11-18 11:24:39,448 [INFO]   Step 4: tap_10 [conf=0.34, 419.4ms]
+2026-11-18 11:24:40,174 [INFO] Done [14/116] Recipe Delete Single Recipe: 4.59s vs 1m 17s (16.8x speedup)
+2026-11-18 11:24:40,174 [INFO] === [15/116] Executing: Recipe Delete Single With Recipe With Noise (Broccoli) ===
+2026-11-18 11:24:40,174 [INFO] Vostride Baseline: 1m 32s (92.0s)
+2026-11-18 11:24:42,717 [INFO]   Step 1: tap_9 [conf=0.15, 422.3ms]
+2026-11-18 11:24:43,872 [INFO]   Step 2: tap_9 [conf=0.31, 396.0ms]
+2026-11-18 11:24:45,221 [INFO]   Step 3: tap_9 [conf=0.44, 605.3ms]
+2026-11-18 11:24:46,343 [INFO]   Step 4: tap_9 [conf=0.36, 374.7ms]
+2026-11-18 11:24:47,073 [INFO] Done [15/116] Recipe Delete Single With Recipe With Noise: 4.79s vs 1m 32s (19.2x speedup)
+2026-11-18 11:24:47,767 [INFO] === [16/116] Executing: Camera Take Photo (Camera) ===
+2026-11-18 11:24:47,767 [INFO] Vostride Baseline: 1m 12s (72.0s)
+2026-11-18 11:24:49,593 [INFO]   Step 1: back [conf=0.68, 401.0ms]
+2026-11-18 11:24:50,909 [INFO]   Step 2: back [conf=0.45, 594.7ms]
+2026-11-18 11:24:52,101 [INFO]   Step 3: back [conf=1.00, 443.7ms]
+2026-11-18 11:24:53,285 [INFO]   Step 4: tap_6 [conf=0.71, 386.3ms]
+2026-11-18 11:24:54,006 [INFO] Done [16/116] Camera Take Photo: 4.81s vs 1m 12s (15.0x speedup)
+2026-11-18 11:24:54,006 [INFO] === [17/116] Executing: Camera Take Video (Camera) ===
+2026-11-18 11:24:54,006 [INFO] Vostride Baseline: 1m 32s (92.0s)
+2026-11-18 11:24:55,722 [INFO]   Step 1: tap_6 [conf=0.56, 393.6ms]
+2026-11-18 11:24:56,902 [INFO]   Step 2: tap_6 [conf=0.69, 407.8ms]
+2026-11-18 11:24:58,072 [INFO]   Step 3: tap_6 [conf=0.66, 393.6ms]
+2026-11-18 11:24:59,201 [INFO]   Step 4: tap_6 [conf=0.57, 355.1ms]
+2026-11-18 11:24:59,923 [INFO] Done [17/116] Camera Take Video: 4.64s vs 1m 32s (19.8x speedup)
+2026-11-18 11:24:59,923 [INFO] === [18/116] Executing: Browser Draw (Chrome) ===
+2026-11-18 11:24:59,923 [INFO] Vostride Baseline: 2m 44s (164.0s)
+2026-11-18 11:25:01,573 [INFO]   Step 1: tap_6 [conf=0.82, 365.1ms]
+2026-11-18 11:25:02,717 [INFO]   Step 2: tap_6 [conf=0.90, 367.1ms]
+2026-11-18 11:25:03,874 [INFO]   Step 3: tap_6 [conf=0.94, 386.3ms]
+2026-11-18 11:25:05,035 [INFO]   Step 4: tap_6 [conf=0.86, 385.1ms]
+2026-11-18 11:25:05,755 [INFO] Done [18/116] Browser Draw: 4.60s vs 2m 44s (35.7x speedup)
+2026-11-18 11:25:05,755 [INFO] === [19/116] Executing: Browser Maze (Chrome) ===
+2026-11-18 11:25:05,755 [INFO] Vostride Baseline: 3m 2s (182.0s)
+2026-11-18 11:25:07,422 [INFO]   Step 1: tap_6 [conf=0.86, 366.7ms]
+2026-11-18 11:25:08,787 [INFO]   Step 2: tap_6 [conf=0.90, 596.1ms]
+2026-11-18 11:25:09,965 [INFO]   Step 3: tap_6 [conf=0.90, 407.7ms]
+2026-11-18 11:25:12,520 [INFO]   Step 4: tap_6 [conf=0.85, 389.9ms]
+2026-11-18 11:25:13,240 [INFO] Done [19/116] Browser Maze: 6.24s vs 3m 2s (29.2x speedup)
+2026-11-18 11:25:13,240 [INFO] === [20/116] Executing: Browser Multiply (Chrome) ===
+2026-11-18 11:25:13,240 [INFO] Vostride Baseline: 3m 28s (208.0s)
+2026-11-18 11:25:14,901 [INFO]   Step 1: tap_6 [conf=0.85, 381.9ms]
+2026-11-18 11:25:16,227 [INFO]   Step 2: tap_6 [conf=0.85, 555.9ms]
+2026-11-18 11:25:17,590 [INFO]   Step 3: tap_6 [conf=0.87, 593.7ms]
+2026-11-18 11:25:18,754 [INFO]   Step 4: tap_6 [conf=0.84, 396.7ms]
+2026-11-18 11:25:19,475 [INFO] Done [20/116] Browser Multiply: 5.01s vs 3m 28s (41.5x speedup)
+2026-11-18 11:25:20,172 [INFO] === [21/116] Executing: Clock Stop Watch Paused Verify (Clock) ===
+2026-11-18 11:25:20,173 [INFO] Vostride Baseline: 1m 37s (97.0s)
+2026-11-18 11:25:30,660 [INFO]   Step 1: tap_11 [conf=0.87, 8624.5ms]
+2026-11-18 11:25:31,843 [INFO]   Step 2: tap_11 [conf=0.43, 359.2ms]
+2026-11-18 11:25:33,027 [INFO]   Step 3: tap_11 [conf=0.44, 379.1ms]
+2026-11-18 11:25:34,813 [INFO]   Step 4: tap_11 [conf=0.40, 380.4ms]
+2026-11-18 11:25:35,985 [INFO] Done [21/116] Clock Stop Watch Paused Verify: 13.60s vs 1m 37s (7.1x speedup)
+2026-11-18 11:25:35,991 [INFO] === [22/116] Executing: Clock Stop Watch Running (Clock) ===
+2026-11-18 11:25:36,000 [INFO] Vostride Baseline: 38s (38.0s)
+2026-11-18 11:25:47,535 [INFO]   Step 1: tap_14 [conf=0.38, 410.2ms]
+2026-11-18 11:25:50,815 [INFO]   Step 2: tap_11 [conf=0.35, 426.5ms]
+2026-11-18 11:25:52,522 [INFO]   Step 3: tap_11 [conf=0.34, 401.7ms]
+2026-11-18 11:25:53,935 [INFO]   Step 4: tap_34 [conf=0.66, 423.1ms]
+2026-11-18 11:25:54,808 [INFO] Done [22/116] Clock Stop Watch Running: 8.89s vs 38s (4.3x speedup)
+2026-11-18 11:25:54,808 [INFO] === [23/116] Executing: Clock Timer Entry (Clock) ===
+2026-11-18 11:25:54,809 [INFO] Vostride Baseline: 57s (57.0s)
+2026-11-18 11:26:01,377 [INFO]   Step 1: tap_9 [conf=0.83, 579.5ms]
+2026-11-18 11:26:03,026 [INFO]   Step 2: tap_9 [conf=0.51, 622.5ms]
+2026-11-18 11:26:04,563 [INFO]   Step 3: tap_9 [conf=0.57, 446.2ms]
+2026-11-18 11:26:06,074 [INFO]   Step 4: tap_9 [conf=0.49, 468.3ms]
+2026-11-18 11:26:07,332 [INFO] Done [23/116] Clock Timer Entry: 6.75s vs 57s (8.4x speedup)
+2026-11-18 11:26:07,334 [INFO] === [24/116] Executing: Contacts Add Contact (Contacts) ===
+2026-11-18 11:26:07,337 [INFO] Vostride Baseline: 1m 21s (81.0s)
+2026-11-18 11:26:18,836 [INFO]   Step 1: tap_10 [conf=1.00, 385.2ms]
+2026-11-18 11:26:21,409 [INFO]   Step 2: tap_3 [conf=0.26, 465.7ms]
+2026-11-18 11:26:25,193 [INFO]   Step 3: tap_10 [conf=1.00, 601.6ms]
+2026-11-18 11:26:27,249 [INFO]   Step 4: tap_13 [conf=0.47, 511.5ms]
+2026-11-18 11:26:28,469 [INFO] Done [24/116] Contacts Add Contact: 9.84s vs 1m 21s (8.2x speedup)
+2026-11-18 11:26:28,473 [INFO] === [25/116] Executing: Contacts New Contact Draft (Contacts) ===
+2026-11-18 11:26:28,474 [INFO] Vostride Baseline: 2m 59s (179.0s)
+2026-11-18 11:26:36,925 [INFO]   Step 1: tap_10 [conf=1.00, 476.1ms]
+2026-11-18 11:26:39,070 [INFO]   Step 2: tap_10 [conf=1.00, 400.8ms]
+2026-11-18 11:26:40,791 [INFO]   Step 3: tap_13 [conf=0.47, 432.6ms]
+2026-11-18 11:26:42,830 [INFO]   Step 4: tap_14 [conf=0.72, 454.6ms]
+2026-11-18 11:26:43,793 [INFO] Done [25/116] Contacts New Contact Draft: 7.44s vs 2m 59s (24.0x speedup)
+2026-11-18 11:26:49,458 [INFO] === [26/116] Executing: Files Delete File (Files) ===
+2026-11-18 11:26:49,460 [INFO] Vostride Baseline: 2m 47s (167.0s)
+2026-11-18 11:27:01,607 [INFO]   Step 1: tap_15 [conf=0.68, 592.6ms]
+2026-11-18 11:27:03,101 [INFO]   Step 2: back [conf=0.17, 436.7ms]
+2026-11-18 11:27:04,475 [INFO]   Step 3: tap_15 [conf=0.80, 496.3ms]
+2026-11-18 11:27:06,584 [INFO]   Step 4: tap_11 [conf=0.41, 457.3ms]
+2026-11-18 11:27:08,007 [INFO] Done [26/116] Files Delete File: 10.24s vs 2m 47s (16.3x speedup)
+2026-11-18 11:27:08,010 [INFO] === [27/116] Executing: Files Move File (Files) ===
+2026-11-18 11:27:08,010 [INFO] Vostride Baseline: 2m 33s (153.0s)
+2026-11-18 11:27:16,141 [INFO]   Step 1: tap_15 [conf=0.63, 695.0ms]
+2026-11-18 11:27:17,519 [INFO]   Step 2: tap_11 [conf=0.15, 639.6ms]
+2026-11-18 11:27:18,794 [INFO]   Step 3: tap_28 [conf=0.86, 489.6ms]
+2026-11-18 11:27:20,113 [INFO]   Step 4: tap_11 [conf=0.84, 588.9ms]
+2026-11-18 11:27:20,907 [INFO] Done [27/116] Files Move File: 6.51s vs 2m 33s (23.5x speedup)
+2026-11-18 11:27:20,908 [INFO] === [28/116] Executing: Notes Is Todo (Joplin) ===
+2026-11-18 11:27:20,908 [INFO] Vostride Baseline: 25s (25.0s)
+2026-11-18 11:27:24,400 [INFO]   Step 1: tap_6 [conf=0.91, 496.4ms]
+2026-11-18 11:27:25,847 [INFO]   Step 2: tap_6 [conf=0.92, 526.0ms]
+2026-11-18 11:27:27,303 [INFO]   Step 3: tap_6 [conf=0.92, 554.0ms]
+2026-11-18 11:27:28,588 [INFO]   Step 4: tap_6 [conf=0.94, 422.0ms]
+2026-11-18 11:27:29,338 [INFO] Done [28/116] Notes Is Todo: 5.70s vs 25s (4.4x speedup)
+2026-11-18 11:27:29,338 [INFO] === [29/116] Executing: Notes Meeting Attendee Count (Joplin) ===
+2026-11-18 11:27:29,338 [INFO] Vostride Baseline: 1m 16s (76.0s)
+2026-11-18 11:27:33,450 [INFO]   Step 1: tap_6 [conf=0.87, 2453.0ms]
+2026-11-18 11:27:34,699 [INFO]   Step 2: tap_6 [conf=0.89, 404.2ms]
+2026-11-18 11:27:36,074 [INFO]   Step 3: tap_6 [conf=0.87, 526.2ms]
+2026-11-18 11:27:37,349 [INFO]   Step 4: tap_6 [conf=0.89, 436.2ms]
+2026-11-18 11:27:38,095 [INFO] Done [29/116] Notes Meeting Attendee Count: 7.23s vs 1m 16s (10.5x speedup)
+2026-11-18 11:27:38,095 [INFO] === [30/116] Executing: Notes Recipe Ingredient Count (Joplin) ===
+2026-11-18 11:27:38,096 [INFO] Vostride Baseline: 59s (59.0s)
+2026-11-18 11:27:40,173 [INFO]   Step 1: tap_6 [conf=0.90, 416.4ms]
+2026-11-18 11:27:41,439 [INFO]   Step 2: tap_6 [conf=0.92, 397.7ms]
+2026-11-18 11:27:42,679 [INFO]   Step 3: tap_6 [conf=0.92, 373.9ms]
+2026-11-18 11:27:43,998 [INFO]   Step 4: tap_6 [conf=0.92, 443.9ms]
+2026-11-18 11:27:44,746 [INFO] Done [30/116] Notes Recipe Ingredient Count: 5.12s vs 59s (11.5x speedup)
+2026-11-18 11:27:46,403 [INFO] === [31/116] Executing: Notes Todo Item Count (Joplin) ===
+2026-11-18 11:27:46,404 [INFO] Vostride Baseline: 2m 34s (154.0s)
+2026-11-18 11:27:49,774 [INFO]   Step 1: tap_6 [conf=0.86, 470.6ms]
+2026-11-18 11:27:51,202 [INFO]   Step 2: tap_6 [conf=0.89, 437.1ms]
+2026-11-18 11:27:52,617 [INFO]   Step 3: tap_6 [conf=0.90, 522.7ms]
+2026-11-18 11:27:53,902 [INFO]   Step 4: tap_6 [conf=0.87, 390.3ms]
+2026-11-18 11:27:54,654 [INFO] Done [31/116] Notes Todo Item Count: 5.64s vs 2m 34s (27.3x speedup)
+2026-11-18 11:27:54,655 [INFO] === [32/116] Executing: Markor Add Note Header (Markor) ===
+2026-11-18 11:27:54,655 [INFO] Vostride Baseline: 2m 52s (172.0s)
+2026-11-18 11:28:00,493 [INFO]   Step 1: tap_18 [conf=0.59, 395.3ms]
+2026-11-18 11:28:02,404 [INFO]   Step 2: tap_17 [conf=0.45, 408.9ms]
+2026-11-18 11:28:04,306 [INFO]   Step 3: tap_22 [conf=0.75, 624.5ms]
+2026-11-18 11:28:05,814 [INFO]   Step 4: tap_23 [conf=0.83, 622.4ms]
+2026-11-18 11:28:06,629 [INFO] Done [32/116] Markor Add Note Header: 6.55s vs 2m 52s (26.3x speedup)
+2026-11-18 11:28:06,630 [INFO] === [33/116] Executing: Markor Change Note Content (Markor) ===
+2026-11-18 11:28:06,632 [INFO] Vostride Baseline: 2m 3s (123.0s)
+2026-11-18 11:28:12,484 [INFO]   Step 1: tap_18 [conf=0.89, 625.2ms]
+2026-11-18 11:28:13,893 [INFO]   Step 2: tap_14 [conf=0.92, 410.4ms]
+2026-11-18 11:28:15,368 [INFO]   Step 3: tap_15 [conf=0.92, 627.0ms]
+2026-11-18 11:28:16,563 [INFO]   Step 4: tap_15 [conf=0.93, 422.9ms]
+2026-11-18 11:28:17,346 [INFO] Done [33/116] Markor Change Note Content: 5.52s vs 2m 3s (22.3x speedup)
+2026-11-18 11:28:17,347 [INFO] === [34/116] Executing: Markor Create Folder (Markor) ===
+2026-11-18 11:28:17,348 [INFO] Vostride Baseline: 51s (51.0s)
+2026-11-18 11:28:23,050 [INFO]   Step 1: tap_19 [conf=1.00, 398.8ms]
+2026-11-18 11:28:24,523 [INFO]   Step 2: tap_15 [conf=0.88, 438.2ms]
+2026-11-18 11:28:25,973 [INFO]   Step 3: tap_20 [conf=1.00, 614.6ms]
+2026-11-18 11:28:27,596 [INFO]   Step 4: tap_20 [conf=0.78, 771.2ms]
+2026-11-18 11:28:28,435 [INFO] Done [34/116] Markor Create Folder: 5.77s vs 51s (8.8x speedup)
+2026-11-18 11:28:28,436 [INFO] === [35/116] Executing: Markor Create Note (Markor) ===
+2026-11-18 11:28:28,441 [INFO] Vostride Baseline: 1m 4s (64.0s)
+2026-11-18 11:28:34,805 [INFO]   Step 1: tap_21 [conf=1.00, 672.5ms]
+2026-11-18 11:28:36,285 [INFO]   Step 2: tap_16 [conf=0.84, 398.6ms]
+2026-11-18 11:28:37,726 [INFO]   Step 3: tap_12 [conf=0.36, 420.3ms]
+2026-11-18 11:28:38,862 [INFO]   Step 4: back [conf=0.19, 384.7ms]
+2026-11-18 11:28:39,686 [INFO] Done [35/116] Markor Create Note: 5.55s vs 1m 4s (11.5x speedup)
+2026-11-18 11:28:40,861 [INFO] === [36/116] Executing: Markor Create Note And Sms (Markor) ===
+2026-11-18 11:28:40,861 [INFO] Vostride Baseline: 2m 21s (141.0s)
+2026-11-18 11:28:43,519 [INFO]   Step 1: tap_21 [conf=0.99, 555.3ms]
+2026-11-18 11:28:44,744 [INFO]   Step 2: tap_22 [conf=0.52, 489.9ms]
+2026-11-18 11:28:46,103 [INFO]   Step 3: tap_1 [conf=0.24, 632.1ms]
+2026-11-18 11:28:47,242 [INFO]   Step 4: tap_5 [conf=0.16, 393.7ms]
+2026-11-18 11:28:47,986 [INFO] Done [36/116] Markor Create Note And Sms: 5.01s vs 2m 21s (28.1x speedup)
+2026-11-18 11:28:47,987 [INFO] === [37/116] Executing: Markor Create Note From Clipboard (Markor) ===
+2026-11-18 11:28:47,988 [INFO] Vostride Baseline: 1m 25s (85.0s)
+2026-11-18 11:28:50,399 [INFO]   Step 1: tap_21 [conf=0.92, 415.8ms]
+2026-11-18 11:28:51,531 [INFO]   Step 2: tap_22 [conf=0.48, 398.9ms]
+2026-11-18 11:28:52,820 [INFO]   Step 3: tap_13 [conf=0.34, 560.4ms]
+2026-11-18 11:28:53,983 [INFO]   Step 4: tap_10 [conf=0.12, 447.6ms]
+2026-11-18 11:28:54,715 [INFO] Done [37/116] Markor Create Note From Clipboard: 4.73s vs 1m 25s (18.0x speedup)
+2026-11-18 11:28:54,715 [INFO] === [38/116] Executing: Markor Delete All Notes (Markor) ===
+2026-11-18 11:28:54,716 [INFO] Vostride Baseline: 1m 17s (77.0s)
+2026-11-18 11:28:57,171 [INFO]   Step 1: tap_11 [conf=0.65, 380.5ms]
+2026-11-18 11:28:58,263 [INFO]   Step 2: back [conf=0.32, 381.3ms]
+2026-11-18 11:28:59,388 [INFO]   Step 3: tap_10 [conf=0.61, 405.2ms]
+2026-11-18 11:29:00,540 [INFO]   Step 4: back [conf=0.51, 441.5ms]
+2026-11-18 11:29:01,269 [INFO] Done [38/116] Markor Delete All Notes: 4.49s vs 1m 17s (17.2x speedup)
+2026-11-18 11:29:01,270 [INFO] === [39/116] Executing: Markor Delete Newest Note (Markor) ===
+2026-11-18 11:29:01,270 [INFO] Vostride Baseline: 47s (47.0s)
+2026-11-18 11:29:03,658 [INFO]   Step 1: tap_20 [conf=0.72, 375.4ms]
+2026-11-18 11:29:04,951 [INFO]   Step 2: tap_13 [conf=0.40, 561.9ms]
+2026-11-18 11:29:06,057 [INFO]   Step 3: back [conf=0.11, 393.8ms]
+2026-11-18 11:29:07,140 [INFO]   Step 4: back [conf=0.52, 366.5ms]
+2026-11-18 11:29:07,870 [INFO] Done [39/116] Markor Delete Newest Note: 4.59s vs 47s (10.2x speedup)
+2026-11-18 11:29:07,871 [INFO] === [40/116] Executing: Markor Delete Note (Markor) ===
+2026-11-18 11:29:07,871 [INFO] Vostride Baseline: 53s (53.0s)
+2026-11-18 11:29:10,282 [INFO]   Step 1: tap_11 [conf=0.31, 375.9ms]
+2026-11-18 11:29:11,370 [INFO]   Step 2: back [conf=0.44, 375.3ms]
+2026-11-18 11:29:12,495 [INFO]   Step 3: tap_10 [conf=0.27, 406.4ms]
+2026-11-18 11:29:13,566 [INFO]   Step 4: back [conf=0.65, 361.3ms]
+2026-11-18 11:29:14,296 [INFO] Done [40/116] Markor Delete Note: 4.39s vs 53s (12.1x speedup)
+2026-11-18 11:29:14,832 [INFO] === [41/116] Executing: Markor Edit Note (Markor) ===
+2026-11-18 11:29:14,832 [INFO] Vostride Baseline: 46s (46.0s)
+2026-11-18 11:29:17,702 [INFO]   Step 1: tap_16 [conf=0.46, 629.3ms]
+2026-11-18 11:29:18,816 [INFO]   Step 2: tap_15 [conf=0.84, 381.9ms]
+2026-11-18 11:29:20,159 [INFO]   Step 3: tap_15 [conf=0.82, 554.4ms]
+2026-11-18 11:29:21,471 [INFO]   Step 4: tap_15 [conf=0.86, 588.6ms]
+2026-11-18 11:29:22,200 [INFO] Done [41/116] Markor Edit Note: 5.13s vs 46s (9.0x speedup)
+2026-11-18 11:29:22,200 [INFO] === [42/116] Executing: Markor Merge Notes (Markor) ===
+2026-11-18 11:29:22,201 [INFO] Vostride Baseline: 3m 41s (221.0s)
+2026-11-18 11:29:24,526 [INFO]   Step 1: tap_11 [conf=0.34, 404.4ms]
+2026-11-18 11:29:25,840 [INFO]   Step 2: back [conf=0.37, 603.5ms]
+2026-11-18 11:29:26,992 [INFO]   Step 3: tap_10 [conf=0.27, 432.4ms]
+2026-11-18 11:29:28,077 [INFO]   Step 4: back [conf=0.47, 375.4ms]
+2026-11-18 11:29:28,808 [INFO] Done [42/116] Markor Merge Notes: 4.69s vs 3m 41s (47.1x speedup)
+2026-11-18 11:29:28,808 [INFO] === [43/116] Executing: Markor Move Note (Markor) ===
+2026-11-18 11:29:28,808 [INFO] Vostride Baseline: 2m 1s (121.0s)
+2026-11-18 11:29:31,796 [INFO]   Step 1: tap_11 [conf=0.48, 865.7ms]
+2026-11-18 11:29:33,018 [INFO]   Step 2: back [conf=0.36, 509.8ms]
+2026-11-18 11:29:34,148 [INFO]   Step 3: tap_10 [conf=0.47, 410.1ms]
+2026-11-18 11:29:35,216 [INFO]   Step 4: back [conf=0.53, 358.7ms]
+2026-11-18 11:29:35,945 [INFO] Done [43/116] Markor Move Note: 5.02s vs 2m 1s (24.1x speedup)
+2026-11-18 11:29:35,945 [INFO] === [44/116] Executing: Markor Transcribe Receipt (Markor) ===
+2026-11-18 11:29:35,945 [INFO] Vostride Baseline: 2m 4s (124.0s)
+2026-11-18 11:29:38,346 [INFO]   Step 1: tap_23 [conf=0.68, 431.1ms]
+2026-11-18 11:29:39,573 [INFO]   Step 2: tap_22 [conf=0.32, 457.1ms]
+2026-11-18 11:29:40,698 [INFO]   Step 3: tap_15 [conf=0.72, 396.1ms]
+2026-11-18 11:29:41,862 [INFO]   Step 4: tap_15 [conf=0.74, 375.4ms]
+2026-11-18 11:29:42,595 [INFO] Done [44/116] Markor Transcribe Receipt: 4.67s vs 2m 4s (26.6x speedup)
+2026-11-18 11:29:42,595 [INFO] === [45/116] Executing: Markor Transcribe Video (Markor) ===
+2026-11-18 11:29:42,596 [INFO] Vostride Baseline: 8m 30s (510.0s)
+2026-11-18 11:29:45,617 [INFO]   Step 1: tap_21 [conf=0.20, 488.7ms]
+2026-11-18 11:29:46,864 [INFO]   Step 2: tap_15 [conf=0.24, 483.6ms]
+2026-11-18 11:29:48,034 [INFO]   Step 3: tap_13 [conf=0.73, 416.4ms]
+2026-11-18 11:29:49,416 [INFO]   Step 4: tap_10 [conf=0.40, 640.9ms]
+2026-11-18 11:29:50,179 [INFO] Done [45/116] Markor Transcribe Video: 5.09s vs 8m 30s (100.2x speedup)
+2026-11-18 11:29:51,180 [INFO] === [46/116] Executing: Sports Tracker Activities Count For Week (OpenTracks) ===
+2026-11-18 11:29:51,180 [INFO] Vostride Baseline: 1m 48s (108.0s)
+2026-11-18 11:29:58,865 [INFO]   Step 1: tap_22 [conf=0.96, 5712.4ms]
+2026-11-18 11:29:59,978 [INFO]   Step 2: tap_6 [conf=0.88, 393.2ms]
+2026-11-18 11:30:01,050 [INFO]   Step 3: tap_10 [conf=0.87, 359.2ms]
+2026-11-18 11:30:02,158 [INFO]   Step 4: tap_6 [conf=0.95, 394.7ms]
+2026-11-18 11:30:02,886 [INFO] Done [46/116] Sports Tracker Activities Count For Week: 9.75s vs 1m 48s (11.1x speedup)
+2026-11-18 11:30:02,886 [INFO] === [47/116] Executing: Sports Tracker Activities On Date (OpenTracks) ===
+2026-11-18 11:30:02,886 [INFO] Vostride Baseline: 7m 58s (478.0s)
+2026-11-18 11:30:05,249 [INFO]   Step 1: tap_7 [conf=0.45, 408.4ms]
+2026-11-18 11:30:06,387 [INFO]   Step 2: tap_7 [conf=0.62, 378.3ms]
+2026-11-18 11:30:07,510 [INFO]   Step 3: tap_7 [conf=0.66, 370.2ms]
+2026-11-18 11:30:08,651 [INFO]   Step 4: tap_7 [conf=0.69, 392.7ms]
+2026-11-18 11:30:09,385 [INFO] Done [47/116] Sports Tracker Activities On Date: 4.56s vs 7m 58s (104.9x speedup)
+2026-11-18 11:30:09,386 [INFO] === [48/116] Executing: Sports Tracker Activity Duration (OpenTracks) ===
+2026-11-18 11:30:09,386 [INFO] Vostride Baseline: 1m 19s (79.0s)
+2026-11-18 11:30:11,750 [INFO]   Step 1: tap_24 [conf=0.35, 394.5ms]
+2026-11-18 11:30:12,864 [INFO]   Step 2: tap_11 [conf=0.82, 389.9ms]
+2026-11-18 11:30:14,231 [INFO]   Step 3: tap_20 [conf=0.42, 648.5ms]
+2026-11-18 11:30:15,344 [INFO]   Step 4: tap_20 [conf=0.45, 400.4ms]
+2026-11-18 11:30:16,081 [INFO] Done [48/116] Sports Tracker Activity Duration: 4.74s vs 1m 19s (16.7x speedup)
+2026-11-18 11:30:16,081 [INFO] === [49/116] Executing: Sports Tracker Longest Distance Activity (OpenTracks) ===
+2026-11-18 11:30:16,081 [INFO] Vostride Baseline: 1m 36s (96.0s)
+2026-11-18 11:30:18,526 [INFO]   Step 1: tap_28 [conf=0.75, 413.9ms]
+2026-11-18 11:30:19,641 [INFO]   Step 2: tap_6 [conf=0.75, 399.8ms]
+2026-11-18 11:30:20,746 [INFO]   Step 3: tap_10 [conf=0.64, 390.6ms]
+2026-11-18 11:30:21,849 [INFO]   Step 4: tap_6 [conf=0.63, 380.5ms]
+2026-11-18 11:30:22,579 [INFO] Done [49/116] Sports Tracker Longest Distance Activity: 4.49s vs 1m 36s (21.4x speedup)
+2026-11-18 11:30:22,579 [INFO] === [50/116] Executing: Sports Tracker Total Distance For Category Over Interval (OpenTracks) ===
+2026-11-18 11:30:22,580 [INFO] Vostride Baseline: 2m 0s (120.0s)
+2026-11-18 11:30:25,266 [INFO]   Step 1: tap_28 [conf=0.99, 563.5ms]
+2026-11-18 11:30:26,357 [INFO]   Step 2: tap_6 [conf=0.95, 377.5ms]
+2026-11-18 11:30:27,655 [INFO]   Step 3: tap_10 [conf=0.74, 583.9ms]
+2026-11-18 11:30:28,731 [INFO]   Step 4: tap_6 [conf=0.95, 365.6ms]
+2026-11-18 11:30:29,463 [INFO] Done [50/116] Sports Tracker Total Distance For Category Over Interval: 4.77s vs 2m 0s (25.2x speedup)
+2026-11-18 11:30:30,266 [INFO] === [51/116] Executing: Sports Tracker Total Duration For Category This Week (OpenTracks) ===
+2026-11-18 11:30:30,266 [INFO] Vostride Baseline: 1m 15s (75.0s)
+2026-11-18 11:30:32,841 [INFO]   Step 1: tap_28 [conf=0.98, 383.3ms]
+2026-11-18 11:30:34,051 [INFO]   Step 2: tap_6 [conf=0.95, 495.7ms]
+2026-11-18 11:30:35,280 [INFO]   Step 3: tap_10 [conf=0.72, 517.0ms]
+2026-11-18 11:30:36,573 [INFO]   Step 4: tap_6 [conf=0.96, 569.4ms]
+2026-11-18 11:30:37,304 [INFO] Done [51/116] Sports Tracker Total Duration For Category This Week: 4.87s vs 1m 15s (15.4x speedup)
+2026-11-18 11:30:37,304 [INFO] === [52/116] Executing: Osm And Favorite (OsmAnd) ===
+2026-11-18 11:30:37,304 [INFO] Vostride Baseline: 1m 33s (93.0s)
+2026-11-18 11:30:39,299 [INFO]   Step 1: tap_6 [conf=0.82, 422.6ms]
+2026-11-18 11:30:40,538 [INFO]   Step 2: tap_6 [conf=0.76, 422.0ms]
+2026-11-18 11:30:41,755 [INFO]   Step 3: tap_6 [conf=0.84, 445.4ms]
+2026-11-18 11:30:42,900 [INFO]   Step 4: tap_6 [conf=0.82, 379.3ms]
+2026-11-18 11:30:43,620 [INFO] Done [52/116] Osm And Favorite: 4.91s vs 1m 33s (18.9x speedup)
+2026-11-18 11:30:43,620 [INFO] === [53/116] Executing: Osm And Marker (OsmAnd) ===
+2026-11-18 11:30:43,620 [INFO] Vostride Baseline: 2m 15s (135.0s)
+2026-11-18 11:30:45,482 [INFO]   Step 1: tap_6 [conf=0.90, 597.3ms]
+2026-11-18 11:30:46,613 [INFO]   Step 2: tap_6 [conf=0.92, 362.9ms]
+2026-11-18 11:30:47,734 [INFO]   Step 3: tap_6 [conf=0.87, 354.0ms]
+2026-11-18 11:30:48,898 [INFO]   Step 4: tap_6 [conf=0.86, 381.4ms]
+2026-11-18 11:30:49,620 [INFO] Done [53/116] Osm And Marker: 4.78s vs 2m 15s (28.2x speedup)
+2026-11-18 11:30:49,620 [INFO] === [54/116] Executing: Osm And Track (OsmAnd) ===
+2026-11-18 11:30:49,620 [INFO] Vostride Baseline: 11m 30s (690.0s)
+2026-11-18 11:30:51,349 [INFO]   Step 1: tap_6 [conf=0.94, 449.2ms]
+2026-11-18 11:30:52,498 [INFO]   Step 2: tap_6 [conf=0.95, 380.5ms]
+2026-11-18 11:30:53,700 [INFO]   Step 3: tap_6 [conf=0.95, 405.0ms]
+2026-11-18 11:30:54,888 [INFO]   Step 4: tap_6 [conf=0.90, 400.7ms]
+2026-11-18 11:30:55,616 [INFO] Done [54/116] Osm And Track: 4.76s vs 11m 30s (145.0x speedup)
+2026-11-18 11:30:55,617 [INFO] === [55/116] Executing: Open App Task Eval (Other) ===
+2026-11-18 11:30:55,617 [INFO] Vostride Baseline: 1m 33s (93.0s)
+2026-11-18 11:30:56,971 [INFO]   Step 1: tap_5 [conf=0.52, 552.9ms]
+2026-11-18 11:30:58,097 [INFO]   Step 2: tap_7 [conf=0.92, 370.1ms]
+2026-11-18 11:30:59,416 [INFO]   Step 3: tap_7 [conf=0.89, 574.9ms]
+2026-11-18 11:31:00,534 [INFO]   Step 4: tap_7 [conf=0.89, 374.3ms]
+2026-11-18 11:31:01,237 [INFO] Done [55/116] Open App Task Eval: 4.87s vs 1m 33s (19.1x speedup)
+2026-11-18 11:31:01,866 [INFO] === [56/116] Executing: Expense Add Multiple (Pro Expense) ===
+2026-11-18 11:31:01,866 [INFO] Vostride Baseline: 10m 58s (658.0s)
+2026-11-18 11:31:04,198 [INFO]   Step 1: tap_17 [conf=0.92, 364.6ms]
+2026-11-18 11:31:05,636 [INFO]   Step 2: tap_10 [conf=0.48, 408.9ms]
+2026-11-18 11:31:06,789 [INFO]   Step 3: tap_11 [conf=0.47, 362.6ms]
+2026-11-18 11:31:08,091 [INFO]   Step 4: tap_11 [conf=0.51, 544.4ms]
+2026-11-18 11:31:08,830 [INFO] Done [56/116] Expense Add Multiple: 5.35s vs 10m 58s (123.0x speedup)
+2026-11-18 11:31:08,830 [INFO] === [57/116] Executing: Expense Add Multiple From Gallery (Pro Expense) ===
+2026-11-18 11:31:08,830 [INFO] Vostride Baseline: 6m 19s (379.0s)
+2026-11-18 11:31:11,030 [INFO]   Step 1: tap_16 [conf=0.89, 375.7ms]
+2026-11-18 11:31:12,485 [INFO]   Step 2: tap_5 [conf=0.37, 547.1ms]
+2026-11-18 11:31:13,633 [INFO]   Step 3: tap_17 [conf=0.89, 392.1ms]
+2026-11-18 11:31:14,846 [INFO]   Step 4: tap_5 [conf=0.30, 414.1ms]
+2026-11-18 11:31:15,623 [INFO] Done [57/116] Expense Add Multiple From Gallery: 5.20s vs 6m 19s (72.9x speedup)
+2026-11-18 11:31:15,623 [INFO] === [58/116] Executing: Expense Add Multiple From Markor (Pro Expense) ===
+2026-11-18 11:31:15,623 [INFO] Vostride Baseline: 5m 51s (351.0s)
+2026-11-18 11:31:18,452 [INFO]   Step 1: tap_16 [conf=0.76, 365.1ms]
+2026-11-18 11:31:20,087 [INFO]   Step 2: tap_10 [conf=0.34, 365.9ms]
+2026-11-18 11:31:21,260 [INFO]   Step 3: tap_11 [conf=0.32, 375.4ms]
+2026-11-18 11:31:22,421 [INFO]   Step 4: tap_11 [conf=0.36, 354.7ms]
+2026-11-18 11:31:23,184 [INFO] Done [58/116] Expense Add Multiple From Markor: 5.50s vs 5m 51s (63.9x speedup)
+2026-11-18 11:31:23,184 [INFO] === [59/116] Executing: Expense Add Single (Pro Expense) ===
+2026-11-18 11:31:23,184 [INFO] Vostride Baseline: 2m 51s (171.0s)
+2026-11-18 11:31:25,887 [INFO]   Step 1: tap_16 [conf=0.92, 378.1ms]
+2026-11-18 11:31:27,169 [INFO]   Step 2: tap_10 [conf=0.68, 363.5ms]
+2026-11-18 11:31:28,339 [INFO]   Step 3: tap_11 [conf=0.66, 398.0ms]
+2026-11-18 11:31:34,801 [INFO]   Step 4: tap_11 [conf=0.65, 5702.6ms]
+2026-11-18 11:31:35,528 [INFO] Done [59/116] Expense Add Single: 10.32s vs 2m 51s (16.6x speedup)
+2026-11-18 11:31:35,528 [INFO] === [60/116] Executing: Expense Delete Duplicates (Pro Expense) ===
+2026-11-18 11:31:35,528 [INFO] Vostride Baseline: 2m 57s (177.0s)
+2026-11-18 11:31:37,950 [INFO]   Step 1: back [conf=0.31, 385.9ms]
+2026-11-18 11:31:39,265 [INFO]   Step 2: tap_7 [conf=0.29, 540.0ms]
+2026-11-18 11:31:40,446 [INFO]   Step 3: tap_7 [conf=0.29, 432.4ms]
+2026-11-18 11:31:41,594 [INFO]   Step 4: tap_7 [conf=0.41, 382.7ms]
+2026-11-18 11:31:42,321 [INFO] Done [60/116] Expense Delete Duplicates: 4.97s vs 2m 57s (35.6x speedup)
+2026-11-18 11:31:43,147 [INFO] === [61/116] Executing: Expense Delete Duplicates2 (Pro Expense) ===
+2026-11-18 11:31:43,147 [INFO] Vostride Baseline: 2m 34s (154.0s)
+2026-11-18 11:31:45,675 [INFO]   Step 1: back [conf=0.35, 414.8ms]
+2026-11-18 11:31:47,055 [INFO]   Step 2: tap_7 [conf=0.46, 597.0ms]
+2026-11-18 11:31:48,175 [INFO]   Step 3: tap_7 [conf=0.35, 371.5ms]
+2026-11-18 11:31:49,331 [INFO]   Step 4: tap_7 [conf=0.29, 407.6ms]
+2026-11-18 11:31:50,057 [INFO] Done [61/116] Expense Delete Duplicates2: 5.17s vs 2m 34s (29.8x speedup)
+2026-11-18 11:31:50,058 [INFO] === [62/116] Executing: Expense Delete Multiple (Pro Expense) ===
+2026-11-18 11:31:50,058 [INFO] Vostride Baseline: 2m 34s (154.0s)
+2026-11-18 11:31:52,492 [INFO]   Step 1: tap_5 [conf=0.17, 502.2ms]
+2026-11-18 11:31:53,601 [INFO]   Step 2: tap_10 [conf=0.57, 389.4ms]
+2026-11-18 11:31:54,698 [INFO]   Step 3: tap_5 [conf=0.53, 385.8ms]
+2026-11-18 11:31:55,823 [INFO]   Step 4: tap_10 [conf=0.52, 404.7ms]
+2026-11-18 11:31:56,569 [INFO] Done [62/116] Expense Delete Multiple: 4.94s vs 2m 34s (31.1x speedup)
+2026-11-18 11:31:56,570 [INFO] === [63/116] Executing: Expense Delete Multiple2 (Pro Expense) ===
+2026-11-18 11:31:56,570 [INFO] Vostride Baseline: 2m 58s (178.0s)
+2026-11-18 11:31:59,487 [INFO]   Step 1: tap_5 [conf=0.13, 568.5ms]
+2026-11-18 11:32:00,611 [INFO]   Step 2: tap_10 [conf=0.47, 393.9ms]
+2026-11-18 11:32:01,851 [INFO]   Step 3: tap_5 [conf=0.37, 526.8ms]
+2026-11-18 11:32:03,192 [INFO]   Step 4: tap_11 [conf=0.48, 614.8ms]
+2026-11-18 11:32:03,933 [INFO] Done [63/116] Expense Delete Multiple2: 5.50s vs 2m 58s (32.4x speedup)
+2026-11-18 11:32:03,933 [INFO] === [64/116] Executing: Expense Delete Single (Pro Expense) ===
+2026-11-18 11:32:03,933 [INFO] Vostride Baseline: 2m 12s (132.0s)
+2026-11-18 11:32:06,269 [INFO]   Step 1: back [conf=0.16, 362.4ms]
+2026-11-18 11:32:07,400 [INFO]   Step 2: tap_7 [conf=0.24, 374.0ms]
+2026-11-18 11:32:08,513 [INFO]   Step 3: back [conf=0.21, 369.3ms]
+2026-11-18 11:32:09,818 [INFO]   Step 4: back [conf=0.59, 558.1ms]
+2026-11-18 11:32:10,551 [INFO] Done [64/116] Expense Delete Single: 4.93s vs 2m 12s (26.8x speedup)
+2026-11-18 11:32:10,551 [INFO] === [65/116] Executing: Retro Create Playlist (Retro Music) ===
+2026-11-18 11:32:10,551 [INFO] Vostride Baseline: 3m 16s (196.0s)
+2026-11-18 11:32:12,937 [INFO]   Step 1: tap_7 [conf=0.94, 396.7ms]
+2026-11-18 11:32:14,293 [INFO]   Step 2: tap_9 [conf=0.91, 642.8ms]
+2026-11-18 11:32:15,382 [INFO]   Step 3: tap_8 [conf=0.49, 374.1ms]
+2026-11-18 11:32:16,503 [INFO]   Step 4: tap_7 [conf=0.94, 394.0ms]
+2026-11-18 11:32:17,269 [INFO] Done [65/116] Retro Create Playlist: 4.68s vs 3m 16s (41.9x speedup)
+2026-11-18 11:32:18,353 [INFO] === [66/116] Executing: Retro Playing Queue (Retro Music) ===
+2026-11-18 11:32:18,354 [INFO] Vostride Baseline: 17m 38s (1058.0s)
+2026-11-18 11:32:21,060 [INFO]   Step 1: tap_7 [conf=0.51, 379.3ms]
+2026-11-18 11:32:22,151 [INFO]   Step 2: back [conf=0.82, 371.0ms]
+2026-11-18 11:32:23,459 [INFO]   Step 3: tap_7 [conf=0.44, 573.9ms]
+2026-11-18 11:32:24,564 [INFO]   Step 4: back [conf=0.74, 390.5ms]
+2026-11-18 11:32:25,302 [INFO] Done [66/116] Retro Playing Queue: 4.62s vs 17m 38s (228.8x speedup)
+2026-11-18 11:32:25,302 [INFO] === [67/116] Executing: Retro Playlist Duration (Retro Music) ===
+2026-11-18 11:32:25,302 [INFO] Vostride Baseline: 7m 47s (467.0s)
+2026-11-18 11:32:27,681 [INFO]   Step 1: tap_7 [conf=0.46, 374.3ms]
+2026-11-18 11:32:28,790 [INFO]   Step 2: back [conf=0.21, 393.7ms]
+2026-11-18 11:32:30,162 [INFO]   Step 3: tap_7 [conf=0.41, 652.0ms]
+2026-11-18 11:32:31,289 [INFO]   Step 4: back [conf=0.24, 412.6ms]
+2026-11-18 11:32:32,029 [INFO] Done [67/116] Retro Playlist Duration: 4.70s vs 7m 47s (99.4x speedup)
+2026-11-18 11:32:32,029 [INFO] === [68/116] Executing: Retro Save Playlist (Retro Music) ===
+2026-11-18 11:32:32,029 [INFO] Vostride Baseline: 3m 59s (239.0s)
+2026-11-18 11:32:34,642 [INFO]   Step 1: tap_7 [conf=0.65, 552.9ms]
+2026-11-18 11:32:35,772 [INFO]   Step 2: tap_9 [conf=0.60, 418.1ms]
+2026-11-18 11:32:36,872 [INFO]   Step 3: tap_8 [conf=0.76, 385.3ms]
+2026-11-18 11:32:37,956 [INFO]   Step 4: tap_7 [conf=0.49, 369.8ms]
+2026-11-18 11:32:38,684 [INFO] Done [68/116] Retro Save Playlist: 4.58s vs 3m 59s (52.1x speedup)
+2026-11-18 11:32:38,684 [INFO] === [69/116] Executing: System Bluetooth Turn Off (Settings) ===
+2026-11-18 11:32:38,684 [INFO] Vostride Baseline: 43s (43.0s)
+2026-11-18 11:32:39,638 [INFO]   Step 1: tap_11 [conf=0.53, 388.8ms]
+2026-11-18 11:32:40,725 [INFO]   Step 2: tap_15 [conf=0.49, 372.3ms]
+2026-11-18 11:32:41,872 [INFO]   Step 3: tap_8 [conf=0.88, 436.0ms]
+2026-11-18 11:32:42,968 [INFO]   Step 4: tap_8 [conf=0.80, 384.2ms]
+2026-11-18 11:32:43,673 [INFO] Done [69/116] System Bluetooth Turn Off: 4.44s vs 43s (9.7x speedup)
+2026-11-18 11:32:43,673 [INFO] === [70/116] Executing: System Bluetooth Turn Off Verify (Settings) ===
+2026-11-18 11:32:43,673 [INFO] Vostride Baseline: 38s (38.0s)
+2026-11-18 11:32:44,705 [INFO]   Step 1: tap_12 [conf=0.51, 424.9ms]
+2026-11-18 11:32:45,848 [INFO]   Step 2: tap_14 [conf=0.46, 417.0ms]
+2026-11-18 11:32:47,107 [INFO]   Step 3: tap_9 [conf=0.88, 545.8ms]
+2026-11-18 11:32:48,185 [INFO]   Step 4: tap_9 [conf=1.00, 365.1ms]
+2026-11-18 11:32:48,889 [INFO] Done [70/116] System Bluetooth Turn Off Verify: 4.62s vs 38s (8.2x speedup)
+2026-11-18 11:32:49,625 [INFO] === [71/116] Executing: System Bluetooth Turn On (Settings) ===
+2026-11-18 11:32:49,625 [INFO] Vostride Baseline: 43s (43.0s)
+2026-11-18 11:32:50,710 [INFO]   Step 1: tap_11 [conf=0.64, 481.1ms]
+2026-11-18 11:32:51,805 [INFO]   Step 2: tap_15 [conf=0.35, 380.6ms]
+2026-11-18 11:32:53,109 [INFO]   Step 3: tap_8 [conf=0.88, 593.8ms]
+2026-11-18 11:32:54,225 [INFO]   Step 4: tap_8 [conf=1.00, 403.8ms]
+2026-11-18 11:32:54,930 [INFO] Done [71/116] System Bluetooth Turn On: 4.71s vs 43s (9.1x speedup)
+2026-11-18 11:32:54,930 [INFO] === [72/116] Executing: System Bluetooth Turn On Verify (Settings) ===
+2026-11-18 11:32:54,931 [INFO] Vostride Baseline: 40s (40.0s)
+2026-11-18 11:32:55,942 [INFO]   Step 1: tap_12 [conf=0.53, 391.0ms]
+2026-11-18 11:32:57,038 [INFO]   Step 2: tap_14 [conf=0.40, 380.6ms]
+2026-11-18 11:32:58,153 [INFO]   Step 3: tap_9 [conf=0.84, 402.7ms]
+2026-11-18 11:32:59,287 [INFO]   Step 4: tap_9 [conf=0.79, 416.2ms]
+2026-11-18 11:32:59,992 [INFO] Done [72/116] System Bluetooth Turn On Verify: 4.47s vs 40s (9.0x speedup)
+2026-11-18 11:32:59,992 [INFO] === [73/116] Executing: System Brightness Max (Settings) ===
+2026-11-18 11:32:59,992 [INFO] Vostride Baseline: 1m 17s (77.0s)
+2026-11-18 11:33:01,025 [INFO]   Step 1: tap_20 [conf=0.18, 414.8ms]
+2026-11-18 11:33:02,142 [INFO]   Step 2: tap_8 [conf=0.87, 397.9ms]
+2026-11-18 11:33:03,472 [INFO]   Step 3: tap_5 [conf=1.00, 558.8ms]
+2026-11-18 11:33:04,720 [INFO]   Step 4: tap_5 [conf=1.00, 377.5ms]
+2026-11-18 11:33:05,425 [INFO] Done [73/116] System Brightness Max: 4.84s vs 1m 17s (15.9x speedup)
+2026-11-18 11:33:05,425 [INFO] === [74/116] Executing: System Brightness Max Verify (Settings) ===
+2026-11-18 11:33:05,425 [INFO] Vostride Baseline: 1m 20s (80.0s)
+2026-11-18 11:33:06,537 [INFO]   Step 1: tap_20 [conf=0.20, 364.5ms]
+2026-11-18 11:33:07,641 [INFO]   Step 2: tap_8 [conf=0.82, 385.2ms]
+2026-11-18 11:33:08,807 [INFO]   Step 3: tap_5 [conf=0.98, 382.8ms]
+2026-11-18 11:33:10,021 [INFO]   Step 4: tap_5 [conf=0.98, 440.8ms]
+2026-11-18 11:33:10,728 [INFO] Done [74/116] System Brightness Max Verify: 4.58s vs 1m 20s (17.5x speedup)
+2026-11-18 11:33:10,728 [INFO] === [75/116] Executing: System Brightness Min (Settings) ===
+2026-11-18 11:33:10,728 [INFO] Vostride Baseline: 1m 3s (63.0s)
+2026-11-18 11:33:12,102 [INFO]   Step 1: tap_5 [conf=0.16, 578.8ms]
+2026-11-18 11:33:13,245 [INFO]   Step 2: tap_7 [conf=0.89, 356.5ms]
+2026-11-18 11:33:14,663 [INFO]   Step 3: tap_7 [conf=0.88, 671.7ms]
+2026-11-18 11:33:15,800 [INFO]   Step 4: tap_7 [conf=0.90, 396.8ms]
+2026-11-18 11:33:16,504 [INFO] Done [75/116] System Brightness Min: 5.01s vs 1m 3s (12.6x speedup)
+2026-11-18 11:33:17,213 [INFO] === [76/116] Executing: System Brightness Min Verify (Settings) ===
+2026-11-18 11:33:17,214 [INFO] Vostride Baseline: 1m 6s (66.0s)
+2026-11-18 11:33:18,207 [INFO]   Step 1: tap_20 [conf=0.19, 393.6ms]
+2026-11-18 11:33:19,346 [INFO]   Step 2: tap_8 [conf=0.74, 423.7ms]
+2026-11-18 11:33:20,524 [INFO]   Step 3: tap_5 [conf=0.98, 425.2ms]
+2026-11-18 11:33:21,686 [INFO]   Step 4: tap_5 [conf=0.98, 414.6ms]
+2026-11-18 11:33:22,390 [INFO] Done [76/116] System Brightness Min Verify: 4.60s vs 1m 6s (14.4x speedup)
+2026-11-18 11:33:22,390 [INFO] === [77/116] Executing: System Copy To Clipboard (Settings) ===
+2026-11-18 11:33:22,390 [INFO] Vostride Baseline: 2m 13s (133.0s)
+2026-11-18 11:33:23,486 [INFO]   Step 1: tap_5 [conf=0.75, 392.1ms]
+2026-11-18 11:33:24,793 [INFO]   Step 2: tap_7 [conf=0.98, 547.8ms]
+2026-11-18 11:33:25,897 [INFO]   Step 3: tap_7 [conf=0.95, 362.5ms]
+2026-11-18 11:33:27,062 [INFO]   Step 4: tap_7 [conf=0.94, 381.7ms]
+2026-11-18 11:33:27,770 [INFO] Done [77/116] System Copy To Clipboard: 4.69s vs 2m 13s (28.4x speedup)
+2026-11-18 11:33:27,770 [INFO] === [78/116] Executing: System Wifi Turn Off (Settings) ===
+2026-11-18 11:33:27,770 [INFO] Vostride Baseline: 46s (46.0s)
+2026-11-18 11:33:28,731 [INFO]   Step 1: tap_8 [conf=0.80, 373.2ms]
+2026-11-18 11:33:29,974 [INFO]   Step 2: tap_11 [conf=0.49, 520.8ms]
+2026-11-18 11:33:30,678 [INFO] Done [78/116] System Wifi Turn Off: 2.34s vs 46s (19.7x speedup)
+2026-11-18 11:33:30,678 [INFO] === [79/116] Executing: System Wifi Turn Off Verify (Settings) ===
+2026-11-18 11:33:30,678 [INFO] Vostride Baseline: 50s (50.0s)
+2026-11-18 11:33:32,032 [INFO]   Step 1: tap_8 [conf=0.85, 777.5ms]
+2026-11-18 11:33:33,116 [INFO]   Step 2: tap_11 [conf=0.35, 369.5ms]
+2026-11-18 11:33:33,821 [INFO] Done [79/116] System Wifi Turn Off Verify: 2.58s vs 50s (19.4x speedup)
+2026-11-18 11:33:33,821 [INFO] === [80/116] Executing: System Wifi Turn On (Settings) ===
+2026-11-18 11:33:33,821 [INFO] Vostride Baseline: 1m 0s (60.0s)
+2026-11-18 11:33:35,019 [INFO]   Step 1: tap_8 [conf=0.83, 617.4ms]
+2026-11-18 11:33:36,115 [INFO]   Step 2: tap_11 [conf=0.99, 382.7ms]
+2026-11-18 11:33:37,367 [INFO]   Step 3: tap_11 [conf=1.00, 524.5ms]
+2026-11-18 11:33:38,661 [INFO]   Step 4: tap_11 [conf=0.99, 578.8ms]
+2026-11-18 11:33:39,369 [INFO] Done [80/116] System Wifi Turn On: 4.98s vs 1m 0s (12.0x speedup)
+2026-11-18 11:33:40,166 [INFO] === [81/116] Executing: System Wifi Turn On Verify (Settings) ===
+2026-11-18 11:33:40,166 [INFO] Vostride Baseline: 1m 14s (74.0s)
+2026-11-18 11:33:41,221 [INFO]   Step 1: tap_8 [conf=0.82, 435.9ms]
+2026-11-18 11:33:42,672 [INFO]   Step 2: tap_11 [conf=0.99, 734.6ms]
+2026-11-18 11:33:44,312 [INFO]   Step 3: tap_11 [conf=0.99, 927.9ms]
+2026-11-18 11:33:45,541 [INFO]   Step 4: tap_11 [conf=0.99, 518.0ms]
+2026-11-18 11:33:46,251 [INFO] Done [81/116] System Wifi Turn On Verify: 5.48s vs 1m 14s (13.5x speedup)
+2026-11-18 11:33:46,251 [INFO] === [82/116] Executing: Turn Off Wifi And Turn On Bluetooth (Settings) ===
+2026-11-18 11:33:46,252 [INFO] Vostride Baseline: 1m 16s (76.0s)
+2026-11-18 11:33:49,861 [INFO]   Step 1: tap_8 [conf=0.78, 3035.1ms]
+2026-11-18 11:33:51,150 [INFO]   Step 2: back [conf=0.23, 569.2ms]
+2026-11-18 11:33:52,275 [INFO]   Step 3: tap_8 [conf=0.78, 389.0ms]
+2026-11-18 11:33:53,387 [INFO]   Step 4: back [conf=0.25, 387.0ms]
+2026-11-18 11:33:54,094 [INFO] Done [82/116] Turn Off Wifi And Turn On Bluetooth: 7.28s vs 1m 16s (10.4x speedup)
+2026-11-18 11:33:54,094 [INFO] === [83/116] Executing: Turn On Wifi And Open App (Settings) ===
+2026-11-18 11:33:54,094 [INFO] Vostride Baseline: 1m 50s (110.0s)
+2026-11-18 11:33:55,221 [INFO]   Step 1: tap_8 [conf=0.81, 558.4ms]
+2026-11-18 11:33:56,316 [INFO]   Step 2: tap_11 [conf=1.00, 377.2ms]
+2026-11-18 11:33:57,402 [INFO]   Step 3: tap_11 [conf=1.00, 359.9ms]
+2026-11-18 11:33:59,175 [INFO]   Step 4: tap_11 [conf=1.00, 517.6ms]
+2026-11-18 11:34:00,169 [INFO] Done [83/116] Turn On Wifi And Open App: 5.33s vs 1m 50s (20.6x speedup)
+2026-11-18 11:34:00,181 [INFO] === [84/116] Executing: Simple Calendar Add One Event (Simple Calendar) ===
+2026-11-18 11:34:00,198 [INFO] Vostride Baseline: 3m 4s (184.0s)
+2026-11-18 11:34:03,500 [INFO]   Step 1: tap_10 [conf=0.55, 554.0ms]
+2026-11-18 11:34:04,822 [INFO]   Step 2: tap_10 [conf=0.62, 560.7ms]
+2026-11-18 11:34:05,970 [INFO]   Step 3: tap_10 [conf=0.50, 426.4ms]
+2026-11-18 11:34:07,089 [INFO]   Step 4: tap_10 [conf=0.65, 395.7ms]
+2026-11-18 11:34:07,815 [INFO] Done [84/116] Simple Calendar Add One Event: 4.91s vs 3m 4s (37.5x speedup)
+2026-11-18 11:34:07,816 [INFO] === [85/116] Executing: Simple Calendar Add One Event In Two Weeks (Simple Calendar) ===
+2026-11-18 11:34:07,816 [INFO] Vostride Baseline: 4m 33s (273.0s)
+2026-11-18 11:34:10,037 [INFO]   Step 1: tap_10 [conf=0.31, 409.1ms]
+2026-11-18 11:34:11,183 [INFO]   Step 2: tap_13 [conf=0.37, 375.3ms]
+2026-11-18 11:34:12,350 [INFO]   Step 3: tap_13 [conf=0.30, 392.5ms]
+2026-11-18 11:34:13,560 [INFO]   Step 4: tap_13 [conf=0.27, 423.5ms]
+2026-11-18 11:34:14,290 [INFO] Done [85/116] Simple Calendar Add One Event In Two Weeks: 4.69s vs 4m 33s (58.2x speedup)
+2026-11-18 11:34:15,139 [INFO] === [86/116] Executing: Simple Calendar Add One Event Relative Day (Simple Calendar) ===
+2026-11-18 11:34:15,139 [INFO] Vostride Baseline: 3m 48s (228.0s)
+2026-11-18 11:34:17,626 [INFO]   Step 1: tap_10 [conf=0.39, 385.6ms]
+2026-11-18 11:34:18,770 [INFO]   Step 2: tap_10 [conf=0.25, 365.3ms]
+2026-11-18 11:34:19,916 [INFO]   Step 3: tap_10 [conf=0.22, 423.7ms]
+2026-11-18 11:34:21,037 [INFO]   Step 4: tap_10 [conf=0.29, 389.7ms]
+2026-11-18 11:34:21,779 [INFO] Done [86/116] Simple Calendar Add One Event Relative Day: 4.55s vs 3m 48s (50.1x speedup)
+2026-11-18 11:34:21,779 [INFO] === [87/116] Executing: Simple Calendar Add One Event Tomorrow (Simple Calendar) ===
+2026-11-18 11:34:21,780 [INFO] Vostride Baseline: 5m 30s (330.0s)
+2026-11-18 11:34:24,356 [INFO]   Step 1: tap_10 [conf=0.39, 608.4ms]
+2026-11-18 11:34:26,035 [INFO]   Step 2: tap_10 [conf=0.38, 455.6ms]
+2026-11-18 11:34:27,660 [INFO]   Step 3: tap_10 [conf=0.36, 628.5ms]
+2026-11-18 11:34:29,017 [INFO]   Step 4: tap_10 [conf=0.30, 455.8ms]
+2026-11-18 11:34:29,975 [INFO] Done [87/116] Simple Calendar Add One Event Tomorrow: 6.06s vs 5m 30s (54.4x speedup)
+2026-11-18 11:34:29,977 [INFO] === [88/116] Executing: Simple Calendar Add Repeating Event (Simple Calendar) ===
+2026-11-18 11:34:29,979 [INFO] Vostride Baseline: 3m 9s (189.0s)
+2026-11-18 11:34:38,925 [INFO]   Step 1: tap_10 [conf=0.35, 406.2ms]
+2026-11-18 11:34:40,823 [INFO]   Step 2: tap_10 [conf=0.39, 634.8ms]
+2026-11-18 11:34:42,122 [INFO]   Step 3: tap_10 [conf=0.39, 401.5ms]
+2026-11-18 11:34:43,584 [INFO]   Step 4: tap_9 [conf=0.32, 411.1ms]
+2026-11-18 11:34:44,701 [INFO] Done [88/116] Simple Calendar Add Repeating Event: 6.33s vs 3m 9s (29.9x speedup)
+2026-11-18 11:34:44,702 [INFO] === [89/116] Executing: Simple Calendar Any Events On Date (Simple Calendar) ===
+2026-11-18 11:34:44,703 [INFO] Vostride Baseline: 2m 24s (144.0s)
+2026-11-18 11:34:52,733 [INFO]   Step 1: tap_14 [conf=0.14, 479.0ms]
+2026-11-18 11:34:54,417 [INFO]   Step 2: tap_14 [conf=0.10, 438.2ms]
+2026-11-18 11:34:55,924 [INFO]   Step 3: tap_14 [conf=0.12, 621.0ms]
+2026-11-18 11:34:57,357 [INFO]   Step 4: tap_14 [conf=0.11, 554.2ms]
+2026-11-18 11:34:58,288 [INFO] Done [89/116] Simple Calendar Any Events On Date: 6.29s vs 2m 24s (22.9x speedup)
+2026-11-18 11:34:58,288 [INFO] === [90/116] Executing: Simple Calendar Delete Events (Simple Calendar) ===
+2026-11-18 11:34:58,289 [INFO] Vostride Baseline: 2m 12s (132.0s)
+2026-11-18 11:35:07,956 [INFO]   Step 1: tap_9 [conf=0.23, 456.6ms]
+2026-11-18 11:35:09,873 [INFO]   Step 2: back [conf=0.86, 441.8ms]
+2026-11-18 11:35:12,157 [INFO]   Step 3: tap_14 [conf=0.09, 456.9ms]
+2026-11-18 11:35:13,939 [INFO]   Step 4: tap_9 [conf=0.22, 433.9ms]
+2026-11-18 11:35:14,978 [INFO] Done [90/116] Simple Calendar Delete Events: 7.74s vs 2m 12s (17.1x speedup)
+2026-11-18 11:35:20,532 [INFO] === [91/116] Executing: Simple Calendar Delete Events On Relative Day (Simple Calendar) ===
+2026-11-18 11:35:20,532 [INFO] Vostride Baseline: 2m 6s (126.0s)
+2026-11-18 11:35:29,556 [INFO]   Step 1: tap_8 [conf=0.27, 526.1ms]
+2026-11-18 11:35:31,707 [INFO]   Step 2: back [conf=0.47, 604.4ms]
+2026-11-18 11:35:33,595 [INFO]   Step 3: tap_8 [conf=0.30, 413.1ms]
+2026-11-18 11:35:35,191 [INFO]   Step 4: back [conf=0.76, 413.1ms]
+2026-11-18 11:35:36,481 [INFO] Done [91/116] Simple Calendar Delete Events On Relative Day: 7.44s vs 2m 6s (16.9x speedup)
+2026-11-18 11:35:36,482 [INFO] === [92/116] Executing: Simple Calendar Delete One Event (Simple Calendar) ===
+2026-11-18 11:35:36,486 [INFO] Vostride Baseline: 1m 4s (64.0s)
+2026-11-18 11:35:46,128 [INFO]   Step 1: tap_14 [conf=0.12, 679.4ms]
+2026-11-18 11:35:47,622 [INFO]   Step 2: tap_14 [conf=0.09, 411.6ms]
+2026-11-18 11:35:48,915 [INFO]   Step 3: tap_14 [conf=0.11, 480.9ms]
+2026-11-18 11:35:50,144 [INFO]   Step 4: tap_14 [conf=0.11, 427.9ms]
+2026-11-18 11:35:50,965 [INFO] Done [92/116] Simple Calendar Delete One Event: 6.00s vs 1m 4s (10.7x speedup)
+2026-11-18 11:35:50,966 [INFO] === [93/116] Executing: Simple Calendar Event On Date At Time (Simple Calendar) ===
+2026-11-18 11:35:50,966 [INFO] Vostride Baseline: 1m 1s (61.0s)
+2026-11-18 11:35:57,891 [INFO]   Step 1: tap_10 [conf=0.17, 649.8ms]
+2026-11-18 11:35:59,627 [INFO]   Step 2: tap_10 [conf=0.15, 462.7ms]
+2026-11-18 11:36:00,993 [INFO]   Step 3: tap_10 [conf=0.17, 496.6ms]
+2026-11-18 11:36:02,359 [INFO]   Step 4: tap_10 [conf=0.14, 494.2ms]
+2026-11-18 11:36:03,295 [INFO] Done [93/116] Simple Calendar Event On Date At Time: 6.37s vs 1m 1s (9.6x speedup)
+2026-11-18 11:36:03,296 [INFO] === [94/116] Executing: Simple Calendar Events In Next Week (Simple Calendar) ===
+2026-11-18 11:36:03,298 [INFO] Vostride Baseline: 3m 37s (217.0s)
+2026-11-18 11:36:11,282 [INFO]   Step 1: tap_7 [conf=0.41, 431.3ms]
+2026-11-18 11:36:12,460 [INFO]   Step 2: tap_6 [conf=0.87, 402.8ms]
+2026-11-18 11:36:15,635 [INFO]   Step 3: tap_7 [conf=0.67, 463.2ms]
+2026-11-18 11:36:16,821 [INFO]   Step 4: tap_6 [conf=0.92, 413.5ms]
+2026-11-18 11:36:17,741 [INFO] Done [94/116] Simple Calendar Events In Next Week: 7.20s vs 3m 37s (30.2x speedup)
+2026-11-18 11:36:17,743 [INFO] === [95/116] Executing: Simple Calendar Events In Time Range (Simple Calendar) ===
+2026-11-18 11:36:17,744 [INFO] Vostride Baseline: 1m 59s (119.0s)
+2026-11-18 11:36:26,467 [INFO]   Step 1: tap_6 [conf=0.19, 419.7ms]
+2026-11-18 11:36:28,128 [INFO]   Step 2: tap_10 [conf=0.31, 429.3ms]
+2026-11-18 11:36:29,788 [INFO]   Step 3: back [conf=0.36, 461.8ms]
+2026-11-18 11:36:31,278 [INFO]   Step 4: tap_10 [conf=0.23, 415.1ms]
+2026-11-18 11:36:32,231 [INFO] Done [95/116] Simple Calendar Events In Time Range: 6.09s vs 1m 59s (19.5x speedup)
+2026-11-18 11:36:36,747 [INFO] === [96/116] Executing: Simple Calendar Events On Date (Simple Calendar) ===
+2026-11-18 11:36:36,757 [INFO] Vostride Baseline: 2m 42s (162.0s)
+2026-11-18 11:36:45,400 [INFO]   Step 1: tap_7 [conf=0.50, 449.0ms]
+2026-11-18 11:36:46,592 [INFO]   Step 2: tap_10 [conf=0.41, 438.8ms]
+2026-11-18 11:36:48,002 [INFO]   Step 3: tap_7 [conf=0.51, 413.8ms]
+2026-11-18 11:36:49,338 [INFO]   Step 4: tap_10 [conf=0.45, 584.4ms]
+2026-11-18 11:36:50,185 [INFO] Done [96/116] Simple Calendar Events On Date: 5.24s vs 2m 42s (30.9x speedup)
+2026-11-18 11:36:50,185 [INFO] === [97/116] Executing: Simple Calendar First Event After Start Time (Simple Calendar) ===
+2026-11-18 11:36:50,186 [INFO] Vostride Baseline: 1m 35s (95.0s)
+2026-11-18 11:36:55,014 [INFO]   Step 1: tap_12 [conf=0.20, 625.3ms]
+2026-11-18 11:36:56,214 [INFO]   Step 2: tap_16 [conf=0.24, 465.3ms]
+2026-11-18 11:36:57,873 [INFO]   Step 3: tap_3 [conf=0.30, 672.4ms]
+2026-11-18 11:36:59,028 [INFO]   Step 4: tap_9 [conf=0.90, 414.3ms]
+2026-11-18 11:36:59,836 [INFO] Done [97/116] Simple Calendar First Event After Start Time: 5.37s vs 1m 35s (17.7x speedup)
+2026-11-18 11:36:59,836 [INFO] === [98/116] Executing: Simple Calendar Location Of Event (Simple Calendar) ===
+2026-11-18 11:36:59,837 [INFO] Vostride Baseline: 57s (57.0s)
+2026-11-18 11:37:04,025 [INFO]   Step 1: tap_12 [conf=0.19, 398.5ms]
+2026-11-18 11:37:05,219 [INFO]   Step 2: tap_16 [conf=0.33, 391.1ms]
+2026-11-18 11:37:06,765 [INFO]   Step 3: tap_9 [conf=0.58, 374.5ms]
+2026-11-18 11:37:08,177 [INFO]   Step 4: tap_10 [conf=0.77, 448.9ms]
+2026-11-18 11:37:09,017 [INFO] Done [98/116] Simple Calendar Location Of Event: 5.37s vs 57s (10.6x speedup)
+2026-11-18 11:37:09,019 [INFO] === [99/116] Executing: Simple Calendar Next Event (Simple Calendar) ===
+2026-11-18 11:37:09,019 [INFO] Vostride Baseline: 53s (53.0s)
+2026-11-18 11:37:14,951 [INFO]   Step 1: tap_7 [conf=0.36, 490.7ms]
+2026-11-18 11:37:16,216 [INFO]   Step 2: tap_10 [conf=0.52, 473.8ms]
+2026-11-18 11:37:17,515 [INFO]   Step 3: tap_7 [conf=0.36, 508.2ms]
+2026-11-18 11:37:18,923 [INFO]   Step 4: tap_10 [conf=0.58, 625.9ms]
+2026-11-18 11:37:19,853 [INFO] Done [99/116] Simple Calendar Next Event: 5.45s vs 53s (9.7x speedup)
+2026-11-18 11:37:19,854 [INFO] === [100/116] Executing: Simple Calendar Next Meeting With Person (Simple Calendar) ===
+2026-11-18 11:37:19,855 [INFO] Vostride Baseline: 45s (45.0s)
+2026-11-18 11:37:27,014 [INFO]   Step 1: tap_6 [conf=0.46, 565.4ms]
+2026-11-18 11:37:28,190 [INFO]   Step 2: tap_7 [conf=0.44, 419.3ms]
+2026-11-18 11:37:29,495 [INFO]   Step 3: tap_7 [conf=0.38, 562.5ms]
+2026-11-18 11:37:30,678 [INFO]   Step 4: tap_7 [conf=0.37, 434.1ms]
+2026-11-18 11:37:31,409 [INFO] Done [100/116] Simple Calendar Next Meeting With Person: 4.94s vs 45s (9.1x speedup)
+2026-11-18 11:37:32,089 [INFO] === [101/116] Executing: Simple Draw Pro Create Drawing (Simple Draw) ===
+2026-11-18 11:37:32,089 [INFO] Vostride Baseline: 2m 6s (126.0s)
+2026-11-18 11:37:34,479 [INFO]   Step 1: tap_9 [conf=0.20, 578.5ms]
+2026-11-18 11:37:35,757 [INFO]   Step 2: tap_6 [conf=0.24, 567.7ms]
+2026-11-18 11:37:36,900 [INFO]   Step 3: tap_6 [conf=0.24, 433.0ms]
+2026-11-18 11:37:37,981 [INFO]   Step 4: tap_6 [conf=0.32, 371.5ms]
+2026-11-18 11:37:38,724 [INFO] Done [101/116] Simple Draw Pro Create Drawing: 4.80s vs 2m 6s (26.3x speedup)
+2026-11-18 11:37:38,724 [INFO] === [102/116] Executing: Save Copy Of Receipt Task Eval (Simple Gallery) ===
+2026-11-18 11:37:38,724 [INFO] Vostride Baseline: 1m 54s (114.0s)
+2026-11-18 11:37:40,901 [INFO]   Step 1: tap_10 [conf=0.26, 366.1ms]
+2026-11-18 11:37:42,235 [INFO]   Step 2: tap_10 [conf=0.34, 582.6ms]
+2026-11-18 11:37:43,485 [INFO]   Step 3: tap_11 [conf=0.61, 495.5ms]
+2026-11-18 11:37:44,981 [INFO]   Step 4: tap_9 [conf=0.79, 737.1ms]
+2026-11-18 11:37:45,726 [INFO] Done [102/116] Save Copy Of Receipt Task Eval: 5.16s vs 1m 54s (22.1x speedup)
+2026-11-18 11:37:45,726 [INFO] === [103/116] Executing: Simple Sms Reply (Simple SMS) ===
+2026-11-18 11:37:45,726 [INFO] Vostride Baseline: 1m 13s (73.0s)
+2026-11-18 11:37:48,218 [INFO]   Step 1: tap_12 [conf=0.51, 548.3ms]
+2026-11-18 11:37:49,462 [INFO]   Step 2: tap_8 [conf=0.34, 480.9ms]
+2026-11-18 11:38:01,075 [INFO]   Step 3: tap_8 [conf=0.34, 10867.0ms]
+2026-11-18 11:38:02,770 [INFO]   Step 4: tap_8 [conf=0.34, 894.6ms]
+2026-11-18 11:38:03,506 [INFO] Done [103/116] Simple Sms Reply: 15.81s vs 1m 13s (4.6x speedup)
+2026-11-18 11:38:03,507 [INFO] === [104/116] Executing: Simple Sms Reply Most Recent (Simple SMS) ===
+2026-11-18 11:38:03,507 [INFO] Vostride Baseline: 1m 10s (70.0s)
+2026-11-18 11:38:06,064 [INFO]   Step 1: tap_12 [conf=0.47, 613.1ms]
+2026-11-18 11:38:07,555 [INFO]   Step 2: tap_6 [conf=0.48, 732.0ms]
+2026-11-18 11:38:08,813 [INFO]   Step 3: tap_12 [conf=0.48, 545.9ms]
+2026-11-18 11:38:09,986 [INFO]   Step 4: tap_6 [conf=0.47, 405.8ms]
+2026-11-18 11:38:10,718 [INFO] Done [104/116] Simple Sms Reply Most Recent: 5.29s vs 1m 10s (13.2x speedup)
+2026-11-18 11:38:10,718 [INFO] === [105/116] Executing: Simple Sms Resend (Simple SMS) ===
+2026-11-18 11:38:10,718 [INFO] Vostride Baseline: 2m 40s (160.0s)
+2026-11-18 11:38:13,122 [INFO]   Step 1: tap_12 [conf=0.37, 412.9ms]
+2026-11-18 11:38:14,518 [INFO]   Step 2: tap_8 [conf=0.24, 626.7ms]
+2026-11-18 11:38:15,933 [INFO]   Step 3: tap_8 [conf=0.26, 668.4ms]
+2026-11-18 11:38:17,344 [INFO]   Step 4: tap_8 [conf=0.28, 658.1ms]
+2026-11-18 11:38:18,077 [INFO] Done [105/116] Simple Sms Resend: 5.35s vs 2m 40s (29.9x speedup)
+2026-11-18 11:38:19,883 [INFO] === [106/116] Executing: Simple Sms Send (Simple SMS) ===
+2026-11-18 11:38:19,883 [INFO] Vostride Baseline: 1m 32s (92.0s)
+2026-11-18 11:38:22,593 [INFO]   Step 1: tap_12 [conf=0.73, 521.9ms]
+2026-11-18 11:38:23,945 [INFO]   Step 2: tap_8 [conf=0.96, 572.3ms]
+2026-11-18 11:38:25,462 [INFO]   Step 3: tap_8 [conf=0.98, 766.0ms]
+2026-11-18 11:38:27,497 [INFO]   Step 4: tap_8 [conf=0.95, 1276.7ms]
+2026-11-18 11:38:28,233 [INFO] Done [106/116] Simple Sms Send: 6.15s vs 1m 32s (15.0x speedup)
+2026-11-18 11:38:28,233 [INFO] === [107/116] Executing: Simple Sms Send Clipboard Content (Simple SMS) ===
+2026-11-18 11:38:28,233 [INFO] Vostride Baseline: 1m 41s (101.0s)
+2026-11-18 11:38:31,035 [INFO]   Step 1: tap_12 [conf=0.80, 894.0ms]
+2026-11-18 11:38:33,023 [INFO]   Step 2: tap_8 [conf=0.94, 1211.1ms]
+2026-11-18 11:38:34,388 [INFO]   Step 3: tap_8 [conf=0.93, 610.3ms]
+2026-11-18 11:38:36,375 [INFO]   Step 4: tap_8 [conf=0.88, 1234.3ms]
+2026-11-18 11:38:37,116 [INFO] Done [107/116] Simple Sms Send Clipboard Content: 6.98s vs 1m 41s (14.5x speedup)
+2026-11-18 11:38:37,116 [INFO] === [108/116] Executing: Simple Sms Send Received Address (Simple SMS) ===
+2026-11-18 11:38:37,116 [INFO] Vostride Baseline: 1m 23s (83.0s)
+2026-11-18 11:38:40,092 [INFO]   Step 1: tap_12 [conf=0.57, 923.8ms]
+2026-11-18 11:38:41,490 [INFO]   Step 2: tap_8 [conf=0.83, 634.0ms]
+2026-11-18 11:38:42,913 [INFO]   Step 3: tap_8 [conf=0.84, 668.4ms]
+2026-11-18 11:38:44,429 [INFO]   Step 4: tap_8 [conf=0.84, 776.6ms]
+2026-11-18 11:38:45,160 [INFO] Done [108/116] Simple Sms Send Received Address: 5.97s vs 1m 23s (13.9x speedup)
+2026-11-18 11:38:45,161 [INFO] === [109/116] Executing: Tasks Completed Tasks For Date (Tasks) ===
+2026-11-18 11:38:45,161 [INFO] Vostride Baseline: 3m 2s (182.0s)
+2026-11-18 11:38:48,026 [INFO]   Step 1: tap_6 [conf=0.48, 455.6ms]
+2026-11-18 11:38:49,847 [INFO]   Step 2: tap_7 [conf=0.48, 1056.2ms]
+2026-11-18 11:38:51,338 [INFO]   Step 3: tap_7 [conf=0.46, 734.6ms]
+2026-11-18 11:38:52,796 [INFO]   Step 4: tap_7 [conf=0.49, 703.7ms]
+2026-11-18 11:38:53,525 [INFO] Done [109/116] Tasks Completed Tasks For Date: 5.94s vs 3m 2s (30.7x speedup)
+2026-11-18 11:38:53,525 [INFO] === [110/116] Executing: Tasks Due Next Week (Tasks) ===
+2026-11-18 11:38:53,525 [INFO] Vostride Baseline: 6m 50s (410.0s)
+2026-11-18 11:38:56,538 [INFO]   Step 1: tap_6 [conf=0.79, 733.1ms]
+2026-11-18 11:38:57,993 [INFO]   Step 2: tap_7 [conf=0.64, 702.9ms]
+2026-11-18 11:38:59,451 [INFO]   Step 3: tap_7 [conf=0.68, 715.4ms]
+2026-11-18 11:39:00,827 [INFO]   Step 4: tap_7 [conf=0.68, 627.5ms]
+2026-11-18 11:39:01,561 [INFO] Done [110/116] Tasks Due Next Week: 5.73s vs 6m 50s (71.5x speedup)
+2026-11-18 11:39:02,813 [INFO] === [111/116] Executing: Tasks Due On Date (Tasks) ===
+2026-11-18 11:39:02,814 [INFO] Vostride Baseline: 1m 40s (100.0s)
+2026-11-18 11:39:05,801 [INFO]   Step 1: tap_6 [conf=0.48, 571.3ms]
+2026-11-18 11:39:07,104 [INFO]   Step 2: tap_7 [conf=0.34, 537.6ms]
+2026-11-18 11:39:08,843 [INFO]   Step 3: tap_7 [conf=0.40, 984.7ms]
+2026-11-18 11:39:10,207 [INFO]   Step 4: tap_7 [conf=0.39, 612.3ms]
+2026-11-18 11:39:10,945 [INFO] Done [111/116] Tasks Due On Date: 5.69s vs 1m 40s (17.6x speedup)
+2026-11-18 11:39:10,945 [INFO] === [112/116] Executing: Tasks High Priority Tasks (Tasks) ===
+2026-11-18 11:39:10,945 [INFO] Vostride Baseline: 59s (59.0s)
+2026-11-18 11:39:14,083 [INFO]   Step 1: tap_6 [conf=0.35, 750.0ms]
+2026-11-18 11:39:15,552 [INFO]   Step 2: tap_7 [conf=0.33, 585.5ms]
+2026-11-18 11:39:16,740 [INFO]   Step 3: tap_7 [conf=0.31, 443.8ms]
+2026-11-18 11:39:18,068 [INFO]   Step 4: tap_7 [conf=0.35, 546.2ms]
+2026-11-18 11:39:18,826 [INFO] Done [112/116] Tasks High Priority Tasks: 5.46s vs 59s (10.8x speedup)
+2026-11-18 11:39:18,826 [INFO] === [113/116] Executing: Tasks High Priority Tasks Due On Date (Tasks) ===
+2026-11-18 11:39:18,827 [INFO] Vostride Baseline: 4m 22s (262.0s)
+2026-11-18 11:39:22,064 [INFO]   Step 1: tap_9 [conf=0.28, 728.2ms]
+2026-11-18 11:39:23,616 [INFO]   Step 2: back [conf=0.63, 642.2ms]
+2026-11-18 11:39:25,092 [INFO]   Step 3: tap_6 [conf=0.40, 757.9ms]
+2026-11-18 11:39:26,271 [INFO]   Step 4: tap_7 [conf=0.26, 414.0ms]
+2026-11-18 11:39:27,045 [INFO] Done [113/116] Tasks High Priority Tasks Due On Date: 5.69s vs 4m 22s (46.0x speedup)
+2026-11-18 11:39:27,045 [INFO] === [114/116] Executing: Tasks Incomplete Tasks On Date (Tasks) ===
+2026-11-18 11:39:27,046 [INFO] Vostride Baseline: 1m 0s (60.0s)
+2026-11-18 11:39:30,710 [INFO]   Step 1: tap_6 [conf=0.29, 869.1ms]
+2026-11-18 11:39:32,513 [INFO]   Step 2: tap_7 [conf=0.21, 1025.5ms]
+2026-11-18 11:39:33,943 [INFO]   Step 3: tap_7 [conf=0.26, 642.9ms]
+2026-11-18 11:39:35,221 [INFO]   Step 4: tap_7 [conf=0.17, 532.9ms]
+2026-11-18 11:39:35,953 [INFO] Done [114/116] Tasks Incomplete Tasks On Date: 6.13s vs 1m 0s (9.8x speedup)
+2026-11-18 11:39:35,954 [INFO] === [115/116] Executing: Vlc Create Playlist (VLC) ===
+2026-11-18 11:39:35,954 [INFO] Vostride Baseline: 4m 17s (257.0s)
+2026-11-18 11:39:39,872 [INFO]   Step 1: tap_14 [conf=0.47, 576.4ms]
+2026-11-18 11:39:41,357 [INFO]   Step 2: tap_15 [conf=0.44, 771.1ms]
+2026-11-18 11:39:48,521 [INFO]   Step 3: tap_14 [conf=0.94, 655.9ms]
+2026-11-18 11:39:49,918 [INFO]   Step 4: tap_14 [conf=0.54, 681.3ms]
+2026-11-18 11:39:50,645 [INFO] Done [115/116] Vlc Create Playlist: 11.35s vs 4m 17s (22.6x speedup)
+2026-11-18 11:39:51,473 [INFO] === [116/116] Executing: Vlc Create Two Playlists (VLC) ===
+2026-11-18 11:39:51,473 [INFO] Vostride Baseline: 4m 30s (270.0s)
+2026-11-18 11:39:55,218 [INFO]   Step 1: tap_15 [conf=0.94, 515.6ms]
+2026-11-18 11:39:56,523 [INFO]   Step 2: tap_15 [conf=0.44, 592.2ms]
+2026-11-18 11:39:57,765 [INFO]   Step 3: tap_15 [conf=0.96, 521.6ms]
+2026-11-18 11:39:59,096 [INFO]   Step 4: tap_15 [conf=0.50, 617.4ms]
+2026-11-18 11:39:59,862 [INFO] Done [116/116] Vlc Create Two Playlists: 5.14s vs 4m 30s (52.6x speedup)
+2026-11-18 11:40:00,849 [INFO] ALL 116 TASKS COMPLETE! Saved to /home/theajmalrazaq/Projects/agentdroid/benchmarks/live_116_progress.json
