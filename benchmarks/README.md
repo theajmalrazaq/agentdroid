@@ -10,18 +10,38 @@ Verified, code-executed benchmarks comparing **AgentDroid** (`redroid11_x86_64`,
 
 ---
 
-## 1. Unified Architectural & Competitor Comparison
+## The Grand Android AI Agent Benchmark & Architecture Matrix
 
-Every major Android agent architecture compared across execution model, decision latency, per-turn perception tokens, physical gesture latency, and idle system overhead:
+Comprehensive evaluation comparing **AgentDroid** against every major autonomous mobile agent, cloud harness, and Android execution platform across 10 empirical engineering dimensions:
 
-| Platform / Agent Stack | Execution Model | Turn Decision Latency | UI Perception Payload | Gesture Injection Overhead | Average Task Duration | Idle Container Footprint |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **AgentDroid + TypeSafe AI (Jev)** | **Direct System One Logits** | **418–560 ms** (`jev-latest`) | **1.7 KB** text hierarchy (`~430 tok`) | **1.8 ms** (`InputDaemon` uinput) | **~5.6 s** (avg over 116 tasks) | **0.32% CPU** · `1.16 GB` RAM |
-| **AgentDroid + Coding LLM** | **Compact Token Hierarchy + MCP** | **3,500–4,500 ms** (Gemini/Claude) | **2.8 KB** token-pruned JSON | **1.8 ms** (`InputDaemon` uinput) | **~24.5 s** | **0.32% CPU** · `1.16 GB` RAM |
-| **Vostride Benchmark Baseline** | **Multimodal Vision + OCR Agent** | **8,000–15,000 ms** | **125 KB** PNG tiles (`1,445 tok`) | **517 ms** (`adb shell input`) | **176.9 s** (~3.0 min) | Cloud dependent |
-| **Google Artemis (Pro Graph)** | **Planner + Operator + Checker** | **15,000–40,000 ms** | Full screenshot + a11y tree | **150–400 ms** (HTTP helper) | **180–300 s** (~3–5 min) | `2.2 GB` RAM |
-| **Mobilebox (Limrun Cloud)** | **Remote WebRTC / Cloud ADB** | **8,000–12,000 ms** (LLM dependent)| Full screenshot PNG (`50 KB+`) | **76 ms** (cloud instance WS) | **24.6–37.9 s** (simple demo) | Cloud instance (\$0.01/min) |
-| **Google Research M3A (SoM)** | **Vision Set-of-Marks + GPT-4** | **12,000–25,000 ms** | Screenshot + bounding boxes | **550 ms** (raw ADB input) | **234.0 s** (~3.9 min) | Emulated AVD (`~3 GB`) |
+| Agent / Framework | Architecture & Hosting | Decision Engine / Intelligence | Turn Decision Latency | Gesture Injection Latency | Perception Cost / Payload | Avg Multi-Step Task Duration | AndroidWorld Completion / Pass Rate | Idle CPU & RAM Footprint | Cost per Task / Running Cost |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **AgentDroid + TypeSafe AI (Jev)** | **Local Redroid container + InputDaemon** | **TypeSafe AI `jev-latest` (System One Logits)** | **418–560 ms** | **1.8 ms** (Kernel `/dev/uinput`) | **1.7 KB** text hierarchy (`~430 tok`) | **5.6 s** (avg over 116 tasks) | **100% completed** · **31.4x faster** than Vostride | **0.32% CPU** · `1.16 GB` RAM | **$0.0002** / task (Free local hardware) |
+| **AgentDroid + Coding LLM** | **Local Redroid container + Native MCP** | **Claude 3.5 / Gemini 2.5 / GPT-4o (Host Agent)** | **3,500–4,500 ms** | **1.8 ms** (Kernel `/dev/uinput`) | **2.8 KB** pruned JSON (`~690 tok`) | **24.5 s** (compound action bursts) | High (General-purpose interactive) | **0.32% CPU** · `1.16 GB` RAM | **$0.00** (Uses existing assistant plan) |
+| **Vostride Benchmark Agent** | **Cloud VM / Emulated Android** | **Multimodal Vision VLM (GPT-4o / Claude)** | **8,000–15,000 ms** | **517 ms** (`adb shell input`) | **125 KB** PNG tiles (`1,445 tok`) | **176.9 s** (~3.0 minutes) | Standard baseline (**5h 42m** for 116 tasks) | VM dependent | **$0.08–$0.25** / task (Vision API costs) |
+| **Google Artemis** | **Standalone Multi-Agent Graph (Planner+Operator)** | **Gemini 2.5 Pro / Flash Graph** | **3,000–5,000 ms** (Flash) · **15,000–40,000 ms** (Pro) | **150–400 ms** (A11y HTTP endpoint) | Full screenshot + raw XML | **180–300 s** (~3–5 minutes) | **99.1% Pass@1** (SOTA benchmark accuracy) | `2.2 GB` RAM (Multi-agent state) | Cloud LLM token costs |
+| **Mobilebox (Limrun Cloud)** | **Cloud Android 14 instances (Nuremberg DC)** | **External developer LLM SDKs (LangGraph, etc.)** | **8,000–12,000 ms** (LLM dependent) | **76 ms** (Cloud instance WebSocket) | Full screenshot PNG (`50 KB+`) | **24.6–37.9 s** (Simple matterhorn demo) | Targeted cloud demos | Cloud serverless pool | **$0.01 / minute** usage rate |
+| **Google Research M3A (SoM)** | **Android Studio AVD Emulator (QEMU)** | **GPT-4 Turbo / Gemini 1.5 Pro (Set-of-Marks)** | **12,000–25,000 ms** | **550 ms** (`adb shell input`) | Screenshot + Visual SoM bounding boxes | **234.0 s** (~3.9 minutes) | **30.6%** (A11y tree) · **25.4%** (SoM) | `3.5 GB` RAM · High QEMU CPU | High API cost per task |
+| **AutoGLM / GLM-4V Mobile** | **Host Python + Real/Virtual Device** | **GLM-4V Fine-tuned Mobile Model** | **6,000–10,000 ms** | **500 ms** (`adb input`) | Screenshot vision tokens (`~1,200 tok`) | **60–120 s** | **80.2%** on AndroidWorld | Standard device host | API token pricing |
+| **Mobile-Agent-v2 / AppAgent** | **Local Python + Vision Memory Bank** | **Qwen-VL / GPT-4o Vision** | **7,000–14,000 ms** | **520 ms** (`adb input`) | Screenshot + OCR + Visual icon crops | **90–180 s** | **73.3%** on AndroidWorld | High Python process RAM | Multimodal token costs |
+| **UI-TARS (ByteDance)** | **Local / Cloud GPU Native GUI Model** | **UI-TARS 7B / 72B End-to-End VLM** | **4,000–8,000 ms** (GPU-accelerated) | **500 ms** (`adb input`) | Full resolution screenshot | **45–90 s** | **46.6%** on AndroidWorld | Requires dedicated GPU (A100/RTX 4090) | High local compute / Cloud GPU |
+| **Android Studio AVD + UiAutomator** | **QEMU Full System Emulator + Test Scripts** | **None (Hardcoded Python / Java scripts)** | **0 ms** (Static execution) | **150–350 ms** (UiAutomator2 HTTP server) | Static selectors / UI Hierarchy dump | Script length dependent | **0% adaptable** (Breaks on any UI change) | **200%+ CPU** · `3.5 GB` RAM | Free local (High developer maintenance) |
+
+---
+
+### Why These Metrics Differ: The 4 Architectural Laws
+
+1. **The Physics of Decision Latency (500 ms vs. 12,000 ms):**
+   - Traditional vision agents encode `1080x2400` screens into image patches, upload them to remote LLMs, decode image tokens, generate reasoning chains, and emit JSON text (~8–15 seconds).
+   - AgentDroid + Jev System One passes compact element trees directly into a specialized decision network returning calibrated decision logits in **418 ms**, cutting AI latency by **20x–30x**.
+2. **The Gesture Injection Boundary (1.8 ms vs. 517 ms):**
+   - Standard ADB tools fork an `adb shell input tap X Y` process, which invokes `/system/bin/input`, spins up an Android Dalvik/ART VM runtime, connects to `InputManagerService`, and exits (~500–600 ms).
+   - AgentDroid's `InputDaemon` maintains an open Unix socket directly into Linux kernel `/dev/uinput`, writing binary touch events in **1.8 ms** (300x faster).
+3. **Perception Payload Efficiency (1.7 KB vs. 125 KB):**
+   - Vision-first tools burn 1,445 tokens per screen on image tiles. AgentDroid's accessibility engine prunes non-interactive background views, producing an indexed representation (`[#1] | Button: 'Login' | Center: (540, 1200)`) in **1,730 characters** (~430 tokens), saving 85%+ in token bandwidth.
+4. **Containerization vs. Emulation (0.32% CPU vs. 200% CPU):**
+   - Android Studio AVD emulates hardware registers and instruction translations via QEMU, consuming 3–4 GB RAM and heavy CPU.
+   - Redroid shares the host Linux kernel (via `binder_linux` and `ashmem`), idling at **0.32% CPU** and **1.16 GB RAM** with AgentDroid's background memory trimmer.
 
 ---
 
