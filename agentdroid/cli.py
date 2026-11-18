@@ -845,12 +845,17 @@ def cmd_ai(args: argparse.Namespace) -> int:
         print(f"[agentdroid:ai] Goal: '{goal}' | Model: {model} | Device: {adb.serial}")
 
         history: list[dict[str, Any]] = []
+        step_log: list[str] = []
         is_success = False
 
         for step in range(1, max_steps + 1):
             ui = engine.get_screen_data(max_elements=80)
-            decision = client.rank_next_action(ui, goal, model=model)
+            decision = client.rank_next_action(ui, goal, model=model, step_history=step_log)
             action_key = decision.get("action_key", "wait")
+            action_type = decision.get("action_type") or (
+                "fill" if action_key.startswith("fill_") else "tap" if action_key.startswith("tap_") else action_key
+            )
+            fill_text = decision.get("fill_text")
             conf = decision.get("confidence", 0.0)
             latency = decision.get("latency_ms", 0.0)
             matched = decision.get("matched_element")
@@ -865,33 +870,52 @@ def cmd_ai(args: argparse.Namespace) -> int:
             }
             history.append(step_record)
 
-            label = matched.get("label") or matched.get("desc") if matched else ""
+            label = (matched.get("label") or matched.get("desc") or matched.get("resource_id")) if matched else ""
             print(
                 f"[agentdroid:ai] Step {step}/{max_steps}: {action_key} "
-                f"({label or 'none'}) [conf={conf:.2f}, {latency}ms]"
+                f"({label or fill_text or 'none'}) [conf={conf:.2f}, {latency}ms]"
             )
 
-            if is_goal_met and action_key == "wait":
+            if action_key == "done" or (is_goal_met and action_key == "wait"):
                 print(f"✅ [agentdroid:ai] Goal satisfied! '{goal}'")
                 is_success = True
                 break
 
-            if action_key.startswith("tap_") and matched:
+            if action_type == "fill" and matched and fill_text is not None:
                 center = matched.get("center") or (540, 1200)
                 engine.tap(float(center[0]), float(center[1]))
+                time.sleep(0.25)
+                engine.execute_action({"type": "type", "text": str(fill_text)})
+                engine.execute_action({"type": "hide_keyboard"})
+                step_log.append(f"Step {step}: Typed '{fill_text}' into '{label or 'field'}'")
+                time.sleep(0.4)
+            elif action_key.startswith("tap_") and matched:
+                center = matched.get("center") or (540, 1200)
+                engine.tap(float(center[0]), float(center[1]))
+                step_log.append(f"Step {step}: Tapped '{label or action_key}'")
                 time.sleep(0.6)
+            elif action_key in ("scroll_down", "scroll_up"):
+                direction = "down" if action_key == "scroll_down" else "up"
+                engine.execute_action({"type": "scroll", "direction": direction})
+                step_log.append(f"Step {step}: Scrolled {direction}")
+                time.sleep(0.5)
             elif action_key == "back":
                 engine.helper.action("global", action="BACK")
+                step_log.append(f"Step {step}: Pressed Back")
                 time.sleep(0.6)
             elif action_key == "wait":
-                time.sleep(1.0)
+                step_log.append(f"Step {step}: Waited 1.5s")
+                time.sleep(1.5)
             else:
+                step_log.append(f"Step {step}: {action_key}")
                 time.sleep(0.5)
 
             if is_goal_met:
                 print(f"✅ [agentdroid:ai] Goal satisfied! '{goal}'")
                 is_success = True
                 break
+
+        client.close()
 
         if getattr(args, "json", False):
             print(

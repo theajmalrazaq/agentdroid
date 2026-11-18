@@ -461,8 +461,9 @@ class AndroidEngine:
 
         if act_type in ("hide_keyboard", "hide-keyboard"):
             shown = self.adb.shell("dumpsys input_method 2>/dev/null | grep -o 'mInputShown=[a-z]*' || true", timeout=2.0)
-            if "mInputShown=true" in shown or not shown:
-                self.helper.action("global", action="ESCAPE")
+            if "mInputShown=true" in shown:
+                self.helper.action("global", action="BACK")
+                time.sleep(0.15)
             return {"success": True, "action": "hide_keyboard"}
 
         if act_type == "key":
