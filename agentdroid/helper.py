@@ -375,6 +375,29 @@ class AccessibilityHelperClient:
                 self._close_input_socket()
             return False
 
+    def _launch_device_daemon(
+        self,
+        classpath: str,
+        main_class: str,
+        args: str,
+        ping_fn: Any,
+        *,
+        kill_prefix: str = "",
+        retries: int = 25,
+    ) -> bool:
+        """Spawn a detached app_process daemon via standard adb shell so it survives socket close."""
+        inner = f"CLASSPATH={classpath} exec app_process / {main_class} {args}"
+        launch_cmd = f'{kill_prefix}nohup sh -c "{inner}" </dev/null >/dev/null 2>&1 &'
+        if hasattr(self.adb, "run_adb"):
+            self.adb.run_adb(["shell", launch_cmd], timeout=5.0)
+        else:
+            self.adb.shell(launch_cmd, timeout=5.0)
+        for _ in range(retries):
+            if ping_fn():
+                return True
+            time.sleep(0.05)
+        return False
+
     def _ensure_input_daemon(self, *, force: bool = False) -> bool:
         try:
             self._ensure_input_forward()
@@ -415,17 +438,13 @@ class AccessibilityHelperClient:
             if force
             else ""
         )
-        launch_cmd = (
-            f"{kill_prefix}CLASSPATH={INPUT_DAEMON_DEX_DEVICE} "
-            f"nohup app_process / com.agentdroid.InputDaemon "
-            f"{INPUT_DAEMON_PORT} {INPUT_DAEMON_TOKEN_DEVICE} </dev/null >/dev/null 2>&1 &"
+        return self._launch_device_daemon(
+            INPUT_DAEMON_DEX_DEVICE,
+            "com.agentdroid.InputDaemon",
+            f"{INPUT_DAEMON_PORT} {INPUT_DAEMON_TOKEN_DEVICE}",
+            self._input_daemon_ping,
+            kill_prefix=kill_prefix,
         )
-        self.adb.shell(launch_cmd, timeout=5.0)
-        for _ in range(15):
-            if self._input_daemon_ping():
-                return True
-            time.sleep(0.05)
-        return False
 
     def _input_daemon_exec(self, cmd_line: str, *, timeout: float = 3.0) -> str | None:
         try:
@@ -794,17 +813,13 @@ class AccessibilityHelperClient:
             push_res = self.adb.run_adb(["push", str(FAST_DUMP_DEX_HOST), FAST_DUMP_DEX_DEVICE], timeout=10.0)
             if push_res.returncode != 0:
                 return None
-        launch_cmd = (
-            f"CLASSPATH=/system/framework/uiautomator.jar:{FAST_DUMP_DEX_DEVICE} "
-            f"nohup app_process / com.agentdroid.FastDump {FAST_DUMP_PORT} {INPUT_DAEMON_TOKEN_DEVICE} "
-            f"</dev/null >/dev/null 2>&1 &"
+        launched = self._launch_device_daemon(
+            f"/system/framework/uiautomator.jar:{FAST_DUMP_DEX_DEVICE}",
+            "com.agentdroid.FastDump",
+            f"{FAST_DUMP_PORT} {INPUT_DAEMON_TOKEN_DEVICE}",
+            lambda: _ping_fast(port),
         )
-        self.adb.shell(launch_cmd, timeout=4.0)
-        for _ in range(12):
-            if _ping_fast(port):
-                return port
-            time.sleep(0.05)
-        return None
+        return port if launched else None
 
     def _fast_dump_xml(self) -> str:
         port = self._ensure_fast_dump()

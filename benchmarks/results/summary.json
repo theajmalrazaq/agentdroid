@@ -1,219 +1,127 @@
 {
-  "timestamp_utc": "2026-11-18T16:58:33.955741+00:00",
+  "timestamp_utc": "2026-11-18T18:21:21.954619+00:00",
   "device_serial": "127.0.0.1:5555",
   "device_model": "redroid11_x86_64",
   "android_release": "11",
-  "task_count": 13,
-  "modes": {
-    "compound": {
-      "summary": {
-        "overall": {
-          "total": 13,
-          "passed": 13,
-          "success_rate_pct": 100.0,
-          "mean_wall_sec": 3.77,
-          "total_wall_sec": 49.07,
-          "mean_steps": 9.69
-        },
-        "by_tier": {
-          "Simple": {
-            "total": 3,
-            "passed": 3,
-            "success_rate_pct": 100.0,
-            "mean_wall_sec": 2.31,
-            "total_wall_sec": 6.93,
-            "mean_steps": 3.33
-          },
-          "Medium": {
-            "total": 5,
-            "passed": 5,
-            "success_rate_pct": 100.0,
-            "mean_wall_sec": 4.42,
-            "total_wall_sec": 22.11,
-            "mean_steps": 8
-          },
-          "Complex": {
-            "total": 5,
-            "passed": 5,
-            "success_rate_pct": 100.0,
-            "mean_wall_sec": 4.01,
-            "total_wall_sec": 20.03,
-            "mean_steps": 15.2
-          }
-        }
+  "runtime": {
+    "container_cold_restart": {
+      "container": "agentdroid-device",
+      "ready": {
+        "n": 3,
+        "median_ms": 11941.05,
+        "mean_ms": 11972.58,
+        "min_ms": 11578.52,
+        "p90_ms": 12398.17,
+        "max_ms": 12398.17
       },
-      "tasks": [
-        {
-          "task_id": "ClockStopWatchRunning",
-          "app": "Clock",
-          "tier": "Simple",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 2.349,
-          "steps_executed": 5,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "pause_present=True, lap_present=True",
-          "step_failures": []
-        },
-        {
-          "task_id": "ClockStopWatchPausedVerify",
-          "app": "Clock",
-          "tier": "Simple",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 0.461,
-          "steps_executed": 2,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "start_present=True, pause_absent=True",
-          "step_failures": []
-        },
-        {
-          "task_id": "SettingsNavigateAboutPhone",
-          "app": "Settings",
-          "tier": "Simple",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 4.123,
-          "steps_executed": 3,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "pkg=com.android.settings, android_version=True, device_name=True",
-          "step_failures": []
-        },
-        {
-          "task_id": "DeskClockAddAlarm",
-          "app": "Clock",
-          "tier": "Medium",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 3.585,
-          "steps_executed": 5,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "clocks=2->3, on_switches=0->1",
-          "step_failures": []
-        },
-        {
-          "task_id": "ClockTimerEntry",
-          "app": "Clock",
-          "tier": "Medium",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 2.646,
-          "steps_executed": 9,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "timer_display_matched=True",
-          "step_failures": []
-        },
-        {
-          "task_id": "TasksAddTask",
-          "app": "Tasks",
-          "tier": "Medium",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 7.931,
-          "steps_executed": 7,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "sqlite_titles='Submit benchmark report'",
-          "step_failures": []
-        },
-        {
-          "task_id": "FossifyMathCompute",
-          "app": "Fossify Math",
-          "tier": "Medium",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 1.344,
-          "steps_executed": 8,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "result_display='100'",
-          "step_failures": []
-        },
-        {
-          "task_id": "AudioRecorderRecordAudio",
-          "app": "Audio Recorder",
-          "tier": "Medium",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 6.608,
-          "steps_executed": 11,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "artifact=/sdcard/Android/data/com.dimowner.audiorecorder/files/Music/records/Record-1.m4a, size_bytes=20229",
-          "step_failures": []
-        },
-        {
-          "task_id": "ContactsAddContact",
-          "app": "Contacts",
-          "tier": "Complex",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 2.662,
-          "steps_executed": 12,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "name=True, phone=True",
-          "step_failures": []
-        },
-        {
-          "task_id": "SimpleCalendarAddOneEvent",
-          "app": "Simple Calendar",
-          "tier": "Complex",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 2.535,
-          "steps_executed": 13,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "sqlite_events='Architecture Sync|Room 402'",
-          "step_failures": []
-        },
-        {
-          "task_id": "BroccoliAddSingleRecipe",
-          "app": "Broccoli",
-          "tier": "Complex",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 2.444,
-          "steps_executed": 11,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "sqlite_recipes='Pasta Pesto|15 mins|Pasta, Basil, Garlic'",
-          "step_failures": []
-        },
-        {
-          "task_id": "AudioRecorderRecordAudioWithFileName",
-          "app": "Audio Recorder",
-          "tier": "Complex",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 4.57,
-          "steps_executed": 13,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "artifact=/sdcard/Android/data/com.dimowner.audiorecorder/files/Music/records/interview_clip.m4a, size_bytes=24965",
-          "step_failures": []
-        },
-        {
-          "task_id": "MarkorCreateAndSaveNote",
-          "app": "Markor",
-          "tier": "Complex",
-          "mode": "compound",
-          "ok": true,
-          "wall_clock_sec": 7.816,
-          "steps_executed": 27,
-          "llm_turns": 1,
-          "crashes": false,
-          "verification": "remote=/sdcard/Documents/markor/bench_log.md, bytes=19, content_match=True",
-          "step_failures": []
-        }
-      ]
+      "cold_start_to_screenshot": {
+        "n": 3,
+        "median_ms": 13422.56,
+        "mean_ms": 13507.6,
+        "min_ms": 13061.96,
+        "p90_ms": 14038.28,
+        "max_ms": 14038.28
+      }
     },
+    "apk_operations": {
+      "fossify_math_bytes": 7047681,
+      "fresh_install": {
+        "n": 3,
+        "median_ms": 910.49,
+        "mean_ms": 968.46,
+        "min_ms": 903.09,
+        "p90_ms": 1091.79,
+        "max_ms": 1091.79
+      },
+      "reinstall": {
+        "n": 5,
+        "median_ms": 837.29,
+        "mean_ms": 1095.62,
+        "min_ms": 811.11,
+        "p90_ms": 1825.75,
+        "max_ms": 1825.75
+      }
+    },
+    "micro_benchmarks": {
+      "helper_action_tap": {
+        "n": 10,
+        "median_ms": 0.83,
+        "mean_ms": 0.99,
+        "min_ms": 0.69,
+        "p90_ms": 1.04,
+        "max_ms": 2.52
+      },
+      "adb_input_tap": {
+        "n": 20,
+        "median_ms": 607.82,
+        "mean_ms": 626.17,
+        "min_ms": 582.16,
+        "p90_ms": 681.73,
+        "max_ms": 826.54
+      },
+      "artemis_ui_dump": {
+        "n": 20,
+        "median_ms": 13.98,
+        "mean_ms": 14.69,
+        "min_ms": 11.57,
+        "p90_ms": 18.23,
+        "max_ms": 18.93
+      },
+      "tap_to_ui_dump": {
+        "n": 10,
+        "median_ms": 16.44,
+        "mean_ms": 16.87,
+        "min_ms": 12.97,
+        "p90_ms": 20.34,
+        "max_ms": 21.4
+      },
+      "tap_to_screenshot_adb": {
+        "n": 10,
+        "median_ms": 1065.69,
+        "mean_ms": 1053.91,
+        "min_ms": 860.16,
+        "p90_ms": 1218.03,
+        "max_ms": 1243.56
+      },
+      "compound_burst_3_actions": {
+        "n": 5,
+        "median_ms": 82.85,
+        "mean_ms": 103.05,
+        "min_ms": 80.11,
+        "p90_ms": 179.29,
+        "max_ms": 179.29
+      },
+      "adb_shell_chain_3_actions": {
+        "n": 5,
+        "median_ms": 1770.37,
+        "mean_ms": 1768.76,
+        "min_ms": 1751.04,
+        "p90_ms": 1782.44,
+        "max_ms": 1782.44
+      }
+    },
+    "perception_payloads": {
+      "fossify_math": {
+        "raw_xml_bytes": 13710,
+        "raw_xml_est_tokens": 3427,
+        "formatted_text_chars": 1719,
+        "formatted_text_est_tokens": 430,
+        "screenshot_png_bytes": 54517,
+        "openai_high_detail_tokens": 1445,
+        "anthropic_vision_tokens": 1477
+      },
+      "android_settings": {
+        "raw_xml_bytes": 18301,
+        "raw_xml_est_tokens": 4575,
+        "formatted_text_chars": 2694,
+        "formatted_text_est_tokens": 674,
+        "screenshot_png_bytes": 143045,
+        "openai_high_detail_tokens": 1445,
+        "anthropic_vision_tokens": 1477
+      }
+    }
+  },
+  "e2e_modes": {
     "jev": {
       "summary": {
         "overall": {
@@ -1191,6 +1099,176 @@
               "latency_ms": 327.5
             }
           ]
+        }
+      ]
+    },
+    "compound": {
+      "summary": {
+        "overall": {
+          "total": 13,
+          "passed": 13,
+          "success_rate_pct": 100.0,
+          "mean_wall_sec": 2.35,
+          "total_wall_sec": 30.6,
+          "mean_steps": 9.69
+        },
+        "by_tier": {
+          "Simple": {
+            "total": 3,
+            "passed": 3,
+            "success_rate_pct": 100.0,
+            "mean_wall_sec": 0.67,
+            "total_wall_sec": 2.02,
+            "mean_steps": 3.33
+          },
+          "Medium": {
+            "total": 5,
+            "passed": 5,
+            "success_rate_pct": 100.0,
+            "mean_wall_sec": 1.69,
+            "total_wall_sec": 8.47,
+            "mean_steps": 8
+          },
+          "Complex": {
+            "total": 5,
+            "passed": 5,
+            "success_rate_pct": 100.0,
+            "mean_wall_sec": 4.02,
+            "total_wall_sec": 20.11,
+            "mean_steps": 15.2
+          }
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "ClockStopWatchRunning",
+          "app": "Clock",
+          "tier": "Simple",
+          "ok": true,
+          "wall_clock_sec": 0.563,
+          "steps_executed": 5,
+          "verification": "pause=True, lap=True",
+          "baseline_sec": 38.0
+        },
+        {
+          "task_id": "ClockStopWatchPausedVerify",
+          "app": "Clock",
+          "tier": "Simple",
+          "ok": true,
+          "wall_clock_sec": 0.223,
+          "steps_executed": 2,
+          "verification": "start=True, pause_absent=True",
+          "baseline_sec": 97.0
+        },
+        {
+          "task_id": "SettingsNavigateAboutPhone",
+          "app": "Settings",
+          "tier": "Simple",
+          "ok": true,
+          "wall_clock_sec": 1.235,
+          "steps_executed": 3,
+          "verification": "pkg=com.android.settings, android_version=True",
+          "baseline_sec": null
+        },
+        {
+          "task_id": "DeskClockAddAlarm",
+          "app": "Clock",
+          "tier": "Medium",
+          "ok": true,
+          "wall_clock_sec": 0.802,
+          "steps_executed": 5,
+          "verification": "clocks=2->3, on=0->1",
+          "baseline_sec": null
+        },
+        {
+          "task_id": "ClockTimerEntry",
+          "app": "Clock",
+          "tier": "Medium",
+          "ok": true,
+          "wall_clock_sec": 0.693,
+          "steps_executed": 9,
+          "verification": "timer_16m35s=True",
+          "baseline_sec": 57.0
+        },
+        {
+          "task_id": "TasksAddTask",
+          "app": "Tasks",
+          "tier": "Medium",
+          "ok": true,
+          "wall_clock_sec": 2.532,
+          "steps_executed": 7,
+          "verification": "sqlite='Submit benchmark report'",
+          "baseline_sec": null
+        },
+        {
+          "task_id": "FossifyMathCompute",
+          "app": "Fossify Math",
+          "tier": "Medium",
+          "ok": true,
+          "wall_clock_sec": 0.475,
+          "steps_executed": 8,
+          "verification": "result='100'",
+          "baseline_sec": null
+        },
+        {
+          "task_id": "AudioRecorderRecordAudio",
+          "app": "Audio Recorder",
+          "tier": "Medium",
+          "ok": true,
+          "wall_clock_sec": 3.972,
+          "steps_executed": 11,
+          "verification": "file=/sdcard/Android/data/com.dimowner.audiorecorder/files/Music/records/Record-1.m4a, bytes=23851",
+          "baseline_sec": 62.0
+        },
+        {
+          "task_id": "ContactsAddContact",
+          "app": "Contacts",
+          "tier": "Complex",
+          "ok": true,
+          "wall_clock_sec": 2.575,
+          "steps_executed": 12,
+          "verification": "matched_ada_5550199=True",
+          "baseline_sec": 81.0
+        },
+        {
+          "task_id": "SimpleCalendarAddOneEvent",
+          "app": "Simple Calendar",
+          "tier": "Complex",
+          "ok": true,
+          "wall_clock_sec": 2.616,
+          "steps_executed": 13,
+          "verification": "sqlite='Architecture Sync|Room 402'",
+          "baseline_sec": 184.0
+        },
+        {
+          "task_id": "BroccoliAddSingleRecipe",
+          "app": "Broccoli",
+          "tier": "Complex",
+          "ok": true,
+          "wall_clock_sec": 2.401,
+          "steps_executed": 11,
+          "verification": "sqlite='Pasta Pesto|15 mins|Pasta, Basil, Garlic'",
+          "baseline_sec": 138.0
+        },
+        {
+          "task_id": "AudioRecorderRecordAudioWithFileName",
+          "app": "Audio Recorder",
+          "tier": "Complex",
+          "ok": true,
+          "wall_clock_sec": 4.434,
+          "steps_executed": 13,
+          "verification": "file=/sdcard/Android/data/com.dimowner.audiorecorder/files/Music/records/interview_clip.m4a, bytes=24965",
+          "baseline_sec": 106.0
+        },
+        {
+          "task_id": "MarkorCreateAndSaveNote",
+          "app": "Markor",
+          "tier": "Complex",
+          "ok": true,
+          "wall_clock_sec": 8.083,
+          "steps_executed": 27,
+          "verification": "remote=/sdcard/Documents/markor/bench_log.md, bytes=19, match=True",
+          "baseline_sec": 64.0
         }
       ]
     }
