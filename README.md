@@ -33,15 +33,25 @@ agentdroid mcp --install   # automatically configures Claude, Codex, Antigravity
 ```
 Your agent gets native mobile tools (`mobile_run_workflow`, `mobile_get_device_state`, `mobile_perform_action`, `mobile_action_burst`, `mobile_auto_dismiss_dialogs`, etc.).
 
-### 2. Drive via Terminal CLI
-Ask your agent: *"Use agentdroid to open Hacker News and summarize the top 5 stories."*
+### 2. One-Shot Execution (Zero Custom Scripts, Zero Ping-Pong Loops)
+Ask your agent to **execute tasks directly in one shot** rather than writing `.py`/`.sh` wrapper scripts or running step-by-step `dump -> click -> dump` loops (enforced in [`AGENTS.md`](AGENTS.md) and [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md)):
+
+- **Host Coding Agent (`mobile_run_workflow` / compound CLI):** Chains launch, waits, conditionals (`if-visible:`), inline regex extraction (`capture:` + `{{var}}`), fills, and assertions in **one call** (`~3.8 s` mean across 13 verified E2E apps).
+- **Autonomous Closed-Loop (`agentdroid ai`):** Runs TypeSafe AI `jev-latest` for unseen dynamic flows without writing code.
 
 ```bash
-# Silent background mode (inspects screen in ~150 tokens, chains clicks/fills):
+# Compound one-shot CLI (reads screen in ~433 tokens, branches, types, verifies):
 agentdroid --headless --open-url "https://news.ycombinator.com" \
-  --do "scroll:down" --assert-text "Hacker News" --json
+  -d "wait-any:Hacker News|More" -d "scroll:down" --assert-text "Hacker News" --json
 
-# Floating phone overlay window to watch in real time:
+# Multi-step Android workflow in one command (push -> edit -> save -> pull -> assert):
+agentdroid --headless --launch com.android.deskclock \
+  -d "wait-text:STOPWATCH@5" -d "click:STOPWATCH" -d "click:START" -d "wait-text:Pause@5" --json
+
+# Autonomous Jev System One loop on unseen UIs:
+agentdroid ai "Compute 42 + 58 = 100" --launch org.fossify.math --json
+
+# Floating phone overlay window to watch live:
 agentdroid --watch --launch com.android.settings
 ```
 

@@ -1,37 +1,57 @@
 # AgentDroid (`agentdroid`) — AI Agent Operating Rules
 
-This repository provides a **silent, general-purpose Android computer** (powered by **Redroid**, **Google Artemis Accessibility Helper**, **InputDaemon**, and native Rust **`agentdroid-fast`**) that AI agents can drive for **any task**.
+This repository provides a **silent, general-purpose Android computer** (powered by **Redroid**, **Google Artemis Accessibility Helper**, **InputDaemon**, and native Rust **`agentdroid-fast`**) that AI agents drive **directly in one shot**.
 
-> **No Separate LLM API Keys or `.env` Required**:
-> **You (the host AI agent — Claude Code, Antigravity, Codex, Cursor, etc.) are already the brain!**
+> **Zero Separate LLM Keys · Zero Custom Scripts:**
+> **You (Claude Code, Antigravity, Codex, Cursor, Windsurf) are the brain.** Never write `.py`, `.sh`, or `python3 -c` scripts to drive the phone — execute the task directly in **one shot** via `mobile_run_workflow(...)` or `agentdroid --headless ... -d ...`.
 
 ---
 
 ## HARD OPERATING RULES (NON-NEGOTIABLE)
 
-1. **ZERO REDUNDANT SCREENSHOTS (`screenshots = 0` by default)**
-   - **FORBIDDEN**: Calling `screenshot`, `adb screencap`, `agentdroid ui screenshot`, `view_type="screenshot"`, or `--screenshot` to read text, buttons, lists, menus, routes, forms, notifications, or to "verify" completed actions.
-   - **MANDATORY**: Read `ui_summary` / `agentdroid ui dump --json` (`~5 ms`, IME keyboard chrome filtered automatically). Editable/long text fields include full text without truncation.
-   - **LOADING / WEBVIEW / DYNAMIC SCREENS**: If `ui dump` shows only status bar items or a loading stub (`element_count <= 7`), **DO NOT take a screenshot**. Poll cleanly with `-d "wait-any:<expected>|<fallback>|<blocker>"` or `-d "wait-gone:<spinner>"`.
-   - **ONLY TWO EXCEPTIONS**: (a) after `wait-*` settling, `ui dump` still exposes zero readable/actionable nodes (pure Canvas/OpenGL/image surface), OR (b) the user explicitly asked for an image/screenshot file.
+1. **ONE-SHOT DIRECT EXECUTION — NEVER CREATE SCRIPTS**
+   - **FORBIDDEN**: Creating throwaway `.py` / `.sh` scripts (e.g. `solve.py`, `run_flow.sh`), writing inline `python3 -c "..."` importing `AndroidEngine` / `AdbDevice` / `CompoundPipeline`, writing ADB shell loops, or splitting a workflow into 5–15 ping-pong turns (`dump -> click -> dump -> type`).
+   - **ONLY EXCEPTION**: Write Python/shell code ONLY if the user explicitly asks you to implement or modify repository source code, tests, or benchmarks. For **performing any Android task**, execute directly via native tools/CLI.
+   - **PRIMARY EXECUTION PATH (1 call):**
+     - **Via MCP:** Call `mobile_run_workflow(...)` with full `launch` / `open_url` / ordered `do=[...]` steps / `assert_text` in **one call**.
+     - **Via CLI:** Run **one** `agentdroid --headless` command chaining `-d` flags (`wait-any:`, `if-visible:`, `fill:`, `capture:`, `{{var}}`, `--assert-text`, `--json`), or `agentdroid ai "<goal>" --launch <pkg> --json` when autonomous visual/dynamic UI exploration is needed.
+   - **UNKNOWN UI CAP (`<= 2` calls max):** If screen selectors are completely unknown, do **at most one** `mobile_get_device_state(view_type="hierarchy")` (or `agentdroid ui dump --json`), read every control ID/label, and immediately finish the entire workflow in **one** compound call.
 
-2. **TRUE SINGLE-CALL FIRST (`<= 1` call when extracting & writing across apps; `<= 2` calls max on unknown UIs)**
-   - **FORBIDDEN**: Ping-ponging `dump -> tap -> dump -> type` across 5–10 LLM turns or shelling out multiple `agentdroid ui ...` calls when one compound pipeline handles all steps.
-   - **SINGLE-CALL CROSS-APP READ + WRITE**: Use `capture:<var>=<regex>` / `capture-all:<var>=<regex>` + `{{var}}` interpolation to read values from App A and pass them straight into App B in **ONE `agentdroid` CLI or `mobile_run_workflow` call** (zero mid-task LLM round-trips!).
-   - **CONDITIONAL RECOVERY INSIDE A CALL**: Use `wait-any:<expected>|<blocker>` and `if-visible:<needle>-><step>` (e.g., `-d "if-visible:Allow->click:Allow"`) to handle popups, onboarding, or transient redirects without burning another LLM turn.
+   **Bad (Forbidden):**
+   - Writing `/tmp/do_task.py` with `AndroidEngine(adb)` or running 6 separate `agentdroid tap` calls.
+
+   **Good (One Shot):**
+   ```bash
+   agentdroid --headless --launch net.gsantner.markor \
+     -d "if-visible:NEXT->click:NEXT" -d "if-visible:OK->click:OK" \
+     -d "wait-text:fab_add_new_item" -d "click:fab_add_new_item" \
+     -d "fill:new_file_dialog__name=notes" -d "hide-keyboard" -d "click:OK" \
+     -d "fill:document__fragment__edit__highlighting_editor=Done" \
+     -d "hide-keyboard" -d "click:action_save" --json
+   ```
+
+2. **SINGLE-CALL CROSS-APP DATA FLOW (`capture:` + `{{var}}` + `if-visible:`)**
+   - **SINGLE-CALL READ + WRITE**: Use `capture:<var>=<regex>` / `capture-all:<var>=<regex>` + `{{var}}` interpolation to extract values from App A and inject them straight into App B inside **ONE** `agentdroid` CLI or `mobile_run_workflow` call (`0` mid-task LLM round-trips).
+   - **CONDITIONAL RECOVERY INLINE**: Use `wait-any:<expected>|<blocker>` and `if-visible:<needle>-><step>` (e.g., `-d "if-visible:Allow->click:Allow"`) so permissions, changelogs, and popups self-heal in the same shot.
    - **PREFER DEEP LINKS & INTENTS**: Jump straight with `--locked-app <pkg> --open-url "<uri>"`.
 
-3. **TARGETING PRECISION (`btn:`, `edit:`, `exact:`, `id:`, `#id`)**
+3. **ZERO REDUNDANT SCREENSHOTS (`screenshots = 0` by default)**
+   - **FORBIDDEN**: Calling `screenshot`, `adb screencap`, `agentdroid ui screenshot`, `view_type="screenshot"`, or `--screenshot` to read text, buttons, lists, menus, routes, forms, notifications, or to "verify" completed actions.
+   - **MANDATORY**: Read `ui_summary` / `agentdroid ui dump --json` (`~5 ms`, IME keyboard chrome filtered automatically). Editable/long text fields include full text without truncation.
+   - **LOADING / WEBVIEW / DYNAMIC SCREENS**: If `ui dump` shows only status bar items or a loading stub (`element_count <= 7`), **DO NOT take a screenshot**. Wait cleanly with `-d "wait-any:<expected>|<fallback>|<blocker>"` or `-d "wait-gone:<spinner>"`.
+   - **ONLY TWO EXCEPTIONS**: (a) after `wait-*` settling, `ui dump` still exposes zero readable/actionable nodes (pure Canvas/OpenGL/image surface), OR (b) the user explicitly asked for an image/screenshot file.
+
+4. **TARGETING PRECISION (`btn:`, `edit:`, `exact:`, `id:`, `#id`)**
    - Default selectors rank clickable/editable nodes above static labels/WebView containers.
    - When a screen has both a label and a button with similar text (e.g. `"Search"` title vs button), pass `btn:Search`, `edit:Search`, `exact:Save`, or `#id`.
 
-4. **HEADLESS REDROID ENVIRONMENT INVARIANTS**
+5. **HEADLESS REDROID ENVIRONMENT INVARIANTS**
    - **NO HARDWARE GPS**: Headless Redroid has no physical GPS receiver; tapping `"Your location"` stalls location requests. Supply explicit origins or resolved IP geolocation whenever driving location-dependent apps.
    - **DO NOT DUPLICATE `--watch` WINDOWS**: Check `pgrep -f "scrcpy.*$SERIAL"` before passing `--watch`. If a persistent `agentdroid watch` window is open, run commands with `--headless` (`headless=True`) — the live window reflects every action immediately.
 
-5. **`append:` VS `type:` & `hide-keyboard`**
+6. **`append:` VS `type:` & `hide-keyboard`**
    - `-d "type:<text>"` sets/replaces field text; `-d "append:<text>"` jumps to EOF and appends cleanly (works with Unicode, newlines, and long notes).
-   - Use `-d "hide-keyboard"` if a soft keyboard ever covers lower UI targets (IME key nodes are already hidden from `ui_summary` by default; pass `--include-ime` only if inspecting a keyboard itself).
+   - Use `-d "hide-keyboard"` if a soft keyboard covers lower UI targets (`hide-keyboard` safely dismisses IME via global Back only when `mInputShown=true`; IME key nodes are hidden from `ui_summary` by default).
 
 ---
 
@@ -43,7 +63,7 @@ agentdroid mcp --install
 ```
 
 Native MCP tools:
-- `mobile_run_workflow(...)`: **PRIMARY TOOL**. Run complete single-call Android tasks (`install`, `push`, `open_url`, `locked_app_package`, `launch`, `do` with `capture:`/`{{var}}`/`wait-any:`/`if-visible:`, `wait_text`, `pull`, `assert_text`).
+- `mobile_run_workflow(...)`: **PRIMARY ONE-SHOT TOOL**. Run complete Android tasks (`install`, `push`, `open_url`, `locked_app_package`, `launch`, `do` with `capture:`/`{{var}}`/`wait-any:`/`if-visible:`, `wait_text`, `pull`, `assert_text`) in a single call.
 - `mobile_get_device_state(view_type="hierarchy")`: Compact IME-free UI elements (`display_size`, `elements`, `full_text`). Never pass `"screenshot"` unless hierarchy is genuinely empty.
 - `mobile_action_burst(actions=[...])`: Execute ordered steps without LLM round-trip latency.
 - `mobile_perform_action(action="click", target="btn:Submit")`
