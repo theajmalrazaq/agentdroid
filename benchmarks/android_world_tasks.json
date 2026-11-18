@@ -11,7 +11,7 @@
   {
     "task": "AudioRecorderRecordAudioWithFileName",
     "app": "Audio Recorder",
-    "goal": "$13c",
+    "goal": "Record an audio clip and save it with a custom file name using Audio Recorder app.",
     "complexity": 6.0,
     "duration_sec_vostride": 479.0,
     "actions_vostride": 46,
@@ -416,7 +416,7 @@
   {
     "task": "OsmAndTrack",
     "app": "OsmAnd",
-    "goal": "Save a track with waypoints SchÃ¶nberg, Liechtenstein, Triesen, Liechtenstein, Bendern, Liechtenstein in the OsmAnd maps app in the same order as listed.",
+    "goal": "Save a track with waypoints Sch\u00c3\u00b6nberg, Liechtenstein, Triesen, Liechtenstein, Bendern, Liechtenstein in the OsmAnd maps app in the same order as listed.",
     "complexity": 12.0,
     "duration_sec_vostride": 690.0,
     "actions_vostride": 58,
