@@ -702,6 +702,24 @@ class AdbDevice:
     def stop_app(self, package: str) -> None:
         self.shell(f"am force-stop {package}")
 
+    def trim_background_apps(self, keep_packages: set[str] | None = None) -> list[str]:
+        """Force-stop background 3rd-party apps and reclaim kernel memory to keep CPU/RAM near zero."""
+        keep = set(keep_packages or set())
+        keep.update({
+            "com.android.systemui",
+            "com.android.launcher3",
+            "com.android.inputmethod.latin",
+            "com.artemis.helper",
+        })
+        third_party = self.list_third_party_packages()
+        stopped: list[str] = []
+        for pkg in sorted(third_party):
+            if pkg not in keep:
+                self.shell(f"am force-stop {pkg}")
+                stopped.append(pkg)
+        self.shell("echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true")
+        return stopped
+
     # ------------------------------------------------------------------ #
     # General-Purpose Device Operations (URLs, Files, Clipboard, Notifications)
     # ------------------------------------------------------------------ #

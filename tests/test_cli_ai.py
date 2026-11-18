@@ -59,6 +59,17 @@ class TestCliAiSubcommand(unittest.TestCase):
             self.assertEqual(ret, 0)
             mock_tap.assert_called_once_with(540.0, 300.0)
 
+    @patch("agentdroid.adb.AdbDevice.connect", return_value=True)
+    @patch("agentdroid.adb.AdbDevice.trim_background_apps", return_value=["com.pkg.one", "com.pkg.two"])
+    def test_cmd_device_clean(self, mock_trim, mock_connect):
+        from agentdroid.cli import cmd_device
+
+        parser = build_parser()
+        args = parser.parse_args(["device", "clean", "-j"])
+        ret = cmd_device(args)
+        self.assertEqual(ret, 0)
+        mock_trim.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

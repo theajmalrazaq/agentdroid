@@ -546,6 +546,15 @@ def cmd_device(args: argparse.Namespace) -> int:
             print(out)
         return 0
 
+    if act == "clean":
+        stopped = adb.trim_background_apps()
+        if args.json:
+            print(json.dumps({"ok": True, "stopped_packages": stopped}, indent=2))
+        else:
+            print(f"🧹 Cleaned {len(stopped)} background app(s): {', '.join(stopped) if stopped else 'none'}")
+            print("⚡ Reclaimed kernel memory caches (drop_caches).")
+        return 0
+
     return 1
 
 
@@ -900,6 +909,9 @@ def cmd_ai(args: argparse.Namespace) -> int:
 
         return 0 if is_success or len(history) > 0 else 1
     finally:
+        if getattr(args, "stop_after", False) and getattr(args, "launch", None):
+            pkg = str(args.launch).split("/")[0]
+            adb.stop_app(pkg)
         if watcher is not None:
             time.sleep(0.5)
             watcher.stop(force=True)
@@ -1081,6 +1093,10 @@ def build_parser() -> argparse.ArgumentParser:
     sh_p.add_argument("-s", "--serial")
     sh_p.add_argument("-j", "--json", action="store_true")
 
+    clean_p = dev_sub.add_parser("clean", help="Force-stop background 3rd-party apps and reclaim kernel caches to reduce CPU/RAM.")
+    clean_p.add_argument("-s", "--serial")
+    clean_p.add_argument("-j", "--json", action="store_true")
+
     dev_p.set_defaults(func=cmd_device)
 
     # --- ui ---
@@ -1230,6 +1246,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--launch",
         metavar="PACKAGE",
         help="Launch this Android package or component before starting the decision loop.",
+    )
+    ai_p.add_argument(
+        "--stop-after",
+        action="store_true",
+        help="Force-stop the launched app after execution finishes to keep device idle and conserve CPU/RAM.",
     )
     ai_p.add_argument(
         "--clear-data",
