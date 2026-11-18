@@ -23,7 +23,8 @@ class TypeSafeAIClient:
     """Client for TypeSafe AI's Jev System One decision models."""
 
     def __init__(self, api_key: str | None = None, base_url: str = TYPESAFE_BASE_URL) -> None:
-        self.api_key = (api_key or DEFAULT_TYPESAFE_API_KEY).strip()
+        key = api_key if api_key is not None else os.environ.get("TYPESAFE_API_KEY", DEFAULT_TYPESAFE_API_KEY)
+        self.api_key = (key or "").strip()
         self.base_url = base_url.rstrip("/")
         if not self.api_key:
             raise ValueError(
@@ -88,22 +89,42 @@ class TypeSafeAIClient:
         ui: dict[str, Any],
         goal: str,
         *,
-        max_candidates: int = 15,
+        max_candidates: int = 30,
         model: str = "jev-latest",
     ) -> dict[str, Any]:
         """Rank clickable UI elements against a target goal using Jev's choice criteria."""
         elements = ui.get("elements") or []
         candidates: dict[str, str] = {}
 
-        # Filter and index interactable candidates
+        # Prioritize app interactive elements over background system UI
+        app_elements: list[dict[str, Any]] = []
+        sysui_elements: list[dict[str, Any]] = []
         for el in elements:
-            if not el.get("clickable", True) and el.get("class") in ("TextView", "ImageView"):
-                continue
+            pkg = el.get("package", "")
+            if pkg == "com.android.systemui" or "systemui" in str(pkg).lower():
+                sysui_elements.append(el)
+            else:
+                app_elements.append(el)
+
+        ordered = app_elements + sysui_elements
+
+        # Filter and index interactable candidates
+        for el in ordered:
+            clickable = el.get("clickable", False)
+            cls = el.get("class", "Element")
             eid = el.get("id")
             lbl = el.get("label") or el.get("desc") or el.get("resource_id")
             if not lbl:
                 continue
-            cls = el.get("class", "Element")
+            if not clickable and cls in (
+                "TextView",
+                "ImageView",
+                "LinearLayout",
+                "RelativeLayout",
+                "ViewGroup",
+                "FrameLayout",
+            ):
+                continue
             candidates[f"tap_{eid}"] = f"Tap '{lbl}' ({cls})"
             if len(candidates) >= max_candidates:
                 break

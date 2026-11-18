@@ -35,6 +35,7 @@ KNOWN_SUBCOMMANDS = {
     "doctor",
     "mcp",
     "daemon",
+    "ai",
     "-h",
     "--help",
     "--version",
@@ -786,6 +787,124 @@ def cmd_daemon(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai(args: argparse.Namespace) -> int:
+    """Run autonomous decision-making powered directly by TypeSafe AI (Jev System One)."""
+    from agentdroid.engine import AndroidEngine
+    from agentdroid.typesafe_ai import TypeSafeAIClient
+
+    adb = AdbDevice(serial=args.serial)
+    if not adb.connect(timeout=15.0):
+        print(f"Error: Could not connect to {adb.serial}", file=sys.stderr)
+        return 1
+
+    watcher = None
+    if getattr(args, "watch", False):
+        watcher = LiveWatcher(
+            adb.serial,
+            watch=True,
+            interactive_control=bool(getattr(args, "interactive", False)),
+            always_on_top=not getattr(args, "no_always_on_top", False),
+            window_width=getattr(args, "window_width", 412),
+            window_height=getattr(args, "window_height", 892),
+            borderless=bool(getattr(args, "borderless", False)),
+        )
+        info = watcher.start()
+        print(
+            f"[agentdroid:ai] Live watcher attached ({info.get('viewer')})",
+            file=sys.stderr,
+        )
+
+    try:
+        if getattr(args, "clear_data", None):
+            for pkg in args.clear_data:
+                adb.clear_package_data(pkg)
+        if getattr(args, "launch", None):
+            adb.launch_app(args.launch, wait=True)
+            time.sleep(1.0)
+
+        engine = AndroidEngine(adb)
+        api_key = (
+            getattr(args, "key", None)
+            or os.environ.get("TYPESAFE_API_KEY")
+            or ""
+        )
+        client = TypeSafeAIClient(api_key=api_key)
+        goal = args.prompt
+        max_steps = getattr(args, "max_steps", 10)
+        model = getattr(args, "model", "jev-latest")
+
+        print(f"[agentdroid:ai] Goal: '{goal}' | Model: {model} | Device: {adb.serial}")
+
+        history: list[dict[str, Any]] = []
+        is_success = False
+
+        for step in range(1, max_steps + 1):
+            ui = engine.get_screen_data(max_elements=80)
+            decision = client.rank_next_action(ui, goal, model=model)
+            action_key = decision.get("action_key", "wait")
+            conf = decision.get("confidence", 0.0)
+            latency = decision.get("latency_ms", 0.0)
+            matched = decision.get("matched_element")
+            is_goal_met = decision.get("is_goal_met", False)
+
+            step_record = {
+                "step": step,
+                "action": action_key,
+                "confidence": conf,
+                "latency_ms": latency,
+                "goal_met": is_goal_met,
+            }
+            history.append(step_record)
+
+            label = matched.get("label") or matched.get("desc") if matched else ""
+            print(
+                f"[agentdroid:ai] Step {step}/{max_steps}: {action_key} "
+                f"({label or 'none'}) [conf={conf:.2f}, {latency}ms]"
+            )
+
+            if is_goal_met and action_key == "wait":
+                print(f"✅ [agentdroid:ai] Goal satisfied! '{goal}'")
+                is_success = True
+                break
+
+            if action_key.startswith("tap_") and matched:
+                center = matched.get("center") or (540, 1200)
+                engine.tap(float(center[0]), float(center[1]))
+                time.sleep(0.6)
+            elif action_key == "back":
+                engine.helper.action("global", action="BACK")
+                time.sleep(0.6)
+            elif action_key == "wait":
+                time.sleep(1.0)
+            else:
+                time.sleep(0.5)
+
+            if is_goal_met:
+                print(f"✅ [agentdroid:ai] Goal satisfied! '{goal}'")
+                is_success = True
+                break
+
+        if getattr(args, "json", False):
+            print(
+                json.dumps(
+                    {
+                        "ok": is_success,
+                        "goal": goal,
+                        "model": model,
+                        "steps": len(history),
+                        "history": history,
+                    },
+                    indent=2,
+                )
+            )
+
+        return 0 if is_success or len(history) > 0 else 1
+    finally:
+        if watcher is not None:
+            time.sleep(0.5)
+            watcher.stop(force=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentdroid",
@@ -1057,6 +1176,83 @@ def build_parser() -> argparse.ArgumentParser:
     )
     daemon_p.add_argument("-j", "--json", action="store_true", help="Print JSON output.")
     daemon_p.set_defaults(func=cmd_daemon)
+
+    # --- ai ---
+    ai_p = subparsers.add_parser(
+        "ai",
+        help="Run autonomous sub-second goal execution powered directly by TypeSafe AI (Jev System One).",
+    )
+    ai_p.add_argument(
+        "prompt",
+        help="Natural language goal or task prompt (e.g. 'Start the stopwatch' or 'Navigate to Timer').",
+    )
+    ai_p.add_argument("-s", "--serial", help="Target Android device serial (default: 127.0.0.1:5555).")
+    ai_p.add_argument(
+        "-w",
+        "--watch",
+        action="store_true",
+        help="Launch live visual viewer (scrcpy) during autonomous execution.",
+    )
+    ai_p.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Allow mouse/keyboard input inside watch window.",
+    )
+    ai_p.add_argument(
+        "--window-width",
+        type=int,
+        default=412,
+        help="Width of the floating watch window in pixels (default: 412).",
+    )
+    ai_p.add_argument(
+        "--window-height",
+        type=int,
+        default=892,
+        help="Height of the floating watch window in pixels (default: 892).",
+    )
+    ai_p.add_argument(
+        "--no-always-on-top",
+        action="store_true",
+        help="Do not keep the watch window on top.",
+    )
+    ai_p.add_argument(
+        "--borderless",
+        action="store_true",
+        help="Run watch window without window decorations/borders.",
+    )
+    ai_p.add_argument(
+        "--max-steps",
+        type=int,
+        default=10,
+        help="Maximum autonomous decision steps (default: 10).",
+    )
+    ai_p.add_argument(
+        "--launch",
+        metavar="PACKAGE",
+        help="Launch this Android package or component before starting the decision loop.",
+    )
+    ai_p.add_argument(
+        "--clear-data",
+        action="append",
+        metavar="PACKAGE",
+        help="Clear package user data before starting (repeatable).",
+    )
+    ai_p.add_argument(
+        "--key",
+        help="TypeSafe AI API key (defaults to TYPESAFE_API_KEY env var).",
+    )
+    ai_p.add_argument(
+        "--model",
+        default="jev-latest",
+        help="TypeSafe model identifier (default: jev-latest).",
+    )
+    ai_p.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        help="Emit JSON execution report.",
+    )
+    ai_p.set_defaults(func=cmd_ai)
 
     return parser
 
