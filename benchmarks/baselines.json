@@ -1,0 +1,201 @@
+{
+  "metadata": {
+    "description": "Primary-source published competitor benchmark baselines for infrastructure sandboxes and autonomous Android agents.",
+    "last_verified_date": "2026-11-19"
+  },
+  "infrastructure_competitors": [
+    {
+      "provider": "Mobilebox",
+      "region": "EU (Germany)",
+      "client": "Data center in Nuremberg, Germany",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "pricing_per_min_usd": 0.01,
+      "session_10m_usd": 0.10,
+      "metrics": {
+        "ready": {"n": 10, "failed": 0, "median_ms": 17833, "p90_ms": 18072},
+        "cold_start_to_screenshot": {"n": 10, "failed": 0, "median_ms": 19353, "p90_ms": 19487},
+        "park": {"n": 10, "failed": 0, "median_ms": 986, "p90_ms": 1019},
+        "resume_to_screenshot": {"n": 10, "failed": 0, "median_ms": 11515, "p90_ms": 11841},
+        "apk_install": {"n": 10, "failed": 0, "median_ms": 1172, "p90_ms": 1544},
+        "tap": {"n": 100, "failed": 0, "median_ms": 517, "p90_ms": 526},
+        "tap_to_screenshot": {"n": 100, "failed": 0, "median_ms": 1448, "p90_ms": 1487}
+      }
+    },
+    {
+      "provider": "Mobilebox (CI)",
+      "region": "EU (Germany)",
+      "client": "GitHub Actions ubuntu-latest",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "pricing_per_min_usd": 0.01,
+      "session_10m_usd": 0.10,
+      "metrics": {
+        "ready": {"n": 5, "failed": 0, "median_ms": 18252, "p90_ms": 18580},
+        "cold_start_to_screenshot": {"n": 5, "failed": 0, "median_ms": 20268, "p90_ms": 20630},
+        "park": {"n": 5, "failed": 0, "median_ms": 1137, "p90_ms": 1247},
+        "resume_to_screenshot": {"n": 5, "failed": 0, "median_ms": 12664, "p90_ms": 12910},
+        "apk_install": {"n": 5, "failed": 0, "median_ms": 1166, "p90_ms": 2039},
+        "tap": {"n": 50, "failed": 0, "median_ms": 607, "p90_ms": 617},
+        "tap_to_screenshot": {"n": 50, "failed": 0, "median_ms": 2086, "p90_ms": 2188}
+      }
+    },
+    {
+      "provider": "Limrun",
+      "region": "EU (jurisdiction eu)",
+      "client": "Data center in Nuremberg, Germany",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "pricing_per_min_usd": 0.04,
+      "session_10m_usd": 0.40,
+      "pricing_note": "$0.04/min on $20 plan per Mobilebox README comparison",
+      "metrics": {
+        "ready": {"n": 10, "failed": 0, "median_ms": 338, "p90_ms": 454},
+        "cold_start_to_screenshot": {"n": 10, "failed": 0, "median_ms": 977, "p90_ms": 1067},
+        "apk_install": {"n": 10, "failed": 0, "median_ms": 850, "p90_ms": 954},
+        "tap": {"n": 100, "failed": 0, "median_ms": 76, "p90_ms": 78},
+        "tap_to_screenshot": {"n": 100, "failed": 0, "median_ms": 384, "p90_ms": 402}
+      }
+    },
+    {
+      "provider": "Phone Harness",
+      "region": "service default",
+      "client": "Data center in Nuremberg, Germany",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "metrics": {
+        "ready": {"n": 10, "failed": 0, "median_ms": 20676, "p90_ms": 66953},
+        "cold_start_to_screenshot": {"n": 10, "failed": 0, "median_ms": 23028, "p90_ms": 69977},
+        "apk_install": {"n": 9, "failed": 0, "median_ms": 3572, "p90_ms": 29315},
+        "tap": {"n": 93, "failed": 0, "median_ms": 252, "p90_ms": 258},
+        "tap_to_screenshot": {"n": 93, "failed": 0, "median_ms": 1906, "p90_ms": 2351}
+      }
+    },
+    {
+      "provider": "Local emulator, KVM on",
+      "region": "runner",
+      "client": "GitHub Actions ubuntu-latest",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "metrics": {
+        "setup_image_and_avd": {"n": 1, "failed": 0, "median_ms": 75307, "p90_ms": 75307},
+        "ready": {"n": 5, "failed": 0, "median_ms": 49231, "p90_ms": 49309},
+        "cold_start_to_screenshot": {"n": 5, "failed": 0, "median_ms": 50009, "p90_ms": 50278},
+        "apk_install": {"n": 5, "failed": 0, "median_ms": 6091, "p90_ms": 7307},
+        "tap": {"n": 50, "failed": 0, "median_ms": 150, "p90_ms": 383},
+        "tap_to_screenshot": {"n": 50, "failed": 0, "median_ms": 1035, "p90_ms": 3523}
+      }
+    },
+    {
+      "provider": "Local emulator, KVM off",
+      "region": "runner",
+      "client": "GitHub Actions ubuntu-latest",
+      "source": "https://github.com/mobilebox-dev/mobilebox/blob/main/benchmarks/results/summary.csv",
+      "dates": "2026-11-08",
+      "metrics": {
+        "setup_image_and_avd": {"n": 1, "failed": 0, "median_ms": 37810, "p90_ms": 37810},
+        "ready": {"n": 1, "failed": 0, "median_ms": 782342, "p90_ms": 782342},
+        "cold_start_to_screenshot": {"n": 1, "failed": 0, "median_ms": 812681, "p90_ms": 812681},
+        "apk_install": {"n": 1, "failed": 0, "median_ms": 125911, "p90_ms": 125911},
+        "tap": {"n": 10, "failed": 0, "median_ms": 1880, "p90_ms": 5107},
+        "tap_to_screenshot": {"n": 10, "failed": 0, "median_ms": 18691, "p90_ms": 23373}
+      }
+    }
+  ],
+  "agent_competitors": [
+    {
+      "agent": "Minitap (mobile-use)",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 100.0,
+      "avg_task_sec": 31.0,
+      "avg_steps": null,
+      "perception": "Accessibility tree + screenshots",
+      "architecture": "6-agent decomposition + deterministic post-validation + cycle meta-cognition",
+      "source": "https://arxiv.org/abs/2602.07787"
+    },
+    {
+      "agent": "Google Artemis",
+      "benchmark": "AndroidWorld (100+ tasks)",
+      "success_rate_pct": 99.1,
+      "avg_task_sec": null,
+      "turn_latency_note": "3-5 s (Flash) / 15-40 s (Pro)",
+      "perception": "Screenshot + accessibility XML",
+      "architecture": "Planner + Operator + Checker multi-agent graph",
+      "source": "https://github.com/google/artemis"
+    },
+    {
+      "agent": "Droidrun (Mobilerun)",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 91.4,
+      "avg_task_sec": null,
+      "avg_tokens_per_task": "3,225+",
+      "est_cost_per_task_usd": 0.075,
+      "perception": "Portal Accessibility tree (+ optional vision)",
+      "architecture": "Manager-Executor loop with dynamic replanning",
+      "source": "https://droidrun.ai / https://mobilerun.ai"
+    },
+    {
+      "agent": "AutoGLM / GLM-4V Mobile",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 80.2,
+      "avg_task_sec": null,
+      "perception": "Screenshot (~1,200 vision tokens/step)",
+      "architecture": "End-to-end GUI model",
+      "source": "AndroidWorld published comparisons"
+    },
+    {
+      "agent": "Human Baseline",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 80.0,
+      "avg_task_sec": null,
+      "perception": "Native display",
+      "architecture": "Human operator",
+      "source": "https://arxiv.org/abs/2405.14573"
+    },
+    {
+      "agent": "Mobile-Agent-v2 / AppAgent",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 73.3,
+      "avg_task_sec": null,
+      "perception": "Screenshot + OCR + icon crops",
+      "architecture": "Multi-agent visual grounding",
+      "source": "AndroidWorld published comparisons"
+    },
+    {
+      "agent": "UI-TARS (ByteDance)",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 46.6,
+      "avg_task_sec": null,
+      "perception": "Full raw screenshot (7B/72B VLM)",
+      "architecture": "End-to-end native GUI VLM",
+      "source": "ByteDance UI-TARS evaluation"
+    },
+    {
+      "agent": "Google M3A (A11y / SoM)",
+      "benchmark": "AndroidWorld (116 tasks)",
+      "success_rate_pct": 30.6,
+      "som_success_rate_pct": 25.4,
+      "avg_task_sec": 234.0,
+      "perception": "Screenshot + A11y tree / Set-of-Marks",
+      "architecture": "Official AndroidWorld two-step GPT-4 Turbo baseline",
+      "source": "https://arxiv.org/abs/2405.14573"
+    }
+  ],
+  "vostride_matched_tasks": {
+    "source": "https://vostride.com/benchmark/android-world",
+    "tasks_sec": {
+      "ClockStopWatchRunning": 38.0,
+      "ClockStopWatchPausedVerify": 97.0,
+      "ClockTimerEntry": 57.0,
+      "AudioRecorderRecordAudio": 62.0,
+      "ContactsAddContact": 81.0,
+      "SimpleCalendarAddOneEvent": 184.0,
+      "BroccoliAddSingleRecipe": 138.0,
+      "AudioRecorderRecordAudioWithFileName": 106.0,
+      "MarkorCreateAndSaveNote": 64.0
+    },
+    "matched_count": 9,
+    "matched_total_sec": 827.0,
+    "matched_mean_sec": 91.89
+  }
+}

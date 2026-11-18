@@ -51,13 +51,21 @@ class TestCliAiSubcommand(unittest.TestCase):
         }
 
         parser = build_parser()
-        args = parser.parse_args(["ai", "Switch to stopwatch", "--max-steps", "2", "-j"])
+        args = parser.parse_args(["ai", "Switch to stopwatch", "--key", "test-typesafe-key", "--max-steps", "2", "-j"])
 
         with patch("agentdroid.engine.AndroidEngine.tap") as mock_tap:
             mock_tap.return_value = {"success": True}
             ret = cmd_ai(args)
             self.assertEqual(ret, 0)
             mock_tap.assert_called_once_with(540.0, 300.0)
+
+    @patch.dict("os.environ", {"TYPESAFE_API_KEY": ""}, clear=False)
+    @patch("agentdroid.adb.AdbDevice.connect", return_value=True)
+    def test_cmd_ai_requires_api_key(self, mock_connect):
+        parser = build_parser()
+        args = parser.parse_args(["ai", "Switch to stopwatch", "--max-steps", "1", "-j"])
+        with self.assertRaises(ValueError):
+            cmd_ai(args)
 
     @patch("agentdroid.adb.AdbDevice.connect", return_value=True)
     @patch("agentdroid.adb.AdbDevice.trim_background_apps", return_value=["com.pkg.one", "com.pkg.two"])

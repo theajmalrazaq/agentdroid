@@ -36,7 +36,7 @@ Your agent gets native mobile tools (`mobile_run_workflow`, `mobile_get_device_s
 ### 2. One-Shot Execution (Zero Custom Scripts, Zero Ping-Pong Loops)
 Ask your agent to **execute tasks directly in one shot** rather than writing `.py`/`.sh` wrapper scripts or running step-by-step `dump -> click -> dump` loops (enforced in [`AGENTS.md`](AGENTS.md) and [`skills/agentdroid/SKILL.md`](skills/agentdroid/SKILL.md)):
 
-- **Host Coding Agent (`mobile_run_workflow` / compound CLI):** Chains launch, waits, conditionals (`if-visible:`), inline regex extraction (`capture:` + `{{var}}`), fills, and assertions in **one call** (`~3.8 s` mean across 13 verified E2E apps).
+- **Host Coding Agent (`mobile_run_workflow` / compound CLI):** Chains launch, waits, conditionals (`if-visible:`), inline regex extraction (`capture:` + `{{var}}`), fills, and assertions in **one call** (`2.88 s` mean / `2.17 s` median across `13/13` verified E2E apps).
 - **Autonomous Closed-Loop (`agentdroid ai`):** Runs TypeSafe AI `jev-latest` for unseen dynamic flows without writing code.
 
 ```bash
@@ -58,6 +58,22 @@ agentdroid --watch --launch com.android.settings
 ## Why Redroid instead of the Android Studio emulator?
 
 Redroid runs Android as a container on the host kernel (no QEMU VM), so it typically needs far less RAM and boots in seconds. Figures vary by host; measure on yours.
+
+## Benchmark
+
+Measured live on `redroid11_x86_64` (`Android 11`, `1080x2400`) via [`benchmarks/benchmark.py`](benchmarks/benchmark.py) ([full results, CSVs & methodology](benchmarks/README.md)) against published sandbox and agent baselines:
+
+| Platform / Agent | Task Success Rate | Avg Task Duration | Control / Observe Latency | Payload / Tokens per Step | Sandbox Boot / Park / Footprint |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **AgentDroid (1-Turn Compound / MCP)** | **100.0%** (`13/13` · `100%` crash-free) | **2.88 s** mean · **2.17 s** med (`26.1x` vs Vostride) | **1.53 ms** tap · **19.78 ms** tap-to-UI (`366 ms` screencap) | **423–676 tok** (`1.7–2.7 KB` text · `-97.6%` vs vision) | **14.9 s** boot · **68.6 ms** park / **914 ms** resume · `1.08%` CPU / `856 MiB` RAM |
+| **Minitap (`mobile-use`)** *(`arXiv:2602.07787`)* | **100.0%** *(AndroidWorld `116`)* | **31.0 s** *(vs `68 s` single-agent)* | Multi-agent (`6` roles) | A11y + screenshots | Emulator |
+| **Google Artemis** *(`google/artemis`)* | **99.1%** *(AndroidWorld `100+`)* | `15–40 s/step` *(Pro)* | A11y HTTP + VLM | Screenshot + XML | Standalone multi-agent stack |
+| **Droidrun (Mobilerun)** | **91.4%** *(AndroidWorld `116`)* | Multi-turn loop | Portal A11y + LLM | `3,225+` tok/task (`~$0.075`) | Local / Cloud |
+| **AutoGLM / Mobile-Agent-v2 / UI-TARS** | **80.2%** / **73.3%** / **46.6%** | Multi-turn VLM | `~500 ms` `adb` + VLM | `~1,200–1,477` vision tok (PNG) | Host / Dedicated GPU |
+| **Google M3A** *(`arXiv:2405.14573v3`)* | **30.6%** *(A11y)* · **25.4%** *(SoM)* | **~234.0 s** | `adb` + frontier VLM | XML / SoM PNG | AVD QEMU |
+| **Mobilebox** *(Nuremberg, `summary.csv`)* | Infra sandbox | `24.6 s` *(Matterhorn demo)* | **517 ms** tap · **1,448 ms** `tap_to_screenshot` | Screenshot-first | **17.8 s** ready · **986 ms** park / **11.5 s** resume · `$0.01/min` |
+| **Limrun** *(Nuremberg, `summary.csv`)* | Infra sandbox | — | **76 ms** tap · **384 ms** `tap_to_screenshot` | Screenshot-first | **338 ms** ready (`977 ms` 1st frame) · `$0.04/min` |
+| **Local AVD (KVM On / Off)** *(`summary.csv`)* | Infra sandbox | — | **150 / 1,880 ms** tap · **1.04 / 18.7 s** `tap_to_screenshot` | — | **49.2 s / 13.0 min** ready |
 
 ## Troubleshooting
 
