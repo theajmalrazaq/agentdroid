@@ -495,8 +495,23 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
     home = Path.home()
     installed = []
 
-    # 1. Antigravity / Gemini Jetski
-    if target_agent in ("all", "antigravity", "gemini"):
+    # 1. Antigravity / Gemini CLI (`agy`) & Jetski
+    if target_agent in ("all", "antigravity", "gemini", "agy"):
+        import shutil, subprocess
+        agy_bin = shutil.which("agy")
+        if agy_bin:
+            try:
+                proc = subprocess.run(
+                    [agy_bin, "mcp", "add", "agentdroid", "agentdroid", "mcp"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if proc.returncode == 0:
+                    installed.append("agy mcp (Antigravity CLI)")
+            except (OSError, subprocess.SubprocessError) as exc:
+                logger.debug("Failed registering agy mcp: %s", exc)
+
         jetski_cfg = home / ".gemini" / "jetski" / "mcp_config.json"
         try:
             jetski_cfg.parent.mkdir(parents=True, exist_ok=True)
