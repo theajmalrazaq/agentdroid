@@ -15,6 +15,9 @@ This repository provides a **silent, general-purpose Android computer** (powered
    - **PRIMARY EXECUTION PATH (1 call):**
      - **Via MCP:** Call `mobile_run_workflow(...)` with full `launch` / `open_url` / ordered `do=[...]` steps / `assert_text` in **one call**.
      - **Via CLI:** Run **one** `agentdroid --headless` command chaining `-d` flags (`wait-any:`, `if-visible:`, `fill:`, `capture:`, `{{var}}`, `--assert-text`, `--json`), or `agentdroid ai "<goal>" --launch <pkg> --json` when autonomous visual/dynamic UI exploration is needed.
+   - **EXECUTION STRATEGY**:
+     - **For deterministic or known app flows**: `agy cli` / MCP **One-Shot Compound Execution** (`mobile_run_workflow` or `agentdroid -d ...`) is the fastest path (~1.3 s execution, 0 extra LLM turns).
+     - **For unknown, branching, or dynamic UIs**: **TypeSafe JEV** (`agentdroid ai`) provides sub-second closed-loop recalibration per step, but requires an active TypeSafe API key (`TYPESAFE_API_KEY`).
    - **UNKNOWN UI CAP (`<= 2` calls max):** If screen selectors are completely unknown, do **at most one** `mobile_get_device_state(view_type="hierarchy")` (or `agentdroid ui dump --json`), read every control ID/label, and immediately finish the entire workflow in **one** compound call.
 
    **Bad (Forbidden):**

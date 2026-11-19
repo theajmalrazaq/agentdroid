@@ -26,6 +26,7 @@ HELPER_SERVICE="${HELPER_PACKAGE}/.ArtemisAccessibilityService"
 HELPER_RECEIVER="${HELPER_PACKAGE}/.TokenReceiver"
 HELPER_ACTION="${HELPER_PACKAGE}.SET_TOKEN"
 BUNDLED_APK="${REPO_ROOT}/packages/artemis-accessibility-helper/ArtemisAccessibilityHelper.apk"
+BUNDLED_APK_MANIFEST="${REPO_ROOT}/packages/artemis-accessibility-helper/helper_manifest.json"
 DEVICE_FALLBACK_APK="/vendor/etc/artemis/ArtemisAccessibilityHelper.apk"
 BUNDLED_INPUT_DEX="${REPO_ROOT}/packages/agentdroid-input-daemon/agentdroid-input.dex"
 DEVICE_VENDOR_INPUT_DEX="/vendor/etc/artemis/agentdroid-input.dex"
@@ -117,7 +118,7 @@ adb_s shell '
     settings put global transition_animation_scale 0.0
     settings put global animator_duration_scale 0.0
 
-    # Modern Android 16 UI/UX: System-wide Dark Theme (no blinding white screen)
+    # Modern UI/UX: System-wide Dark Theme (no blinding white screen)
     cmd uimode night yes >/dev/null 2>&1 || true
     settings put secure ui_night_mode 2 >/dev/null 2>&1 || true
 
@@ -167,6 +168,22 @@ installed_ver="$(adb_s shell dumpsys package "${HELPER_PACKAGE}" 2>/dev/null | g
 
 if [[ -z "${installed_ver}" ]]; then
     if [[ -f "${BUNDLED_APK}" ]]; then
+        if [[ -f "${BUNDLED_APK_MANIFEST}" ]] && command -v python3 >/dev/null 2>&1; then
+            log "Verifying SHA-256 checksum of bundled ArtemisAccessibilityHelper.apk..."
+            PYTHONPATH="${REPO_ROOT}" python3 -c '
+import sys
+from pathlib import Path
+from agentdroid.security import verify_bundled_helper_apk
+verify_bundled_helper_apk(Path(sys.argv[1]), strict=True)
+' "${REPO_ROOT}"
+        elif [[ -f "${BUNDLED_APK_MANIFEST}" ]] && command -v sha256sum >/dev/null 2>&1; then
+            expected_sha="$(grep -oE '"sha256"[[:space:]]*:[[:space:]]*"[0-9a-fA-F]{64}"' "${BUNDLED_APK_MANIFEST}" | grep -oE '[0-9a-fA-F]{64}' | head -n1)"
+            actual_sha="$(sha256sum "${BUNDLED_APK}" | awk '{print $1}')"
+            if [[ -z "${expected_sha}" || "${actual_sha,,}" != "${expected_sha,,}" ]]; then
+                echo "[agentdroid:provision] ERROR: ArtemisAccessibilityHelper.apk SHA-256 mismatch (expected=${expected_sha}, got=${actual_sha})" >&2
+                exit 1
+            fi
+        fi
         log "Installing bundled ArtemisAccessibilityHelper.apk from host..."
         adb_s install -r -g "${BUNDLED_APK}" >/dev/null
     elif adb_s shell "[ -f ${DEVICE_FALLBACK_APK} ]" >/dev/null 2>&1; then

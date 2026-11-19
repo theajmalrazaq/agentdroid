@@ -1,0 +1,36 @@
+AgentDroid
+Copyright 2026 AgentDroid Contributors
+
+This product includes software licensed under the Apache License, Version 2.0.
+
+AgentDroid is an independent open-source project and is NOT affiliated with,
+endorsed by, or sponsored by Google LLC.
+
+================================================================================
+Third-Party Components and Attribution
+================================================================================
+
+1. Google Artemis Accessibility Helper
+   Location: packages/artemis-accessibility-helper/ArtemisAccessibilityHelper.apk
+   Manifest: packages/artemis-accessibility-helper/helper_manifest.json
+   Source:   https://github.com/google/artemis
+   License:  Apache License, Version 2.0
+   Copyright Google LLC.
+   This repository bundles the compiled Artemis Accessibility Helper APK
+   (com.artemis.helper v1.2.0) unmodified for local Android UI hierarchy
+   inspection and action execution. Its integrity is verified at runtime against
+   the SHA-256 digest recorded in helper_manifest.json.
+
+2. Redroid (Remote Android)
+   Source:   https://github.com/remote-android/redroid-doc
+   License:  Apache License, Version 2.0
+   Container base images referenced in docker-compose.yml and
+   docker/redroid/Dockerfile are provided by the Remote-Android / Redroid
+   project.
+
+3. TypeSafe AI (Optional Cloud Integration)
+   Source:   https://typesafe.ai
+   The optional `agentdroid ai` subcommand communicates with TypeSafe AI's
+   hosted API (`api.typesafe.ai`) when explicitly invoked with a user-supplied
+   `TYPESAFE_API_KEY`. It is not required for local MCP, CLI, or compound
+   workflow operation.

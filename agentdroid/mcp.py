@@ -8,6 +8,7 @@ Requires zero external dependencies.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 import sys
 import time
@@ -15,6 +16,8 @@ from typing import Any
 
 from agentdroid.adb import AdbDevice
 from agentdroid.engine import AndroidEngine
+
+logger = logging.getLogger(__name__)
 
 MCP_VERSION = "2024-11-05"
 SERVER_NAME = "agentdroid"
@@ -205,14 +208,18 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "mobile_install_app",
-        "description": "Install an APK from F-Droid ('fdroid:<pkg>'), an HTTPS URL, or a local file with all runtime permissions automatically granted.",
+        "description": "Install an APK from F-Droid ('fdroid:<pkg>'), an HTTPS URL, or a local file with optional SHA-256 verification and runtime permissions auto-granted.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "source": {
                     "type": "string",
-                    "description": "App source: 'fdroid:<pkg>', 'https://...apk', or local file path.",
-                }
+                    "description": "App source: 'fdroid:<pkg>', 'https://...apk', 'sha256:<hex>@https://...apk', or local file path.",
+                },
+                "sha256": {
+                    "type": "string",
+                    "description": "Optional expected 64-character lowercase SHA-256 hex checksum.",
+                },
             },
             "required": ["source"],
         },
@@ -260,8 +267,18 @@ TOOL_DEFINITIONS = [
 class McpServer:
     """Stdio JSON-RPC MCP Server."""
 
-    def __init__(self, serial: str | None = None) -> None:
-        self.adb = AdbDevice(serial=serial)
+    def __init__(
+        self,
+        serial: str | None = None,
+        *,
+        safe_mode: bool | None = None,
+        shell_allowlist: list[str] | tuple[str, ...] | str | None = None,
+    ) -> None:
+        self.adb = AdbDevice(
+            serial=serial,
+            safe_mode=safe_mode,
+            shell_allowlist=shell_allowlist,
+        )
         self.engine = AndroidEngine(self.adb)
 
     def handle_request(self, msg: dict[str, Any]) -> dict[str, Any] | None:
@@ -290,7 +307,7 @@ class McpServer:
             return {"jsonrpc": "2.0", "id": req_id, "result": {"tools": TOOL_DEFINITIONS}}
 
         if method == "tools/call":
-            tool_name = params.get("name")
+            tool_name = str(params.get("name") or "")
             args = params.get("arguments") or {}
             try:
                 result_str = self._call_tool(tool_name, args)
@@ -324,7 +341,11 @@ class McpServer:
     def _call_tool(self, name: str, args: dict[str, Any]) -> str:
         if name == "mobile_run_workflow":
             from agentdroid.pipeline import CompoundPipeline, PipelineSpec
+
             spec = PipelineSpec.from_dict(args)
+            if self.adb.safe_mode:
+                spec.safe_mode = True
+                spec.shell_allowlist = list(self.adb.shell_allowlist)
             pipeline = CompoundPipeline(spec)
             report = pipeline.run()
             return json.dumps(report, indent=2, ensure_ascii=False)
@@ -394,8 +415,12 @@ class McpServer:
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_install_app":
-            res = self.adb.install_apk(args["source"], grant_permissions=True)
-            return json.dumps(res.to_dict(), indent=2, ensure_ascii=False)
+            installed = self.adb.install_apk(
+                args["source"],
+                grant_permissions=True,
+                expected_sha256=args.get("sha256"),
+            )
+            return json.dumps(installed.to_dict(), indent=2, ensure_ascii=False)
 
         if name == "mobile_open_url":
             res = self.adb.open_url(args["url"])
@@ -408,8 +433,8 @@ class McpServer:
         if name == "mobile_clipboard":
             text = args.get("text")
             if text:
-                res = self.adb.set_clipboard(text)
-                return json.dumps({"action": "set", "result": res}, indent=2)
+                ok_clip = self.adb.set_clipboard(text)
+                return json.dumps({"action": "set", "result": ok_clip}, indent=2)
             else:
                 clip = self.adb.get_clipboard()
                 return json.dumps({"clipboard": clip}, indent=2)
@@ -448,12 +473,14 @@ class McpServer:
                     sys.stdin.readline()  # consume empty line
                     raw_data = sys.stdin.read(length)
                     req = json.loads(raw_data)
-                except Exception:
+                except (ValueError, json.JSONDecodeError) as exc:
+                    logger.debug("Skipping malformed Content-Length MCP frame: %s", exc)
                     continue
             else:
                 try:
                     req = json.loads(line)
-                except Exception:
+                except json.JSONDecodeError as exc:
+                    logger.debug("Skipping malformed JSON-RPC line: %s", exc)
                     continue
 
             resp = self.handle_request(req)
@@ -477,7 +504,7 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             if jetski_cfg.is_file():
                 try:
                     data = json.loads(jetski_cfg.read_text(encoding="utf-8"))
-                except Exception:
+                except (OSError, json.JSONDecodeError):
                     data = {}
             servers = data.setdefault("mcpServers", {})
             servers["agentdroid"] = {
@@ -487,8 +514,8 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             }
             jetski_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             installed.append(str(jetski_cfg))
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Failed writing %s: %s", jetski_cfg, exc)
 
     # 2. Codex CLI (~/.codex/config.toml)
     if target_agent in ("all", "codex"):
@@ -500,8 +527,8 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
                 block = '\n[mcp_servers.agentdroid]\ncommand = "agentdroid"\nargs = ["mcp"]\n'
                 codex_cfg.write_text(text + block, encoding="utf-8")
             installed.append(str(codex_cfg))
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Failed writing %s: %s", codex_cfg, exc)
 
     # 3. Claude Code (~/.claude.json)
     if target_agent in ("all", "claude"):
@@ -511,7 +538,7 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             if claude_cfg.is_file():
                 try:
                     data = json.loads(claude_cfg.read_text(encoding="utf-8"))
-                except Exception:
+                except (OSError, json.JSONDecodeError):
                     data = {}
             mcp_srv = data.setdefault("mcpServers", {})
             mcp_srv["agentdroid"] = {
@@ -520,8 +547,8 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             }
             claude_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             installed.append(str(claude_cfg))
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Failed writing %s: %s", claude_cfg, exc)
 
     # 4. Cursor (.cursor/mcp.json)
     if target_agent in ("all", "cursor"):
@@ -532,7 +559,7 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             if cursor_cfg.is_file():
                 try:
                     data = json.loads(cursor_cfg.read_text(encoding="utf-8"))
-                except Exception:
+                except (OSError, json.JSONDecodeError):
                     data = {}
             mcp_srv = data.setdefault("mcpServers", {})
             mcp_srv["agentdroid"] = {
@@ -541,7 +568,7 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             }
             cursor_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             installed.append(str(cursor_cfg))
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Failed writing %s: %s", cursor_cfg, exc)
 
     return {"installed": installed}

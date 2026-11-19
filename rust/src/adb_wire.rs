@@ -162,8 +162,12 @@ pub fn adb_list_forwards(serial: &str, timeout_ms: u64) -> Result<Vec<(u16, u16)
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() == 3 && parts[0] == serial {
             if let (Some(loc), Some(rem)) = (
-                parts[1].strip_prefix("tcp:").and_then(|s| s.parse::<u16>().ok()),
-                parts[2].strip_prefix("tcp:").and_then(|s| s.parse::<u16>().ok()),
+                parts[1]
+                    .strip_prefix("tcp:")
+                    .and_then(|s| s.parse::<u16>().ok()),
+                parts[2]
+                    .strip_prefix("tcp:")
+                    .and_then(|s| s.parse::<u16>().ok()),
             ) {
                 pairs.push((loc, rem));
             }
@@ -186,4 +190,53 @@ pub fn adb_forward_create(serial: &str, remote_port: u16, timeout_ms: u64) -> Re
         .trim()
         .parse::<u16>()
         .map_err(|e| format!("Invalid forwarded port '{port_str}': {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener;
+    use std::thread;
+
+    #[test]
+    fn probe_adbd_tcp_detects_cnxn_auth_and_eof() {
+        // Immediate EOF listener -> false
+        let eof_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let eof_port = eof_listener.local_addr().unwrap().port();
+        let t1 = thread::spawn(move || {
+            let _ = eof_listener.accept();
+        });
+        assert!(!probe_adbd_tcp("127.0.0.1", eof_port, 300));
+        let _ = t1.join();
+
+        // CNXN reply -> true
+        let cnxn_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let cnxn_port = cnxn_listener.local_addr().unwrap().port();
+        let t2 = thread::spawn(move || {
+            if let Ok((mut s, _)) = cnxn_listener.accept() {
+                let mut buf = [0u8; 64];
+                let _ = s.read(&mut buf);
+                let mut reply = [0u8; 24];
+                reply[..4].copy_from_slice(b"CNXN");
+                let _ = s.write_all(&reply);
+            }
+        });
+        assert!(probe_adbd_tcp("127.0.0.1", cnxn_port, 500));
+        let _ = t2.join();
+
+        // AUTH reply -> true
+        let auth_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let auth_port = auth_listener.local_addr().unwrap().port();
+        let t3 = thread::spawn(move || {
+            if let Ok((mut s, _)) = auth_listener.accept() {
+                let mut buf = [0u8; 64];
+                let _ = s.read(&mut buf);
+                let mut reply = [0u8; 24];
+                reply[..4].copy_from_slice(b"AUTH");
+                let _ = s.write_all(&reply);
+            }
+        });
+        assert!(probe_adbd_tcp("127.0.0.1", auth_port, 500));
+        let _ = t3.join();
+    }
 }

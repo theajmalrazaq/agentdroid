@@ -1,8 +1,7 @@
 """Unit tests for 'agentdroid ai' CLI subcommand."""
 
-import argparse
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from agentdroid.cli import build_parser, cmd_ai, normalize_argv
 

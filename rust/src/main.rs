@@ -103,9 +103,17 @@ fn handle_rpc(state: &mut SessionState, req: &Json) -> Json {
             Ok(list) => {
                 let items = list
                     .into_iter()
-                    .map(|(l, r)| obj(vec![("local", Json::Int(l as i64)), ("remote", Json::Int(r as i64))]))
+                    .map(|(l, r)| {
+                        obj(vec![
+                            ("local", Json::Int(l as i64)),
+                            ("remote", Json::Int(r as i64)),
+                        ])
+                    })
                     .collect();
-                obj(vec![("ok", Json::Bool(true)), ("forwards", Json::Arr(items))])
+                obj(vec![
+                    ("ok", Json::Bool(true)),
+                    ("forwards", Json::Arr(items)),
+                ])
             }
             Err(e) => obj(vec![("ok", Json::Bool(false)), ("error", Json::Str(e))]),
         },
@@ -114,7 +122,10 @@ fn handle_rpc(state: &mut SessionState, req: &Json) -> Json {
             match adb_forward_create(serial, remote, 5000) {
                 Ok(port) => {
                     state.forwards.insert((serial.to_string(), remote), port);
-                    obj(vec![("ok", Json::Bool(true)), ("port", Json::Int(port as i64))])
+                    obj(vec![
+                        ("ok", Json::Bool(true)),
+                        ("port", Json::Int(port as i64)),
+                    ])
                 }
                 Err(e) => obj(vec![("ok", Json::Bool(false)), ("error", Json::Str(e))]),
             }
@@ -281,12 +292,10 @@ fn run_cli() -> i32 {
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
-            "-s" | "--serial" => {
-                if i + 1 < args.len() {
-                    serial_opt = Some(args[i + 1].clone());
-                    i += 2;
-                    continue;
-                }
+            "-s" | "--serial" if i + 1 < args.len() => {
+                serial_opt = Some(args[i + 1].clone());
+                i += 2;
+                continue;
             }
             "-j" | "--json" => {
                 as_json = true;
@@ -308,19 +317,15 @@ fn run_cli() -> i32 {
                 i += 1;
                 continue;
             }
-            "--max-elements" => {
-                if i + 1 < args.len() {
-                    max_elements = args[i + 1].parse().unwrap_or(80);
-                    i += 2;
-                    continue;
-                }
+            "--max-elements" if i + 1 < args.len() => {
+                max_elements = args[i + 1].parse().unwrap_or(80);
+                i += 2;
+                continue;
             }
-            "--timeout" => {
-                if i + 1 < args.len() {
-                    timeout_sec = args[i + 1].parse().unwrap_or(25.0);
-                    i += 2;
-                    continue;
-                }
+            "--timeout" if i + 1 < args.len() => {
+                timeout_sec = args[i + 1].parse().unwrap_or(25.0);
+                i += 2;
+                continue;
             }
             _ => {}
         }
@@ -368,7 +373,11 @@ fn run_cli() -> i32 {
                     ok
                 );
             }
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "swipe" if pos.len() >= 5 => {
             let x1: f64 = pos[1].parse().unwrap_or(0.0);
@@ -387,7 +396,11 @@ fn run_cli() -> i32 {
             if as_json {
                 println!("{{\"action\":\"swipe\",\"success\":{ok}}}");
             }
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "key" if pos.len() >= 2 => {
             let kc = keycode_normalize(&pos[1]);
@@ -397,7 +410,11 @@ fn run_cli() -> i32 {
             if as_json {
                 println!("{{\"action\":\"global\",\"keycode\":\"{kc}\",\"success\":{ok}}}");
             }
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "type" if pos.len() >= 2 => {
             let text = &pos[1];
@@ -409,7 +426,8 @@ fn run_cli() -> i32 {
                 .map(|r| r.get_bool("success") != Some(false))
                 .unwrap_or_else(|_| {
                     if append {
-                        let _ = state.input_daemon_exec(&serial, &token, "key\tKEYCODE_MOVE_END", 2000);
+                        let _ =
+                            state.input_daemon_exec(&serial, &token, "key\tKEYCODE_MOVE_END", 2000);
                     }
                     text.is_ascii()
                         && state
@@ -424,7 +442,11 @@ fn run_cli() -> i32 {
             if as_json {
                 println!("{{\"action\":\"type\",\"success\":{ok}}}");
             }
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "click" if pos.len() >= 2 => {
             let sel = &pos[1];
@@ -438,7 +460,10 @@ fn run_cli() -> i32 {
                             .input_daemon_exec(
                                 &serial,
                                 &token,
-                                &format!("tap\t{:.2}\t{:.2}", el.center[0] as f64, el.center[1] as f64),
+                                &format!(
+                                    "tap\t{:.2}\t{:.2}",
+                                    el.center[0] as f64, el.center[1] as f64
+                                ),
                                 3000,
                             )
                             .is_ok();
@@ -450,12 +475,14 @@ fn run_cli() -> i32 {
                             ]);
                             println!("{}", out.to_json_string());
                         }
-                        if ok { 0 } else { 1 }
+                        if ok {
+                            0
+                        } else {
+                            1
+                        }
                     } else {
                         if as_json {
-                            println!(
-                                "{{\"success\":false,\"error\":\"Element not found\"}}"
-                            );
+                            println!("{{\"success\":false,\"error\":\"Element not found\"}}");
                         }
                         1
                     }
@@ -476,7 +503,11 @@ fn run_cli() -> i32 {
                     if as_json {
                         println!("{}", r.to_json_string());
                     }
-                    if ok { 0 } else { 1 }
+                    if ok {
+                        0
+                    } else {
+                        1
+                    }
                 }
                 Err(e) => {
                     eprintln!("{e}");
@@ -507,7 +538,11 @@ fn run_cli() -> i32 {
             println!(
                 "{{\"helper_ok\":{helper_ok},\"input_daemon_ok\":{input_ok},\"serial\":\"{serial}\"}}"
             );
-            if helper_ok { 0 } else { 1 }
+            if helper_ok {
+                0
+            } else {
+                1
+            }
         }
         _ => {
             println!("agentdroid-fast [-s SERIAL] [--json] <serve|dump|tap|click|swipe|key|type|wait|shell|ping>");
@@ -518,4 +553,45 @@ fn run_cli() -> i32 {
 
 fn main() {
     std::process::exit(run_cli());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keycode_normalize_maps_aliases() {
+        assert_eq!(keycode_normalize("back"), "KEYCODE_BACK");
+        assert_eq!(keycode_normalize("RECENTS"), "KEYCODE_APP_SWITCH");
+        assert_eq!(keycode_normalize("  tab "), "KEYCODE_TAB");
+        assert_eq!(keycode_normalize("KEYCODE_VOLUME_UP"), "KEYCODE_VOLUME_UP");
+        assert_eq!(keycode_normalize("volume_down"), "KEYCODE_VOLUME_DOWN");
+    }
+
+    #[test]
+    fn handle_rpc_parse_xml_select_and_unknown_op() {
+        let mut state = SessionState::default();
+        let req = parse_json(
+            r#"{"op":"parse_xml","xml":"<hierarchy><node package=\"org.demo\" class=\"android.widget.Button\" text=\"OK\" clickable=\"true\" bounds=\"[10,20][110,120]\" /></hierarchy>","max_elements":20}"#,
+        )
+        .unwrap();
+        let resp = handle_rpc(&mut state, &req);
+        assert_eq!(resp.get_bool("ok"), Some(true));
+        assert_eq!(resp.get_i64("element_count"), Some(1));
+
+        let sel_req = parse_json(
+            r#"{"op":"select","selector":"btn:OK","elements":[{"id":1,"label":"OK","class":"Button","center":[60,70],"clickable":true}]}"#,
+        )
+        .unwrap();
+        let sel_resp = handle_rpc(&mut state, &sel_req);
+        assert_eq!(sel_resp.get_bool("ok"), Some(true));
+        assert_eq!(
+            sel_resp.get("element").and_then(|e| e.get_i64("id")),
+            Some(1)
+        );
+
+        let bad_req = parse_json(r#"{"op":"nonexistent"}"#).unwrap();
+        let bad_resp = handle_rpc(&mut state, &bad_req);
+        assert_eq!(bad_resp.get_bool("ok"), Some(false));
+    }
 }

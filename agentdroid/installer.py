@@ -129,12 +129,18 @@ def run_one_command_setup(
     start_stack: bool = True,
     build_images: bool = False,
     watch: bool = False,
+    configure_agents: bool = True,
 ) -> dict[str, Any]:
-    """Execute complete one-command setup: CLI PATH link, AI agent skills/rules, and stack boot."""
+    """Execute one-command setup: CLI PATH link, optional AI agent skills/rules/MCP, and stack boot."""
     cli_path = ensure_cli_on_path()
-    agents_mounted = install_agent_skills_and_rules()
-    from agentdroid.mcp import install_mcp_config
-    mcp_installed = install_mcp_config("all")
+    if configure_agents:
+        agents_mounted = install_agent_skills_and_rules()
+        from agentdroid.mcp import install_mcp_config
+
+        mcp_installed = install_mcp_config("all")
+    else:
+        agents_mounted = {"skills_installed": [], "rules_installed": []}
+        mcp_installed = {"installed": []}
 
     stack_result: dict[str, Any] = {"started": False, "skipped": not start_stack}
     if start_stack:

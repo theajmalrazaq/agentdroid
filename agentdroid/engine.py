@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import time
 from typing import Any
@@ -97,7 +96,7 @@ def parse_do_step(step_str: str) -> dict[str, Any]:
             return {"type": "wait_change"}
         if v.startswith(("wait-change@", "wait_change@")):
             _, to = _split_wait_timeout(raw)
-            out: dict[str, Any] = {"type": "wait_change"}
+            out = {"type": "wait_change"}
             if to is not None:
                 out["timeout"] = to
             return out
@@ -304,7 +303,7 @@ class AndroidEngine:
     ) -> dict[str, Any]:
         """Direct coordinate tap with repeat support."""
         for i in range(times):
-            res = self.helper.action("tap", x=float(x), y=float(y))
+            self.helper.action("tap", x=float(x), y=float(y))
             if i < times - 1 and delay_ms > 0:
                 time.sleep(delay_ms / 1000.0)
         return {"action": "tap", "x": x, "y": y, "times": times, "success": True}
@@ -482,7 +481,12 @@ class AndroidEngine:
             return {"success": bool(res.get("launched", True)), **res}
 
         if act_type == "shell":
-            out = self.adb.shell(str(act["cmd"]))
+            cmd_str = str(act["cmd"])
+            out = (
+                self.adb.user_shell(cmd_str)
+                if hasattr(self.adb, "user_shell")
+                else self.adb.shell(cmd_str)
+            )
             return {"success": True, "output": out}
 
         if act_type in ("dismiss", "auto_dismiss", "auto-dismiss"):
@@ -550,8 +554,8 @@ class AndroidEngine:
                 )
                 if res is not None:
                     return res
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust wait_condition fallback: %s", exc)
 
         needles = [p.strip().lower() for p in patterns if p.strip()]
         started = time.monotonic()

@@ -387,4 +387,28 @@ mod tests {
         let s = v.to_json_string();
         assert_eq!(parse_json(&s).unwrap(), v);
     }
+
+    #[test]
+    fn handles_surrogates_escapes_numbers_and_empty_containers() {
+        let v = parse_json(
+            r#"{"empty_arr":[],"empty_obj":{},"neg":-42,"sci":1.5e-1,"emoji":"\uD83D\uDE00","ctrl":"x\ty\r\"\\"}"#,
+        )
+        .unwrap();
+        assert_eq!(v.get_i64("neg"), Some(-42));
+        assert_eq!(v.get_f64("sci"), Some(0.15));
+        assert_eq!(v.get_str("emoji"), Some("😀"));
+        assert_eq!(v.get_str("ctrl"), Some("x\ty\r\"\\"));
+        assert_eq!(v.get("empty_arr").and_then(Json::as_arr).unwrap().len(), 0);
+        let serialized = v.to_json_string();
+        assert_eq!(parse_json(&serialized).unwrap(), v);
+    }
+
+    #[test]
+    fn rejects_invalid_json() {
+        assert!(parse_json("").is_err());
+        assert!(parse_json("{\"a\":1} trailing").is_err());
+        assert!(parse_json("\"unterminated").is_err());
+        assert!(parse_json("tru").is_err());
+        assert!(parse_json("[1, 2,]").is_err());
+    }
 }

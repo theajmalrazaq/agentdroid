@@ -59,6 +59,8 @@ class PipelineSpec:
     assert_texts: list[str] = field(default_factory=list)
 
     locked_app_package: str | None = None
+    safe_mode: bool = False
+    shell_allowlist: list[str] = field(default_factory=list)
 
     # Diagnostics & outputs (dump_ui defaults to True so the host AI agent always gets screen state)
     check_crashes: bool = True
@@ -143,7 +145,11 @@ class CompoundPipeline:
 
     def __init__(self, spec: PipelineSpec) -> None:
         self.spec = spec
-        self.adb = AdbDevice(serial=spec.serial)
+        self.adb = AdbDevice(
+            serial=spec.serial,
+            safe_mode=True if spec.safe_mode else None,
+            shell_allowlist=spec.shell_allowlist if spec.shell_allowlist else None,
+        )
         self.engine = AndroidEngine(self.adb)
         self.helper = self.engine.helper
 
@@ -299,7 +305,7 @@ class CompoundPipeline:
 
             # 9. Pre-shell commands
             for cmd in spec.pre_shell:
-                out = self.adb.shell(cmd)
+                out = self.adb.user_shell(cmd)
                 report["pre_shell_outputs"].append({"cmd": cmd, "output": out})
 
             # 10. Compound Semantic & Coordinate UI actions (adaptive micro-settle, zero blind sleeps)
@@ -364,7 +370,7 @@ class CompoundPipeline:
 
             # 14. Post-shell commands
             for cmd in spec.post_shell:
-                out = self.adb.shell(cmd)
+                out = self.adb.user_shell(cmd)
                 report["post_shell_outputs"].append({"cmd": cmd, "output": out})
 
             # 15. Pull files generated/downloaded on the device back to the AI workspace

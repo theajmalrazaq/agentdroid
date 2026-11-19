@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import atexit
 import json
+import logging
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import threading
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_RUST_BIN = REPO_ROOT / "rust" / "target" / "release" / "agentdroid-fast"
@@ -73,11 +76,11 @@ class RustWorker:
         try:
             proc.terminate()
             proc.wait(timeout=1.0)
-        except Exception:
+        except (OSError, subprocess.SubprocessError):
             try:
                 proc.kill()
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Failed killing Rust worker: %s", exc)
 
     def call(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         if os.environ.get("AGENTDROID_NO_RUST") == "1":
@@ -104,7 +107,8 @@ class RustWorker:
                         return None
                     parsed = json.loads(resp_line)
                     return parsed if isinstance(parsed, dict) else None
-                except Exception:
+                except (OSError, ValueError, json.JSONDecodeError) as exc:
+                    logger.debug("Rust worker call attempt %d failed: %s", attempt + 1, exc)
                     self._close_locked()
                     if attempt == 0:
                         continue

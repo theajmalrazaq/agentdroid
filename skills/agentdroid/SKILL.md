@@ -16,6 +16,9 @@ description: General-purpose silent Android computer for AI agents (Redroid + Ar
    - **ONLY EXCEPTION**: Write Python/shell code only if the user explicitly asks to develop or test repository code. For **driving Android**, always execute in **one shot**:
      - **MCP primary:** `mobile_run_workflow(...)` with ordered `do=[...]` steps, `open_url`, `push`, `pull`, `assert_text`.
      - **CLI primary:** One `agentdroid --headless --launch <pkg> -d "..." -d "..." --assert-text "..." --json` call (or `agentdroid ai "<goal>" --launch <pkg> --json` for closed-loop dynamic navigation).
+   - **EXECUTION STRATEGY**:
+     - **For deterministic or known app flows**: `agy cli` / MCP **One-Shot Compound Execution** (`mobile_run_workflow` or `agentdroid -d ...`) is the fastest path (~1.3 s execution, 0 extra LLM turns).
+     - **For unknown, branching, or dynamic UIs**: **TypeSafe JEV** (`agentdroid ai`) provides sub-second closed-loop recalibration per step, but requires an active TypeSafe API key (`TYPESAFE_API_KEY`).
    - **UNKNOWN UI CAP (`<= 2` calls max):** If targets are unknown, run **at most one** `mobile_get_device_state(view_type="hierarchy")` / `agentdroid ui dump --json`, inspect all IDs/labels, then finish the entire remaining task in **one** compound shot.
 
 2. **SINGLE-CALL CROSS-APP FLOW (`capture:` + `{{var}}` + `if-visible:`)**

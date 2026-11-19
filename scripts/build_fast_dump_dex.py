@@ -21,7 +21,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from build_input_daemon_dex import Asm, DexBuilder, MethodDef, compile_dex  # noqa: E402
+from build_input_daemon_dex import Asm, MethodDef, compile_dex  # noqa: E402
 
 OUT_DEX = REPO_ROOT / "packages" / "agentdroid-fast-dump" / "agentdroid-fast-dump.dex"
 

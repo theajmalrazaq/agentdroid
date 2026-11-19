@@ -335,11 +335,7 @@ pub fn parse_hierarchy_xml(
             continue;
         }
 
-        let short_id = res_id
-            .rsplit('/')
-            .next()
-            .unwrap_or(&res_id)
-            .to_string();
+        let short_id = res_id.rsplit('/').next().unwrap_or(&res_id).to_string();
         let raw_label = if !text.is_empty() {
             text.clone()
         } else if !desc.is_empty() {
@@ -480,7 +476,11 @@ pub fn select_element<'a>(elements: &'a [UiElement], selector: &str) -> Option<&
         let sysui_penalty = if el.systemui { -60 } else { 0 };
 
         let candidate_fields: Vec<(&str, i32)> = match mode {
-            "id" => el.resource_id.as_deref().map(|s| vec![(s, 3)]).unwrap_or_default(),
+            "id" => el
+                .resource_id
+                .as_deref()
+                .map(|s| vec![(s, 3)])
+                .unwrap_or_default(),
             "text" => {
                 let mut v = vec![(el.label.as_str(), 4)];
                 if let Some(ref ft) = el.full_text {
@@ -559,5 +559,76 @@ mod tests {
         let picked = select_element(&parsed.elements, "Search").unwrap();
         assert_eq!(picked.class_short, "Button");
         assert!(picked.clickable);
+    }
+
+    #[test]
+    fn unescapes_xml_entities_and_preserves_full_text() {
+        let long_text = format!("Note &amp; &#65;&#x42; {}", "z".repeat(200));
+        let xml = format!(
+            r#"<hierarchy rotation="0"><!-- comment -->
+            <node package="org.demo" class="android.widget.EditText" text="{long_text}" content-desc="Body &lt;md&gt;" resource-id="org.demo:id/editor" clickable="true" bounds="[0,100][1080,800]" />
+            </hierarchy>"#
+        );
+        let parsed = parse_hierarchy_xml(&xml, 10, false).unwrap();
+        assert_eq!(parsed.elements.len(), 1);
+        let el = &parsed.elements[0];
+        assert!(el.editable);
+        assert_eq!(el.label.chars().count(), 180);
+        assert!(el.label.starts_with("Note & AB "));
+        assert!(el.full_text.as_deref().unwrap().starts_with("Note & AB "));
+        assert_eq!(el.desc.as_deref(), Some("Body <md>"));
+        assert_eq!(el.resource_id.as_deref(), Some("editor"));
+    }
+
+    #[test]
+    fn parses_displays_root_and_include_ime_toggle() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <displays><display id="0">
+            <window index="0" bounds="[0,0][1080,2400]">
+                <node package="com.google.android.inputmethod.latin" class="android.view.View" text="space" clickable="true" bounds="[100,2100][900,2300]" />
+                <node package="com.android.systemui" class="android.widget.TextView" text="12:34" resource-id="com.android.systemui:id/clock" clickable="true" bounds="[0,0][120,60]" />
+                <node package="org.demo" class="android.widget.Button" text="12:34" resource-id="org.demo:id/btn_time" clickable="true" bounds="[100,500][400,650]" />
+            </window>
+        </display></displays>"#;
+        let without_ime = parse_hierarchy_xml(xml, 80, false).unwrap();
+        assert!(without_ime.has_systemui);
+        assert_eq!(without_ime.non_sysui_count, 1);
+        assert_eq!(without_ime.elements.len(), 2);
+        // SystemUI clock must be demoted below app button with identical text
+        let picked = select_element(&without_ime.elements, "12:34").unwrap();
+        assert_eq!(picked.resource_id.as_deref(), Some("btn_time"));
+
+        let with_ime = parse_hierarchy_xml(xml, 80, true).unwrap();
+        assert_eq!(with_ime.elements.len(), 3);
+    }
+
+    #[test]
+    fn selector_prefixes_and_error_cases() {
+        let xml = r#"<hierarchy>
+            <node package="org.demo" class="android.widget.TextView" text="Login" bounds="[0,0][200,100]" />
+            <node package="org.demo" class="android.widget.Button" text="Login" resource-id="org.demo:id/btn_login" clickable="true" bounds="[0,200][300,300]" />
+            <node package="org.demo" class="android.widget.EditText" text="Email" resource-id="org.demo:id/input_email" clickable="true" bounds="[0,400][600,500]" />
+        </hierarchy>"#;
+        let parsed = parse_hierarchy_xml(xml, 80, false).unwrap();
+        assert_eq!(select_element(&parsed.elements, "#1").unwrap().id, 1);
+        assert_eq!(select_element(&parsed.elements, "btn:#1").unwrap().id, 2);
+        assert_eq!(select_element(&parsed.elements, "edit:#1").unwrap().id, 3);
+        assert_eq!(
+            select_element(&parsed.elements, "id:btn_login").unwrap().id,
+            2
+        );
+        assert_eq!(
+            select_element(&parsed.elements, "exact:Email").unwrap().id,
+            3
+        );
+        assert_eq!(
+            select_element(&parsed.elements, "text:Login").unwrap().id,
+            2
+        );
+        assert!(select_element(&parsed.elements, "exact:Log").is_none());
+        assert!(select_element(&parsed.elements, "").is_none());
+
+        assert!(parse_hierarchy_xml("", 10, false).is_err());
+        assert!(parse_hierarchy_xml("<other/>", 10, false).is_err());
     }
 }

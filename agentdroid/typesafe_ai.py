@@ -132,8 +132,8 @@ class TypeSafeAIClient:
         if self._conn is not None:
             try:
                 self._conn.close()
-            except Exception:
-                pass
+            except (OSError, http.client.HTTPException) as exc:
+                logger.debug("TypeSafe connection close error: %s", exc)
             self._conn = None
 
     def _request_json(
@@ -181,7 +181,8 @@ class TypeSafeAIClient:
         try:
             status, _ = self._request_json("GET", "/models", timeout=5.0)
             return status == 200
-        except Exception:
+        except (OSError, http.client.HTTPException, ValueError, RuntimeError) as exc:
+            logger.debug("TypeSafe key validation failed: %s", exc)
             return False
 
     def list_models(self) -> list[dict[str, Any]]:
@@ -315,13 +316,13 @@ class TypeSafeAIClient:
         # Build concise filtered UI summary excluding status bar icons
         filtered_lines: list[str] = []
         for el in ordered[:60]:
-            idx = el.get("id")
+            el_idx = el.get("id")
             cls = el.get("class", "")
             lbl = el.get("label", "")
             rid = el.get("resource_id", "")
             cy = (el.get("center") or [0, 0])[1]
             hint = _infer_field_hint(el, elements) if cls == "EditText" else lbl
-            parts = [f"[#{idx}]", f"{cls}: '{hint}'" if hint else cls]
+            parts = [f"[#{el_idx}]", f"{cls}: '{hint}'" if hint else cls]
             if rid and rid != hint:
                 parts.append(f"ID:{rid}")
             parts.append(f"y={cy}")
@@ -367,8 +368,8 @@ class TypeSafeAIClient:
             try:
                 target_id = int(picked_key.split("_")[1])
                 matched_element = next((e for e in elements if e.get("id") == target_id), None)
-            except Exception:
-                pass
+            except (ValueError, IndexError) as exc:
+                logger.debug("Could not parse tap action index %r: %s", picked_key, exc)
 
         return {
             "action_key": picked_key,

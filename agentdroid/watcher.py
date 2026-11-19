@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def has_gui_display() -> bool:
@@ -43,8 +46,8 @@ def detect_dock_coordinates(
                     x = sw - w - 24
                     y = 30
                     return w, h, x, y
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError) as exc:
+            logger.debug("hyprctl monitor detection skipped: %s", exc)
 
     # 2. X11 / xrandr fallback
     if shutil.which("xrandr"):
@@ -65,8 +68,8 @@ def detect_dock_coordinates(
                     x = sw - w - 24
                     y = 30
                     return w, h, x, y
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError, ValueError, IndexError) as exc:
+            logger.debug("xrandr monitor detection skipped: %s", exc)
 
     return target_width, target_height, 1480, 40
 
@@ -156,7 +159,7 @@ class LiveWatcher:
                 args=(title, self.window_width, self.window_height),
                 daemon=True,
             ).start()
-        except Exception as exc:
+        except OSError as exc:
             print(f"[agentdroid:watch] Could not start scrcpy overlay: {exc}", file=sys.stderr)
             return {"mode": "watch", "viewer": "none"}
         print(
@@ -169,56 +172,67 @@ class LiveWatcher:
     def _try_enable_floating(self, title: str, width: int, height: int) -> None:
         """Attempt to enforce floating and target dimensions on Linux tiling WMs (Hyprland, Sway, i3)."""
         import time
-        for _ in range(5):
-            time.sleep(0.35)
-            # Hyprland
-            if shutil.which("hyprctl"):
-                for selector in (f"title:{title}", "class:scrcpy", "initialTitle:scrcpy"):
+
+        try:
+            for _ in range(5):
+                time.sleep(0.35)
+                # Hyprland
+                if shutil.which("hyprctl"):
+                    for selector in (f"title:{title}", "class:scrcpy", "initialTitle:scrcpy"):
+                        subprocess.run(
+                            ["hyprctl", "dispatch", "setfloating", selector],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False,
+                        )
+                        subprocess.run(
+                            ["hyprctl", "dispatch", "pin", selector],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False,
+                        )
+                        subprocess.run(
+                            ["hyprctl", "dispatch", "resizewindowpixel", f"exact {width} {height}", selector],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False,
+                        )
+                    break
+                # Sway
+                if shutil.which("swaymsg"):
                     subprocess.run(
-                        ["hyprctl", "dispatch", "setfloating", selector],
+                        ["swaymsg", f'[app_id="scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
+                        check=False,
                     )
                     subprocess.run(
-                        ["hyprctl", "dispatch", "pin", selector],
+                        ["swaymsg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
+                        check=False,
                     )
+                    break
+                # i3
+                if shutil.which("i3-msg"):
                     subprocess.run(
-                        ["hyprctl", "dispatch", "resizewindowpixel", f"exact {width} {height}", selector],
+                        ["i3-msg", f'[class="(?i)scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
+                        check=False,
                     )
-                break
-            # Sway
-            if shutil.which("swaymsg"):
-                subprocess.run(
-                    ["swaymsg", f'[app_id="scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                subprocess.run(
-                    ["swaymsg", f'[title="{title}"] floating enable, sticky enable, resize set {width} {height}'],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                break
-            # i3
-            if shutil.which("i3-msg"):
-                subprocess.run(
-                    ["i3-msg", f'[class="(?i)scrcpy"] floating enable, sticky enable, resize set {width} {height}'],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                break
-            # X11 / XWayland wmctrl
-            if shutil.which("wmctrl"):
-                subprocess.run(
-                    ["wmctrl", "-r", title, "-b", "add,above"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                break
+                    break
+                # X11 / XWayland wmctrl
+                if shutil.which("wmctrl"):
+                    subprocess.run(
+                        ["wmctrl", "-r", title, "-b", "add,above"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                    )
+                    break
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("Floating WM hint skipped: %s", exc)
 
     def stop(self, force: bool = False) -> None:
         if not force and (self.watch or os.environ.get("AGENTDROID_KEEP_WATCH") == "1"):
@@ -228,9 +242,9 @@ class LiveWatcher:
             try:
                 proc.terminate()
                 proc.wait(timeout=3.0)
-            except Exception:
+            except (OSError, subprocess.SubprocessError):
                 try:
                     proc.kill()
-                except Exception:
-                    pass
+                except OSError as exc:
+                    logger.debug("Failed killing scrcpy process: %s", exc)
         self._scrcpy_proc = None

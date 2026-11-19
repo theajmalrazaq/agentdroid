@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -23,6 +24,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 from agentdroid.adb import AdbDevice
+
+logger = logging.getLogger(__name__)
 
 HELPER_PACKAGE = "com.artemis.helper"
 HELPER_SERVICE = f"{HELPER_PACKAGE}/.ArtemisAccessibilityService"
@@ -134,8 +137,8 @@ def select_ui_element(elements: list[dict[str, Any]], selector: str) -> dict[str
         handled, el = rust_bridge.select_element(elements, sel)
         if handled:
             return el
-    except Exception:
-        pass
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.debug("Rust select_element fallback: %s", exc)
 
     if sel.startswith("#") and sel[1:].isdigit():
         target_id = int(sel[1:])
@@ -252,8 +255,8 @@ class AccessibilityHelperClient:
                 if isinstance(size, tuple) and len(size) == 2 and size[0] > 0 and size[1] > 0:
                     self._display_size = size
                     return size
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Display size query failed: %s", exc)
         return (1080, 2400)
 
     def close(self) -> None:
@@ -265,14 +268,14 @@ class AccessibilityHelperClient:
         if self._input_rfile is not None:
             try:
                 self._input_rfile.close()
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Closing input rfile failed: %s", exc)
             self._input_rfile = None
         if self._input_sock is not None:
             try:
                 self._input_sock.close()
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Closing input socket failed: %s", exc)
             self._input_sock = None
 
     def _find_existing_forward(self, remote_port: int = DEVICE_PORT) -> int | None:
@@ -285,8 +288,8 @@ class AccessibilityHelperClient:
                     for loc, rem in pairs:
                         if rem == remote_port:
                             return loc
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust adb_forward_list fallback: %s", exc)
         res = self.adb.run_adb(["forward", "--list"], timeout=5.0)
         for line in (res.stdout or "").splitlines():
             parts = line.split()
@@ -324,8 +327,8 @@ class AccessibilityHelperClient:
                     elif remote_port == INPUT_DAEMON_PORT:
                         self._input_local_port = local_port
                     return local_port
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust adb_forward_create fallback: %s", exc)
 
         res = self.adb.run_adb(["forward", "tcp:0", f"tcp:{remote_port}"], timeout=10.0)
         port_str = (res.stdout or "").strip()
@@ -354,7 +357,7 @@ class AccessibilityHelperClient:
 
         try:
             self._input_sock.settimeout(timeout)
-            payload = f"{self._token}\t{cmd_line}\n".encode("utf-8")
+            payload = f"{self._token}\t{cmd_line}\n".encode()
             self._input_sock.sendall(payload)
             line = self._input_rfile.readline()
             if not line:
@@ -370,7 +373,8 @@ class AccessibilityHelperClient:
             with self._input_lock:
                 resp = self._send_input_cmd_locked("ping", timeout=1.0)
             return resp == "OK pong"
-        except Exception:
+        except (OSError, RuntimeError, ValueError) as exc:
+            logger.debug("InputDaemon ping failed: %s", exc)
             with self._input_lock:
                 self._close_input_socket()
             return False
@@ -401,7 +405,8 @@ class AccessibilityHelperClient:
     def _ensure_input_daemon(self, *, force: bool = False) -> bool:
         try:
             self._ensure_input_forward()
-        except Exception:
+        except (OSError, RuntimeError) as exc:
+            logger.debug("InputDaemon forward setup failed: %s", exc)
             return False
 
         if not force and self._input_daemon_ping():
@@ -449,7 +454,8 @@ class AccessibilityHelperClient:
     def _input_daemon_exec(self, cmd_line: str, *, timeout: float = 3.0) -> str | None:
         try:
             self._ensure_input_forward()
-        except Exception:
+        except (OSError, RuntimeError) as exc:
+            logger.debug("InputDaemon forward unavailable: %s", exc)
             return None
 
         for attempt in range(2):
@@ -466,7 +472,8 @@ class AccessibilityHelperClient:
                 with self._input_lock:
                     self._close_input_socket()
                 return None
-            except Exception:
+            except (OSError, RuntimeError) as exc:
+                logger.debug("InputDaemon command failed (attempt %d): %s", attempt + 1, exc)
                 with self._input_lock:
                     self._close_input_socket()
                 if attempt == 0:
@@ -532,8 +539,8 @@ class AccessibilityHelperClient:
                         resp = self._input_daemon_exec("key\tKEYCODE_PASTE", timeout=2.0)
                         if resp:
                             return {"success": True, "backend": "input_daemon_paste"}
-                except Exception:
-                    pass
+                except (OSError, RuntimeError) as exc:
+                    logger.debug("InputDaemon clipboard paste fallback failed: %s", exc)
             return None
         return None
 
@@ -594,7 +601,8 @@ class AccessibilityHelperClient:
                     res = self._request("GET", "/ping", timeout=2.5, retry_auth=False)
                 self._last_ping = res
                 return res
-        except Exception:
+        except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
+            logger.debug("Helper /ping failed: %s", exc)
             self._local_port = None
         self._last_ping = None
         return None
@@ -644,8 +652,8 @@ class AccessibilityHelperClient:
                 if res.get("success"):
                     res.setdefault("backend", "helper_ipc")
                     return res
-            except Exception:
-                pass
+            except (OSError, urllib.error.URLError, RuntimeError, ValueError) as exc:
+                logger.debug("Helper /action failed for %s: %s", cmd, exc)
 
         if c in ("global", "type"):
             res = self._input_daemon_action(c, **params)
@@ -678,8 +686,8 @@ class AccessibilityHelperClient:
                     if self.adb.set_clipboard(text):
                         self.adb.shell("input keyevent KEYCODE_PASTE")
                         return {"success": True, "backend": "adb_clipboard_paste"}
-                except Exception:
-                    pass
+                except (OSError, RuntimeError) as exc:
+                    logger.debug("ADB clipboard paste fallback failed: %s", exc)
             escaped = text.replace(" ", "%s").replace("'", "")
             self.adb.shell(f"input text '{escaped}'")
             return {"success": True, "backend": "adb_input"}
@@ -783,14 +791,15 @@ class AccessibilityHelperClient:
             return None
         try:
             port = self._ensure_forward(remote_port=FAST_DUMP_PORT)
-        except Exception:
+        except (OSError, RuntimeError) as exc:
+            logger.debug("FastDump forward setup failed: %s", exc)
             return None
 
         def _ping_fast(p: int) -> bool:
             try:
                 with socket.create_connection(("127.0.0.1", p), timeout=0.6) as s:
                     s.settimeout(0.8)
-                    s.sendall(f"{self._token}\tping\n".encode("utf-8"))
+                    s.sendall(f"{self._token}\tping\n".encode())
                     return s.recv(64).startswith(b"OK pong")
             except OSError:
                 return False
@@ -829,7 +838,7 @@ class AccessibilityHelperClient:
             with socket.create_connection(("127.0.0.1", port), timeout=1.5) as s:
                 s.settimeout(2.5)
                 s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                s.sendall(f"{self._token}\tdump\n".encode("utf-8"))
+                s.sendall(f"{self._token}\tdump\n".encode())
                 f = s.makefile("rb")
                 hdr = f.readline().decode("utf-8", errors="replace").strip()
                 if not hdr.startswith("OK "):
@@ -839,7 +848,8 @@ class AccessibilityHelperClient:
                     return ""
                 data = f.read(byte_len).decode("utf-8", errors="replace")
                 return data if ("<hierarchy" in data or "<displays" in data) else ""
-        except Exception:
+        except (OSError, ValueError) as exc:
+            logger.debug("FastDump XML fetch failed: %s", exc)
             return ""
 
     def _dump_uiautomator_xml(self) -> str:
@@ -877,8 +887,8 @@ class AccessibilityHelperClient:
                     disp,
                     None,
                 )
-        except Exception:
-            pass
+        except (OSError, RuntimeError, ValueError) as exc:
+            logger.debug("Rust parse_xml fallback: %s", exc)
 
         elements: list[dict[str, Any]] = []
         non_sysui_count = 0
@@ -949,7 +959,7 @@ class AccessibilityHelperClient:
                 if node_pkg != "com.android.systemui":
                     non_sysui_count += 1
                 idx += 1
-        except Exception as exc:
+        except ET.ParseError as exc:
             return [], 0, has_systemui, (1080, 2400), str(exc)
 
         disp = (max_w, max_h) if max_w > 0 and max_h > 0 else (1080, 2400)
@@ -996,7 +1006,8 @@ class AccessibilityHelperClient:
                 )
                 with urllib.request.urlopen(req, timeout=2.0) as resp:
                     xml_str = resp.read().decode("utf-8", errors="replace")
-            except Exception:
+            except (OSError, urllib.error.URLError, RuntimeError) as exc:
+                logger.debug("Helper /hierarchy.xml request failed: %s", exc)
                 xml_str = ""
 
         if fg is None:

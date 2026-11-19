@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 import os
 from pathlib import Path
 import signal
@@ -15,6 +16,8 @@ import time
 from typing import Any
 
 from agentdroid.pipeline import CompoundPipeline, PipelineSpec
+
+logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path.home() / ".cache" / "agentdroid"
 DAEMON_SOCK_PATH = CACHE_DIR / "daemon.sock"
@@ -74,8 +77,8 @@ def stop_daemon() -> dict[str, Any]:
             DAEMON_PID_PATH.unlink(missing_ok=True)
             DAEMON_SOCK_PATH.unlink(missing_ok=True)
             return {"stopped": True, "pid": pid}
-        except Exception:
-            pass
+        except (OSError, ValueError) as exc:
+            logger.debug("Failed to stop daemon PID: %s", exc)
     DAEMON_SOCK_PATH.unlink(missing_ok=True)
     DAEMON_PID_PATH.unlink(missing_ok=True)
     return {"stopped": False, "pid": None}
@@ -119,9 +122,9 @@ def serve_daemon() -> int:
     try:
         from agentdroid import rust_bridge
 
-        rust_bridge._get_worker()
-    except Exception:
-        pass
+        rust_bridge.get_worker()
+    except (OSError, RuntimeError) as exc:
+        logger.debug("Rust worker pre-warm skipped: %s", exc)
 
     running = True
 
@@ -143,7 +146,7 @@ def serve_daemon() -> int:
         while running:
             try:
                 conn, _ = srv.accept()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 break

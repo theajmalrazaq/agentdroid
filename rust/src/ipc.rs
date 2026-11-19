@@ -16,7 +16,7 @@ pub const FAST_DUMP_PORT: u16 = 18890;
 
 pub fn b64_encode(input: &[u8]) -> String {
     const TBL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(((input.len() + 2) / 3) * 4);
+    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     for chunk in input.chunks(3) {
         let b0 = chunk[0] as u32;
         let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
@@ -100,9 +100,12 @@ pub fn http_request(
     body_json: Option<&str>,
     timeout_ms: u64,
 ) -> Result<(u16, String), String> {
-    let addr: SocketAddr = format!("127.0.0.1:{port}").parse().map_err(|e| format!("{e}"))?;
+    let addr: SocketAddr = format!("127.0.0.1:{port}")
+        .parse()
+        .map_err(|e| format!("{e}"))?;
     let timeout = Duration::from_millis(timeout_ms.max(200));
-    let mut stream = TcpStream::connect_timeout(&addr, timeout).map_err(|e| format!("connect {addr}: {e}"))?;
+    let mut stream =
+        TcpStream::connect_timeout(&addr, timeout).map_err(|e| format!("connect {addr}: {e}"))?;
     let _ = stream.set_read_timeout(Some(timeout));
     let _ = stream.set_write_timeout(Some(timeout));
     let _ = stream.set_nodelay(true);
@@ -139,7 +142,10 @@ pub fn http_request(
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(0);
     let body_raw = &raw[hdr_end + 4..];
-    let body = if hdr_str.to_ascii_lowercase().contains("transfer-encoding: chunked") {
+    let body = if hdr_str
+        .to_ascii_lowercase()
+        .contains("transfer-encoding: chunked")
+    {
         String::from_utf8_lossy(&decode_chunked(body_raw)).into_owned()
     } else {
         String::from_utf8_lossy(body_raw).into_owned()
@@ -203,7 +209,8 @@ impl SessionState {
         timeout_ms: u64,
     ) -> Result<Json, String> {
         let port = self.resolve_forward(serial, HELPER_PORT)?;
-        let (status, resp) = http_request(port, "POST", "/action", token, Some(body_json), timeout_ms)?;
+        let (status, resp) =
+            http_request(port, "POST", "/action", token, Some(body_json), timeout_ms)?;
         if status >= 400 {
             return Err(format!("HTTP {status}: {resp}"));
         }
@@ -219,7 +226,9 @@ impl SessionState {
     ) -> Result<String, String> {
         let port = self.resolve_forward(serial, INPUT_DAEMON_PORT)?;
         if !self.input_socks.contains_key(serial) {
-            let addr: SocketAddr = format!("127.0.0.1:{port}").parse().map_err(|e| format!("{e}"))?;
+            let addr: SocketAddr = format!("127.0.0.1:{port}")
+                .parse()
+                .map_err(|e| format!("{e}"))?;
             let sock = TcpStream::connect_timeout(&addr, Duration::from_millis(1500))
                 .map_err(|e| format!("input connect: {e}"))?;
             let _ = sock.set_nodelay(true);
@@ -293,16 +302,15 @@ impl SessionState {
                         .unwrap_or(Json::Null);
                     fg = Some(obj(vec![
                         ("package", Json::Str(pkg)),
-                        (
-                            "activity",
-                            act_opt.map(Json::Str).unwrap_or(Json::Null),
-                        ),
+                        ("activity", act_opt.map(Json::Str).unwrap_or(Json::Null)),
                         ("component", comp),
                     ]));
                 }
             }
             if let Ok(port) = self.resolve_forward(serial, HELPER_PORT) {
-                if let Ok((200, body)) = http_request(port, "GET", "/hierarchy.xml", token, None, 2000) {
+                if let Ok((200, body)) =
+                    http_request(port, "GET", "/hierarchy.xml", token, None, 2000)
+                {
                     xml_str = body;
                 }
             }
@@ -312,12 +320,16 @@ impl SessionState {
             fg = Some(resolve_fg_via_adb(serial));
         }
 
-        if xml_str.is_empty() || (!xml_str.contains("<hierarchy") && !xml_str.contains("<displays")) {
+        if xml_str.is_empty() || (!xml_str.contains("<hierarchy") && !xml_str.contains("<displays"))
+        {
             if !allow_sparse_fallback {
                 return Ok(obj(vec![
                     ("backend", Json::Str("helper".into())),
                     ("foreground", fg.unwrap_or(Json::Null)),
-                    ("display_size", Json::Arr(vec![Json::Int(1080), Json::Int(2400)])),
+                    (
+                        "display_size",
+                        Json::Arr(vec![Json::Int(1080), Json::Int(2400)]),
+                    ),
                     ("element_count", Json::Int(0)),
                     ("elements", Json::Arr(vec![])),
                     ("formatted_text", Json::Str(String::new())),
@@ -353,12 +365,12 @@ impl SessionState {
         let cooled = self
             .last_sparse_fallback
             .get(serial)
-            .map(|t| now.duration_since(*t) >= Duration::from_millis(if has_webview { 100 } else { 1500 }))
+            .map(|t| {
+                now.duration_since(*t)
+                    >= Duration::from_millis(if has_webview { 100 } else { 1500 })
+            })
             .unwrap_or(true);
-        if (allow_sparse_fallback || has_webview)
-            && backend == "helper"
-            && need_rich_dump
-        {
+        if (allow_sparse_fallback || has_webview) && backend == "helper" && need_rich_dump {
             if let Some(fast_xml) = self.fast_dump_xml(serial, token) {
                 if let Ok(fast_parsed) = parse_hierarchy_xml(&fast_xml, max_elements, include_ime) {
                     if fast_parsed.non_sysui_count > parsed.non_sysui_count
@@ -397,7 +409,8 @@ impl SessionState {
                 sig.push('\n');
             }
         }
-        self.last_ui_sig.insert(serial.to_string(), sig.to_ascii_lowercase());
+        self.last_ui_sig
+            .insert(serial.to_string(), sig.to_ascii_lowercase());
 
         Ok(parsed_to_json(backend, fg.unwrap_or(Json::Null), &parsed))
     }
@@ -463,7 +476,10 @@ impl SessionState {
         loop {
             let elapsed = started.elapsed().as_secs_f64();
             let ui_json = self.dump_ui(serial, token, 100, include_ime, elapsed >= 1.5)?;
-            let elements = ui_json.get("elements").and_then(Json::as_arr).unwrap_or(&[]);
+            let elements = ui_json
+                .get("elements")
+                .and_then(Json::as_arr)
+                .unwrap_or(&[]);
             let mut blob = String::new();
             for el in elements {
                 if let Some(l) = el.get_str("label") {
@@ -492,7 +508,12 @@ impl SessionState {
                         if &sig != init {
                             return Ok(obj(vec![
                                 ("success", Json::Bool(true)),
-                                ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                                (
+                                    "elapsed_sec",
+                                    Json::Float(
+                                        (started.elapsed().as_secs_f64() * 100.0).round() / 100.0,
+                                    ),
+                                ),
                                 ("ui", ui_json),
                             ]));
                         }
@@ -505,7 +526,12 @@ impl SessionState {
                     if !any_present && !elements.is_empty() {
                         return Ok(obj(vec![
                             ("success", Json::Bool(true)),
-                            ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                            (
+                                "elapsed_sec",
+                                Json::Float(
+                                    (started.elapsed().as_secs_f64() * 100.0).round() / 100.0,
+                                ),
+                            ),
                             ("ui", ui_json),
                         ]));
                     }
@@ -516,7 +542,12 @@ impl SessionState {
                         if prev_sig.as_deref() == Some(sig.as_str()) {
                             return Ok(obj(vec![
                                 ("success", Json::Bool(true)),
-                                ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                                (
+                                    "elapsed_sec",
+                                    Json::Float(
+                                        (started.elapsed().as_secs_f64() * 100.0).round() / 100.0,
+                                    ),
+                                ),
                                 ("ui", ui_json),
                             ]));
                         }
@@ -527,7 +558,12 @@ impl SessionState {
                     if needles.iter().all(|n| blob_low.contains(n)) {
                         return Ok(obj(vec![
                             ("success", Json::Bool(true)),
-                            ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                            (
+                                "elapsed_sec",
+                                Json::Float(
+                                    (started.elapsed().as_secs_f64() * 100.0).round() / 100.0,
+                                ),
+                            ),
                             ("ui", ui_json),
                         ]));
                     }
@@ -539,7 +575,12 @@ impl SessionState {
                             return Ok(obj(vec![
                                 ("success", Json::Bool(true)),
                                 ("matched", Json::Str(patterns[idx].clone())),
-                                ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                                (
+                                    "elapsed_sec",
+                                    Json::Float(
+                                        (started.elapsed().as_secs_f64() * 100.0).round() / 100.0,
+                                    ),
+                                ),
                                 ("ui", ui_json),
                             ]));
                         }
@@ -550,7 +591,10 @@ impl SessionState {
             if Instant::now() >= deadline {
                 return Ok(obj(vec![
                     ("success", Json::Bool(false)),
-                    ("elapsed_sec", Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0)),
+                    (
+                        "elapsed_sec",
+                        Json::Float((started.elapsed().as_secs_f64() * 100.0).round() / 100.0),
+                    ),
                     ("ui", ui_json),
                 ]));
             }
@@ -590,11 +634,7 @@ fn resolve_fg_via_adb(serial: &str) -> Json {
     for tok in out.split_whitespace() {
         let clean = tok.trim_matches(|c| c == '}' || c == '{' || c == ',');
         if let Some((pkg, act)) = clean.split_once('/') {
-            if !pkg.is_empty()
-                && !act.is_empty()
-                && pkg.contains('.')
-                && !pkg.contains(':')
-            {
+            if !pkg.is_empty() && !act.is_empty() && pkg.contains('.') && !pkg.contains(':') {
                 return obj(vec![
                     ("package", Json::Str(pkg.to_string())),
                     ("activity", Json::Str(act.to_string())),
@@ -625,7 +665,25 @@ mod tests {
 
     #[test]
     fn base64_works() {
+        assert_eq!(b64_encode(b""), "");
+        assert_eq!(b64_encode(b"f"), "Zg==");
+        assert_eq!(b64_encode(b"fo"), "Zm8=");
+        assert_eq!(b64_encode(b"foo"), "Zm9v");
         assert_eq!(b64_encode(b"hello world"), "aGVsbG8gd29ybGQ=");
         assert_eq!(b64_encode(b"a\nb"), "YQpi");
+    }
+
+    #[test]
+    fn decode_chunked_handles_multiple_chunks_and_extensions() {
+        let body = b"5;ext=1\r\nhello\r\n6\r\n world\r\n0\r\n\r\n";
+        assert_eq!(decode_chunked(body), b"hello world");
+    }
+
+    #[test]
+    fn load_or_create_token_prefers_explicit() {
+        assert_eq!(
+            load_or_create_token(Some("  abcdef012345  ")),
+            "abcdef012345"
+        );
     }
 }

@@ -1,11 +1,16 @@
 services:
-  # Headless Android device (Redroid). Never expose the ADB port publicly.
+  # Headless Android device (Redroid). Bound to loopback only; never expose ADB publicly.
+  # Note: ro.secure=0 / ro.adb.secure=0 enables passwordless local ADB root inside this
+  # isolated container. Run agent commands with `--safe` (or AGENTDROID_SAFE_MODE=1) to
+  # restrict root shell access when automating untrusted apps or web content.
   redroid:
     build:
       context: .
       dockerfile: docker/redroid/Dockerfile
       args:
-        REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}
+        # Matches the benchmarked Android 11 x86_64 image by default.
+        # Override REDROID_IMAGE (e.g. redroid/redroid:16.0.0_64only-latest) for newer versions.
+        REDROID_IMAGE: ${REDROID_IMAGE:-redroid/redroid:11.0.0-latest}
     image: agentdroid/redroid-silent:latest
     container_name: agentdroid-device
     privileged: true
@@ -22,7 +27,7 @@ services:
       - androidboot.redroid_dpi=${REDROID_DPI:-440}
       - androidboot.redroid_fps=${REDROID_FPS:-60}
       - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
-      - androidboot.redroid_net_ndns=${REDROID_DNS:-192.168.1.1}
+      - androidboot.redroid_net_ndns=${REDROID_DNS:-1.1.1.1}
       - androidboot.use_memfd=true
       - ro.secure=0
       - ro.adb.secure=0

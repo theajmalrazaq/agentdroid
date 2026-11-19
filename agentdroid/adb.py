@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -21,6 +22,19 @@ import time
 from typing import Any
 import urllib.parse
 import urllib.request
+
+from agentdroid.security import (
+    download_verified_apk,
+    is_safe_mode_enabled,
+    parse_apk_source_checksum,
+    parse_shell_allowlist,
+    sha256_file,
+    validate_shell_command,
+    verify_bundled_helper_apk,
+    verify_file_sha256,
+)
+
+logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROVISION_SCRIPT = REPO_ROOT / "scripts" / "provision-device.sh"
@@ -86,9 +100,10 @@ class InstalledAppInfo:
     permissions_granted: int = 0
     appops_granted: int = 0
     duration_sec: float = 0.0
+    sha256: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "source": self.source,
             "local_path": self.local_path,
             "package": self.package,
@@ -97,6 +112,9 @@ class InstalledAppInfo:
             "appops_granted": self.appops_granted,
             "duration_sec": round(self.duration_sec, 2),
         }
+        if self.sha256:
+            out["sha256"] = self.sha256
+        return out
 
 
 @dataclass
@@ -126,9 +144,16 @@ class AdbDevice:
         self,
         serial: str | None = None,
         adb_bin: str | None = None,
+        *,
+        use_rust: bool | None = None,
+        safe_mode: bool | None = None,
+        shell_allowlist: list[str] | tuple[str, ...] | str | None = None,
     ) -> None:
         self.adb_bin = adb_bin or os.environ.get("ADB_BIN") or shutil.which("adb") or "adb"
         self._adb_bin_explicit = adb_bin is not None or "ADB_BIN" in os.environ
+        self._use_rust_override = use_rust
+        self.safe_mode = is_safe_mode_enabled(safe_mode)
+        self.shell_allowlist = parse_shell_allowlist(shell_allowlist)
         self._display_size: tuple[int, int] | None = None
         self.serial = (
             serial
@@ -139,15 +164,19 @@ class AdbDevice:
         )
 
     def _use_rust_adb(self) -> bool:
+        if self._use_rust_override is not None:
+            return (
+                self._use_rust_override
+                and getattr(self.run_adb, "__func__", None) is AdbDevice.run_adb
+            )
+        if os.environ.get("AGENTDROID_NO_RUST") == "1":
+            return False
         if self._adb_bin_explicit and self.adb_bin != "adb":
             return False
-        return (
-            getattr(self.run_adb, "__func__", None) is AdbDevice.run_adb
-            and subprocess.run.__module__ == "subprocess"
-        )
+        return getattr(self.run_adb, "__func__", None) is AdbDevice.run_adb
 
     def _detect_first_device(self) -> str | None:
-        if not self._adb_bin_explicit and subprocess.run.__module__ == "subprocess":
+        if self._use_rust_adb():
             try:
                 from agentdroid import rust_bridge
 
@@ -157,8 +186,8 @@ class AdbDevice:
                         parts = line.split()
                         if len(parts) >= 2 and parts[1] == "device":
                             return parts[0]
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust adb_devices fallback: %s", exc)
         try:
             proc = subprocess.run(
                 [self.adb_bin, "devices"],
@@ -172,8 +201,8 @@ class AdbDevice:
                 parts = line.split()
                 if len(parts) >= 2 and parts[1] == "device":
                     return parts[0]
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("adb devices detection failed: %s", exc)
         return None
 
     def run_adb(
@@ -193,10 +222,10 @@ class AdbDevice:
                 timeout=timeout,
                 check=False,
             )
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as exc:
             empty_out: Any = b"" if binary else ""
             return subprocess.CompletedProcess(
-                cmd, returncode=127, stdout=empty_out, stderr=str(e)
+                cmd, returncode=127, stdout=empty_out, stderr=str(exc)
             )
 
     def shell(self, command: str, *, timeout: float = 30.0) -> str:
@@ -209,10 +238,19 @@ class AdbDevice:
                 )
                 if ok:
                     return out.strip()
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust adb_shell fallback: %s", exc)
         res = self.run_adb(["shell", command], timeout=timeout)
         return (res.stdout or "").strip()
+
+    def user_shell(self, command: str, *, timeout: float = 30.0) -> str:
+        """Execute an agent- or user-supplied shell command with --safe mode enforcement."""
+        validated = validate_shell_command(
+            command,
+            safe_mode=self.safe_mode,
+            allowlist=self.shell_allowlist,
+        )
+        return self.shell(validated, timeout=timeout)
 
     def is_connected(self) -> bool:
         """Quick non-blocking check if device state is 'device'."""
@@ -223,12 +261,13 @@ class AdbDevice:
                 ok, state_str = rust_bridge.adb_state(self.serial)
                 if ok:
                     return state_str.strip() == "device"
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.debug("Rust adb_state fallback: %s", exc)
         try:
             state = self.run_adb(["get-state"], timeout=3.0)
             return state.returncode == 0 and (state.stdout or "").strip() == "device"
-        except Exception:
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("adb get-state failed: %s", exc)
             return False
 
     def connect(self, timeout: float = 30.0) -> bool:
@@ -243,7 +282,8 @@ class AdbDevice:
                 timeout=10.0,
                 check=False,
             )
-        except Exception:
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("adb start-server failed: %s", exc)
             return False
 
         deadline = time.monotonic() + timeout
@@ -274,7 +314,8 @@ class AdbDevice:
                             check=False,
                         )
                         continue
-                except Exception:
+                except (OSError, subprocess.SubprocessError) as exc:
+                    logger.debug("adb connect failed: %s", exc)
                     return False
             if self.is_connected():
                 return True
@@ -406,6 +447,7 @@ class AdbDevice:
             "cmd audio set-ringer-mode SILENT >/dev/null 2>&1 || true"
         )
         if BUNDLED_HELPER_APK.is_file():
+            verify_bundled_helper_apk(REPO_ROOT, strict=True)
             self.run_adb(["install", "-r", "-g", str(BUNDLED_HELPER_APK)], timeout=60.0)
         self.shell(
             "settings put secure enabled_accessibility_services "
@@ -481,8 +523,8 @@ class AdbDevice:
         )
         if not ver_code:
             raise LookupError(f"Could not determine APK versionCode for F-Droid package {pkg!r}")
-        # Use high-speed European/global mirror (cached, fast CDN) or fallback to official
-        apk_url = f"https://mirror.cyberbits.eu/fdroid/repo/{pkg}_{ver_code}.apk"
+        # Use the official F-Droid HTTPS repository
+        apk_url = f"https://f-droid.org/repo/{pkg}_{ver_code}.apk"
         return pkg, apk_url
 
     def _extract_package_from_apk(self, apk_path: Path) -> str | None:
@@ -511,7 +553,8 @@ class AdbDevice:
                 match = re.search(r"package:\s+name='([^']+)'", out)
                 if match:
                     return match.group(1)
-            except Exception:
+            except (OSError, subprocess.SubprocessError) as exc:
+                logger.debug("APK metadata extraction via %s failed: %s", tool, exc)
                 continue
         return None
 
@@ -551,14 +594,17 @@ class AdbDevice:
         grant_permissions: bool = True,
         clear_data: bool = False,
         package_hint: str | None = None,
+        expected_sha256: str | None = None,
     ) -> InstalledAppInfo:
-        """Install an APK from a local path, HTTP(S) URL, or 'fdroid:<query_or_pkg>' and auto-grant permissions."""
+        """Install an APK from a local path, HTTPS URL, or 'fdroid:<query_or_pkg>' and auto-grant permissions."""
         started = time.monotonic()
-        temp_file: str | None = None
-        apk_source_str = str(apk_source).strip()
+        raw_source_str = str(apk_source).strip()
+        apk_source_str, inline_sha = parse_apk_source_checksum(raw_source_str)
+        expected_sha = expected_sha256 or inline_sha
         resolved_source = apk_source_str
         cache_dir = Path.home() / ".cache" / "agentdroid" / "apks"
         cache_dir.mkdir(parents=True, exist_ok=True)
+        apk_sha256: str | None = None
 
         if apk_source_str.startswith("fdroid:"):
             query = apk_source_str.split(":", 1)[1].strip()
@@ -566,7 +612,7 @@ class AdbDevice:
             if "." in query and self.is_package_installed(query):
                 main_activity = self.resolve_main_activity(query)
                 return InstalledAppInfo(
-                    source=apk_source,
+                    source=raw_source_str,
                     local_path="cached-device",
                     package=query,
                     main_activity=main_activity,
@@ -580,7 +626,7 @@ class AdbDevice:
         if package_hint and self.is_package_installed(package_hint):
             main_activity = self.resolve_main_activity(package_hint)
             return InstalledAppInfo(
-                source=apk_source,
+                source=raw_source_str,
                 local_path="cached-device",
                 package=package_hint,
                 main_activity=main_activity,
@@ -589,84 +635,78 @@ class AdbDevice:
                 duration_sec=round(time.monotonic() - started, 3),
             )
 
-        try:
-            if resolved_source.startswith(("http://", "https://")):
-                url_name = Path(urllib.parse.urlparse(resolved_source).path).name or "download.apk"
-                cached_apk = cache_dir / url_name
-                if cached_apk.is_file() and cached_apk.stat().st_size > 1024:
-                    apk_path = cached_apk
-                else:
-                    tmp_part = cache_dir / f"{url_name}.part"
-                    urllib.request.urlretrieve(resolved_source, str(tmp_part))
-                    tmp_part.rename(cached_apk)
-                    apk_path = cached_apk
-            else:
-                apk_path = Path(resolved_source).expanduser().resolve()
-                if not apk_path.is_file():
-                    # If not a local file and looks like a package/search term, try F-Droid resolution
-                    if not resolved_source.endswith(".apk"):
-                        pkg_id, fdroid_url = self.resolve_fdroid_apk_url(resolved_source)
-                        package_hint = package_hint or pkg_id
-                        url_name = Path(urllib.parse.urlparse(fdroid_url).path).name or f"{pkg_id}.apk"
-                        cached_apk = cache_dir / url_name
-                        if cached_apk.is_file() and cached_apk.stat().st_size > 1024:
-                            apk_path = cached_apk
-                        else:
-                            tmp_part = cache_dir / f"{url_name}.part"
-                            urllib.request.urlretrieve(fdroid_url, str(tmp_part))
-                            tmp_part.rename(cached_apk)
-                            apk_path = cached_apk
-                    else:
-                        raise FileNotFoundError(f"APK file not found: {apk_source}")
-
-            before_pkgs = self.list_third_party_packages()
-            pkg = package_hint or self._extract_package_from_apk(apk_path)
-
-            install_flags = ["install", "-r", "-t"]
-            if grant_permissions:
-                install_flags.append("-g")
-            install_flags.append(str(apk_path))
-
-            res = self.run_adb(install_flags, timeout=180.0)
-            output = f"{res.stdout or ''}\n{res.stderr or ''}".strip()
-            if res.returncode != 0 or "Success" not in output:
-                raise RuntimeError(f"Failed to install APK '{apk_source}': {output}")
-
-            if not pkg:
-                after_pkgs = self.list_third_party_packages()
-                diff = after_pkgs - before_pkgs
-                if len(diff) == 1:
-                    pkg = next(iter(diff))
-                else:
-                    recent = self.shell("pm list packages -3 -f | tail -n 1")
-                    if "=" in recent:
-                        pkg = recent.rsplit("=", 1)[-1].strip()
-
-            perms_count = 0
-            appops_count = 0
-            main_activity = None
-            if pkg:
-                if clear_data:
-                    self.clear_app_data(pkg)
-                if grant_permissions:
-                    perms_count, appops_count = self.grant_all_permissions(pkg)
-                main_activity = self.resolve_main_activity(pkg)
-
-            return InstalledAppInfo(
-                source=apk_source,
-                local_path=str(apk_path),
-                package=pkg,
-                main_activity=main_activity,
-                permissions_granted=perms_count,
-                appops_granted=appops_count,
-                duration_sec=time.monotonic() - started,
+        if "://" in resolved_source:
+            apk_path, apk_sha256 = download_verified_apk(
+                resolved_source,
+                cache_dir,
+                expected_sha256=expected_sha,
+                require_checksum=self.safe_mode,
             )
-        finally:
-            if temp_file and os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except OSError:
-                    pass
+        else:
+            apk_path = Path(resolved_source).expanduser().resolve()
+            if not apk_path.is_file():
+                # If not a local file and looks like a package/search term, try F-Droid resolution
+                if not resolved_source.endswith(".apk"):
+                    pkg_id, fdroid_url = self.resolve_fdroid_apk_url(resolved_source)
+                    package_hint = package_hint or pkg_id
+                    apk_path, apk_sha256 = download_verified_apk(
+                        fdroid_url,
+                        cache_dir,
+                        expected_sha256=expected_sha,
+                        require_checksum=self.safe_mode,
+                    )
+                else:
+                    raise FileNotFoundError(f"APK file not found: {apk_source}")
+            else:
+                apk_sha256 = (
+                    verify_file_sha256(apk_path, expected_sha)
+                    if expected_sha is not None
+                    else sha256_file(apk_path)
+                )
+
+        before_pkgs = self.list_third_party_packages()
+        pkg = package_hint or self._extract_package_from_apk(apk_path)
+
+        install_flags = ["install", "-r", "-t"]
+        if grant_permissions:
+            install_flags.append("-g")
+        install_flags.append(str(apk_path))
+
+        res = self.run_adb(install_flags, timeout=180.0)
+        output = f"{res.stdout or ''}\n{res.stderr or ''}".strip()
+        if res.returncode != 0 or "Success" not in output:
+            raise RuntimeError(f"Failed to install APK '{apk_source}': {output}")
+
+        if not pkg:
+            after_pkgs = self.list_third_party_packages()
+            diff = after_pkgs - before_pkgs
+            if len(diff) == 1:
+                pkg = next(iter(diff))
+            else:
+                recent = self.shell("pm list packages -3 -f | tail -n 1")
+                if "=" in recent:
+                    pkg = recent.rsplit("=", 1)[-1].strip()
+
+        perms_count = 0
+        appops_count = 0
+        main_activity = None
+        if pkg:
+            if clear_data:
+                self.clear_app_data(pkg)
+            if grant_permissions:
+                perms_count, appops_count = self.grant_all_permissions(pkg)
+            main_activity = self.resolve_main_activity(pkg)
+
+        return InstalledAppInfo(
+            source=raw_source_str,
+            local_path=str(apk_path),
+            package=pkg,
+            main_activity=main_activity,
+            permissions_granted=perms_count,
+            appops_granted=appops_count,
+            duration_sec=time.monotonic() - started,
+            sha256=apk_sha256,
+        )
 
     def clear_app_data(self, package: str) -> bool:
         out = self.shell(f"pm clear {package}")
@@ -674,6 +714,7 @@ class AdbDevice:
 
     def launch_app(self, package_or_component: str, *, wait: bool = True) -> dict[str, Any]:
         """Launch an app by package name or component (pkg/.Activity)."""
+        component: str | None
         if "/" in package_or_component:
             component = package_or_component
             pkg = package_or_component.split("/", 1)[0]
@@ -809,8 +850,8 @@ class AdbDevice:
                 val = str(res["clipboard"]).strip()
                 if val:
                     return val
-        except Exception:
-            pass
+        except (OSError, RuntimeError, ValueError) as exc:
+            logger.debug("Helper get_clipboard fallback: %s", exc)
 
         # 3. Read synchronized device file buffer fallback
         buf = self.shell("cat /sdcard/.agentdroid_clip 2>/dev/null")
@@ -836,8 +877,8 @@ class AdbDevice:
             if res.get("success"):
                 self.shell(f"echo -n '{safe}' > /sdcard/.agentdroid_clip 2>/dev/null || true")
                 return True
-        except Exception:
-            pass
+        except (OSError, RuntimeError, ValueError) as exc:
+            logger.debug("Helper set_clipboard fallback: %s", exc)
 
         # 3. Always write to synchronized device file buffer
         self.shell(f"echo -n '{safe}' > /sdcard/.agentdroid_clip 2>/dev/null || true")
