@@ -160,7 +160,7 @@ Claude calls `mobile_run_workflow` in **one turn** and receives the completed re
 
 ---
 
-### 2. Google Antigravity (`agy`) & Gemini Jetski
+### 2. Google Antigravity (`agy`) & Gemini CLI
 
 Install AgentDroid skills and rules into Antigravity:
 
@@ -180,7 +180,7 @@ Antigravity can drive AgentDroid through two primary channels:
      -d "click:4" -d "click:2" -d "click:+" -d "click:5" -d "click:8" -d "click:=" \
      --assert-text "100" --json
    ```
-2. **MCP Server:** Registered in `~/.gemini/jetski/mcp_config.json`, allowing direct tool calls (`mobile_run_workflow`).
+2. **MCP Server:** Registered in `agy` via `agy mcp add agentdroid agentdroid mcp` (and `~/.gemini/config/mcp_config.json`), allowing direct tool calls (`mobile_run_workflow`).
 
 ---
 

@@ -41,10 +41,10 @@ def install_agent_skills_and_rules(home_dir: Path | None = None) -> dict[str, li
     installed_skills: list[str] = []
     installed_rules: list[str] = []
 
-    # 1. Standard Skill Directories (Antigravity/Jetski, Claude Code, Codex, Universal ~/.agents)
+    # 1. Standard Skill Directories (Antigravity/Gemini CLI, Claude Code, Codex, Universal ~/.agents)
     skill_targets = [
-        home / ".gemini" / "jetski" / "skills" / "agentdroid" / "SKILL.md",
         home / ".gemini" / "skills" / "agentdroid" / "SKILL.md",
+        home / ".gemini" / "antigravity" / "skills" / "agentdroid" / "SKILL.md",
         home / ".claude" / "skills" / "agentdroid" / "SKILL.md",
         home / ".codex" / "skills" / "agentdroid" / "SKILL.md",
         home / ".agents" / "skills" / "agentdroid" / "SKILL.md",

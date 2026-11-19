@@ -495,7 +495,7 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
     home = Path.home()
     installed = []
 
-    # 1. Antigravity / Gemini CLI (`agy`) & Jetski
+    # 1. Antigravity / Gemini CLI (`agy`) & Gemini Config
     if target_agent in ("all", "antigravity", "gemini", "agy"):
         import shutil, subprocess
         agy_bin = shutil.which("agy")
@@ -512,13 +512,13 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             except (OSError, subprocess.SubprocessError) as exc:
                 logger.debug("Failed registering agy mcp: %s", exc)
 
-        jetski_cfg = home / ".gemini" / "jetski" / "mcp_config.json"
+        gemini_cfg = home / ".gemini" / "config" / "mcp_config.json"
         try:
-            jetski_cfg.parent.mkdir(parents=True, exist_ok=True)
+            gemini_cfg.parent.mkdir(parents=True, exist_ok=True)
             data: dict[str, Any] = {}
-            if jetski_cfg.is_file():
+            if gemini_cfg.is_file():
                 try:
-                    data = json.loads(jetski_cfg.read_text(encoding="utf-8"))
+                    data = json.loads(gemini_cfg.read_text(encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     data = {}
             servers = data.setdefault("mcpServers", {})
@@ -527,10 +527,10 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
                 "args": ["mcp"],
                 "env": {"PYTHONUNBUFFERED": "1"},
             }
-            jetski_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-            installed.append(str(jetski_cfg))
+            gemini_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            installed.append(str(gemini_cfg))
         except OSError as exc:
-            logger.debug("Failed writing %s: %s", jetski_cfg, exc)
+            logger.debug("Failed writing %s: %s", gemini_cfg, exc)
 
     # 2. Codex CLI (~/.codex/config.toml)
     if target_agent in ("all", "codex"):
