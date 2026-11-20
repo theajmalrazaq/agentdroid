@@ -56,13 +56,19 @@ This repository provides a **silent, general-purpose Android computer** (powered
    - `-d "type:<text>"` sets/replaces field text; `-d "append:<text>"` jumps to EOF and appends cleanly (works with Unicode, newlines, and long notes).
    - Use `-d "hide-keyboard"` if a soft keyboard covers lower UI targets (`hide-keyboard` safely dismisses IME via global Back only when `mInputShown=true`; IME key nodes are hidden from `ui_summary` by default).
 
-7. **PREINSTALLED APPS REFERENCE (NEVER RUN `pm list packages` OR SEARCH PACKAGES)**
-   - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Open directions directly via intent:
-     `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"` (NEVER search for `com.google.android.apps.maps` or Play Services; NEVER manually type origins into search bars).
-   - **Notes & Markdown**: `net.gsantner.markor` (Markor). Main screen: FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
-   - **Web Browser**: `de.baumann.browser` (FOSS Browser).
-   - **Media Player**: `org.videolan.vlc` (VLC).
-   - **Calculator**: `org.fossify.math`.
+7. **DYNAMIC APP RESOLUTION PROTOCOL (INSTALLED, UNINSTALLED & DEFAULT UTILITIES)**
+   - **Zero Shell Package Hunting**: Never run raw ADB bash grep loops (`pm list packages | grep ...`). If you need to see what is installed on an unknown device, call `mobile_diagnose()` (includes `installed_apps` in ~25 ms) or run `agentdroid app list --json`.
+   - **Handling Uninstalled Apps Dynamically**:
+     - **One-Shot Install via F-Droid**: Pass `install: ["fdroid:<name_or_query>"]` directly in `mobile_run_workflow(...)` or CLI `agentdroid app install fdroid:<name>`. AgentDroid queries the official F-Droid catalog, downloads the verified APK, installs, and auto-grants permissions in one step.
+     - **Direct APK or URL**: Pass `install: ["https://example.com/app.apk"]` or local path.
+     - **Web App / Deep Link Fallback**: If an app is proprietary or uninstalled without an APK, open its mobile web app or intent directly via `open_url: "https://..."` or `--open-url "https://..."`.
+   - **Default Redroid Utilities Reference** (bundled lightweight apps for standard workflows):
+     - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Open directions directly via intent:
+       `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"` (avoids heavy Play Services / proprietary client).
+     - **Notes & Markdown**: `net.gsantner.markor` (Markor). Main screen: FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
+     - **Web Browser**: `de.baumann.browser` (FOSS Browser).
+     - **Media Player**: `org.videolan.vlc` (VLC).
+     - **Calculator**: `org.fossify.math`.
 
 8. **ONE-SHOT CROSS-APP DATA EXTRACTION (`capture:` -> `{{var}}`)**
    - When asked to "Check X in App A and save it in App B", do **NOT** split into multiple LLM turns. Run **ONE** `mobile_run_workflow` or `agentdroid` call:

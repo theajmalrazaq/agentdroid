@@ -444,6 +444,7 @@ class McpServer:
             is_root = self.adb.ensure_root() if conn else False
             silent_ok = self.adb.is_provisioned_silent() if conn else False
             ping = self.engine.helper.ping() if conn else None
+            launcher_apps = self.adb.list_launcher_apps() if conn else []
             return json.dumps(
                 {
                     "serial": self.adb.serial,
@@ -451,6 +452,7 @@ class McpServer:
                     "root_adb": is_root,
                     "silent_provisioned": silent_ok,
                     "accessibility_helper": ping or {"reachable": False},
+                    "installed_apps": launcher_apps,
                 },
                 indent=2,
             )

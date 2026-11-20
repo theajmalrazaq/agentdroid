@@ -320,12 +320,14 @@ def cmd_app(args: argparse.Namespace) -> int:
         return 0 if ok else 1
 
     if action == "list":
-        pkgs = sorted(adb.list_third_party_packages())
+        launcher_apps = adb.list_launcher_apps()
+        third_party = adb.list_third_party_packages()
+        apps = [a for a in launcher_apps if a["package"] in third_party] or launcher_apps
         if args.json:
-            print(json.dumps({"packages": pkgs}, indent=2))
+            print(json.dumps({"packages": apps}, indent=2))
         else:
-            for p in pkgs:
-                print(p)
+            for item in apps:
+                print(f"• {item['package']} -> {item['component']}")
         return 0
 
     return 1

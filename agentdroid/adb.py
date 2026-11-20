@@ -473,6 +473,19 @@ class AdbDevice:
                 pkgs.add(line.split(":", 1)[1].strip())
         return pkgs
 
+    def list_launcher_apps(self) -> list[dict[str, str]]:
+        """List all installed apps that appear in the app launcher with their component."""
+        if not self.connect(timeout=5.0):
+            return []
+        out = self.shell("cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER")
+        results: list[dict[str, str]] = []
+        for line in out.splitlines():
+            line = line.strip()
+            if "/" in line and not line.startswith("priority="):
+                pkg, _, _ = line.partition("/")
+                results.append({"package": pkg, "component": line})
+        return results
+
     def is_package_installed(self, package: str) -> bool:
         """Fast check whether a package is already installed on device."""
         if not package or not self.connect(timeout=5.0):

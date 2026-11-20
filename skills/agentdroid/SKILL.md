@@ -44,13 +44,18 @@ description: General-purpose silent Android computer for AI agents (Redroid + Ar
    - `-d "append:<text>"` jumps to EOF before appending (safe for notes/documents, UTF-8, and multiline text); `-d "type:<text>"` replaces text.
    - Pass `-d "hide-keyboard"` if a soft keyboard occludes lower UI elements.
 
-7. **PREINSTALLED APPS REFERENCE (NEVER RUN `pm list packages` OR SEARCH PACKAGES)**
-   - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Open directions directly via intent:
-     `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"` (NEVER search for `com.google.android.apps.maps` or Play Services; NEVER manually type origins into search bars).
-   - **Notes & Markdown**: `net.gsantner.markor` (Markor). Main screen: FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
-   - **Web Browser**: `de.baumann.browser` (FOSS Browser).
-   - **Media Player**: `org.videolan.vlc` (VLC).
-   - **Calculator**: `org.fossify.math`.
+7. **DYNAMIC APP RESOLUTION PROTOCOL (INSTALLED, UNINSTALLED & DEFAULT UTILITIES)**
+   - **Zero Shell Package Hunting**: Never burn tokens looping raw ADB commands (`pm list packages | grep ...`). App discovery is native: `mobile_diagnose()` reports `installed_apps` in ~25 ms; CLI uses `agentdroid app list --json`.
+   - **Handling Uninstalled Apps Dynamically**:
+     - **One-Shot Install via F-Droid**: Pass `install: ["fdroid:<name_or_query>"]` in `mobile_run_workflow(...)` or run `agentdroid app install fdroid:<name>` (downloads, verifies, installs, auto-grants permissions).
+     - **Direct APK URL**: Pass `install: ["https://example.com/app.apk"]` or local APK file path.
+     - **Web / Intent Fallback**: If no APK exists, open mobile web app or URI directly via `open_url: "https://..."`.
+   - **Default Redroid Utilities Reference**:
+     - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Intent: `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"`.
+     - **Notes & Markdown**: `net.gsantner.markor` (Markor). FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
+     - **Web Browser**: `de.baumann.browser` (FOSS Browser).
+     - **Media Player**: `org.videolan.vlc` (VLC).
+     - **Calculator**: `org.fossify.math`.
 
 ---
 
