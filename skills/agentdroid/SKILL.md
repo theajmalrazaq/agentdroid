@@ -44,6 +44,14 @@ description: General-purpose silent Android computer for AI agents (Redroid + Ar
    - `-d "append:<text>"` jumps to EOF before appending (safe for notes/documents, UTF-8, and multiline text); `-d "type:<text>"` replaces text.
    - Pass `-d "hide-keyboard"` if a soft keyboard occludes lower UI elements.
 
+7. **PREINSTALLED APPS REFERENCE (NEVER RUN `pm list packages` OR SEARCH PACKAGES)**
+   - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Open directions directly via intent:
+     `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"` (NEVER search for `com.google.android.apps.maps` or Play Services; NEVER manually type origins into search bars).
+   - **Notes & Markdown**: `net.gsantner.markor` (Markor). Main screen: FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
+   - **Web Browser**: `de.baumann.browser` (FOSS Browser).
+   - **Media Player**: `org.videolan.vlc` (VLC).
+   - **Calculator**: `org.fossify.math`.
+
 ---
 
 ## Supported `--do` & `mobile_action_burst` Verbs
@@ -60,21 +68,23 @@ description: General-purpose silent Android computer for AI agents (Redroid + Ar
 
 ---
 
-## One-Shot Cross-App Compound Execution Example
+## One-Shot Cross-App Compound Execution Example (Google Maps ➔ Markor Note)
 
 ```bash
-agentdroid --headless \
-  --push ./notes.md:/sdcard/Download/notes.md \
-  --launch "com.example.reader" \
-  -d "wait-any:Summary|Allow|Accept" \
-  -d "if-visible:Allow->click:btn:Allow" \
-  -d "wait-text:Summary" \
-  -d "capture:status=Status:\\s*([^\\n]+)" \
-  -d "open-url:file:///sdcard/Download/notes.md" \
-  -d "wait-text:notes" \
-  -d "click:edit:#1" \
-  -d "append:- Status: {{status}}" \
-  -d "click:btn:Save" \
-  --pull /sdcard/Download/notes.md:./out.md \
+# Execute in ONE shot: read travel duration from Maps and save directly into a new Markor note
+agentdroid run --headless \
+  --launch "us.spotco.maps" \
+  --open-url "https://www.google.com/maps/dir/Faisalabad/Lahore" \
+  -d "wait-any:Driving Mode|2h|Route" \
+  -d "capture:duration=(?:Driving Mode\\s*)?(\\d+\\s*(?:h|hr|min)\\s*\\d*\\s*m?)" \
+  -d "launch:net.gsantner.markor" \
+  -d "click:fab_add_new_item" \
+  -d "fill:new_file_dialog__name=faisalabad_lahore_trip" \
+  -d "click:btn:OK" \
+  -d "fill:document__fragment__edit__highlighting_editor=Faisalabad to Lahore: {{duration}} via M-3 Motorway" \
+  -d "hide-keyboard" \
+  -d "click:action_save" \
+  -d "click:action_preview" \
+  -d "wait-stable" \
   --json
 ```

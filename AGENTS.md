@@ -56,6 +56,38 @@ This repository provides a **silent, general-purpose Android computer** (powered
    - `-d "type:<text>"` sets/replaces field text; `-d "append:<text>"` jumps to EOF and appends cleanly (works with Unicode, newlines, and long notes).
    - Use `-d "hide-keyboard"` if a soft keyboard covers lower UI targets (`hide-keyboard` safely dismisses IME via global Back only when `mInputShown=true`; IME key nodes are hidden from `ui_summary` by default).
 
+7. **PREINSTALLED APPS REFERENCE (NEVER RUN `pm list packages` OR SEARCH PACKAGES)**
+   - **Google Maps / Navigation**: `us.spotco.maps` (GMaps WV wrapper). Open directions directly via intent:
+     `--launch us.spotco.maps --open-url "https://www.google.com/maps/dir/<Origin>/<Destination>"` (NEVER search for `com.google.android.apps.maps` or Play Services; NEVER manually type origins into search bars).
+   - **Notes & Markdown**: `net.gsantner.markor` (Markor). Main screen: FAB `#fab_add_new_item` -> file name `#new_file_dialog__name` -> `click:btn:OK` -> editor `#document__fragment__edit__highlighting_editor` -> save `#action_save` -> preview `#action_preview`.
+   - **Web Browser**: `de.baumann.browser` (FOSS Browser).
+   - **Media Player**: `org.videolan.vlc` (VLC).
+   - **Calculator**: `org.fossify.math`.
+
+8. **ONE-SHOT CROSS-APP DATA EXTRACTION (`capture:` -> `{{var}}`)**
+   - When asked to "Check X in App A and save it in App B", do **NOT** split into multiple LLM turns. Run **ONE** `mobile_run_workflow` or `agentdroid` call:
+   ```python
+   # Example: Read Google Maps route time and write directly into a new Markor note
+   mobile_run_workflow(
+       launch="us.spotco.maps",
+       open_url="https://www.google.com/maps/dir/Faisalabad/Lahore",
+       do=[
+           "wait-any:Driving Mode|2h|Route",
+           "capture:duration=(?:Driving Mode\\s*)?(\\d+\\s*(?:h|hr|min)\\s*\\d*\\s*m?)",
+           "launch:net.gsantner.markor",
+           "click:fab_add_new_item",
+           "fill:new_file_dialog__name=trip_summary",
+           "click:OK",
+           "fill:document__fragment__edit__highlighting_editor=Faisalabad to Lahore: {{duration}}",
+           "hide-keyboard",
+           "click:action_save",
+           "click:action_preview",
+           "wait-stable"
+       ],
+       assert_text="Faisalabad to Lahore"
+   )
+   ```
+
 ---
 
 ## Direct Agent Integration via MCP (Claude Code, Codex, Antigravity, Cursor)
