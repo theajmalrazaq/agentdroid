@@ -372,6 +372,39 @@ class TestArtemisEngineAndMcp(unittest.TestCase):
         self.assertFalse(install_resp["result"]["isError"])
         self.assertIn("net.gsantner.markor", install_resp["result"]["content"][0]["text"])
 
+        # 5. Tool call - mobile_action_burst with 'do' alias
+        server.engine.execute_action_burst = MagicMock(return_value=[{"step": "sleep:1", "result": {"ok": True}}])
+        burst_resp = server.handle_request({
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"name": "mobile_action_burst", "arguments": {"do": ["sleep:1"]}},
+        })
+        self.assertFalse(burst_resp["result"]["isError"])
+        server.engine.execute_action_burst.assert_called_once_with(["sleep:1"])
+
+        # 6. Tool call - mobile_launch_app with 'package_name' alias
+        server.adb.launch_app = MagicMock(return_value={"launched": True, "package": "net.gsantner.markor"})
+        launch_resp = server.handle_request({
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "tools/call",
+            "params": {"name": "mobile_launch_app", "arguments": {"package_name": "net.gsantner.markor"}},
+        })
+        self.assertFalse(launch_resp["result"]["isError"])
+        server.adb.launch_app.assert_called_once_with("net.gsantner.markor")
+
+        # 7. Tool call - mobile_perform_action with 'coordinates' array
+        server.engine.execute_action = MagicMock(return_value={"ok": True})
+        tap_resp = server.handle_request({
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": {"name": "mobile_perform_action", "arguments": {"action": "tap", "coordinates": [540, 2000]}},
+        })
+        self.assertFalse(tap_resp["result"]["isError"])
+        server.engine.execute_action.assert_called_once_with({"type": "tap", "x": 540.0, "y": 2000.0})
+
     def test_mcp_install_configs_idempotent(self) -> None:
         from agentdroid.mcp import install_mcp_config
 

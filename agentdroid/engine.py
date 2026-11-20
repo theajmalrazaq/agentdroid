@@ -366,7 +366,11 @@ class AndroidEngine:
             )
 
         if act_type == "tap":
-            return self.tap(float(act["x"]), float(act["y"]))
+            if "x" in act and "y" in act:
+                return self.tap(float(act["x"]), float(act["y"]))
+            if "selector" in act:
+                return self.helper.tap_element(str(act["selector"]))
+            raise ValueError(f"Tap action missing coordinates or selector: {act}")
 
         if act_type in ("tap_pct", "tap-pct", "tap_percentage"):
             return self.tap_percentage(float(act["x"]), float(act["y"]))

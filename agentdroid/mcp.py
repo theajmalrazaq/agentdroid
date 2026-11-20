@@ -152,6 +152,9 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Element selector: index ('#3'), text ('Sign In'), or coordinates ('500, 800').",
                 },
+                "coordinates": {
+                    "description": "Optional coordinates for 'tap' as [x, y] or 'x, y', or for 'swipe' as [x1, y1, x2, y2].",
+                },
                 "text": {
                     "type": "string",
                     "description": "Text to type or fill (required for 'fill' and 'type').",
@@ -179,9 +182,13 @@ TOOL_DEFINITIONS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of action strings: 'click:<sel|#id|btn:X|edit:X>', 'tap:x,y', 'fill:<sel>=<txt>', 'type:<txt>', 'append:<txt>', 'wait-text:<txt>[@sec]', 'wait-any:<a|b>[@sec]', 'wait-gone:<txt>[@sec]', 'wait-stable[@sec]', 'wait-change[@sec]', 'if-visible:<needle>-><step>', 'capture:<var>=<regex>', 'hide-keyboard', 'key:<KEY>', 'scroll:down', 'scroll-to:<txt>', 'sleep:<sec>'.",
-                }
+                },
+                "do": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Alias for actions. Ordered list of action strings.",
+                },
             },
-            "required": ["actions"],
         },
     },
     {
@@ -200,10 +207,13 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "package": {
                     "type": "string",
-                    "description": "Android package name (e.g. 'com.android.settings').",
-                }
+                    "description": "Android package name (e.g. 'com.android.settings'). Also accepts 'package_name'.",
+                },
+                "package_name": {
+                    "type": "string",
+                    "description": "Alias for package.",
+                },
             },
-            "required": ["package"],
         },
     },
     {
@@ -374,27 +384,53 @@ class McpServer:
 
         if name == "mobile_perform_action":
             act = args.get("action", "").lower()
-            target = args.get("target") or ""
-            text = args.get("text") or ""
+            target = str(args.get("target") or "")
+            text = str(args.get("text") or "")
             direction = args.get("direction", "down")
             action_dict: dict[str, Any] = {"type": act}
             if act in ("click", "fill"):
-                action_dict["selector"] = target
+                action_dict["selector"] = target or text
                 if text:
                     action_dict["text"] = text
             elif act == "tap":
-                parts = [float(p.strip()) for p in target.split(",") if p.strip()]
-                if len(parts) >= 2:
-                    action_dict["x"], action_dict["y"] = parts[0], parts[1]
+                coords = args.get("coordinates")
+                if coords is not None:
+                    if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+                        action_dict["x"], action_dict["y"] = float(coords[0]), float(coords[1])
+                    elif isinstance(coords, dict):
+                        action_dict["x"], action_dict["y"] = float(coords.get("x", 0)), float(coords.get("y", 0))
+                    elif isinstance(coords, str):
+                        parts = [float(p.strip()) for p in coords.split(",") if p.strip()]
+                        if len(parts) >= 2:
+                            action_dict["x"], action_dict["y"] = parts[0], parts[1]
+                elif "x" in args and "y" in args:
+                    action_dict["x"], action_dict["y"] = float(args["x"]), float(args["y"])
+                else:
+                    parts = [float(p.strip()) for p in target.split(",") if p.strip()]
+                    if len(parts) >= 2:
+                        action_dict["x"], action_dict["y"] = parts[0], parts[1]
+                    elif target:
+                        action_dict["type"] = "click"
+                        action_dict["selector"] = target
+                if "x" not in action_dict and target:
+                    action_dict["type"] = "click"
+                    action_dict["selector"] = target
             elif act == "type":
                 action_dict["text"] = text or target
+                if target and target != action_dict["text"]:
+                    action_dict["selector"] = target
             elif act == "key":
-                action_dict["key"] = target
+                action_dict["key"] = target or args.get("key") or text
             elif act in ("scroll", "scroll_to"):
                 action_dict["direction"] = direction
-                action_dict["text"] = target
+                action_dict["text"] = target or text
             elif act == "swipe":
-                pts = [float(p.strip()) for p in target.split(",") if p.strip()]
+                coords = args.get("coordinates")
+                pts: list[float] = []
+                if isinstance(coords, (list, tuple)):
+                    pts = [float(c) for c in coords]
+                else:
+                    pts = [float(p.strip()) for p in target.split(",") if p.strip()]
                 if len(pts) >= 4:
                     action_dict["x1"], action_dict["y1"], action_dict["x2"], action_dict["y2"] = pts[:4]
 
@@ -402,7 +438,9 @@ class McpServer:
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_action_burst":
-            actions = args.get("actions") or []
+            actions = args.get("actions") or args.get("do") or []
+            if isinstance(actions, str):
+                actions = [actions]
             res_list = self.engine.execute_action_burst(actions)
             return json.dumps(res_list, indent=2, ensure_ascii=False)
 
@@ -411,7 +449,10 @@ class McpServer:
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_launch_app":
-            res = self.adb.launch_app(args["package"])
+            package = args.get("package") or args.get("package_name") or args.get("pkg")
+            if not package:
+                raise ValueError("Missing 'package' parameter in mobile_launch_app")
+            res = self.adb.launch_app(str(package))
             return json.dumps(res, indent=2, ensure_ascii=False)
 
         if name == "mobile_install_app":
@@ -531,6 +572,21 @@ def install_mcp_config(target_agent: str = "all") -> dict[str, list[str]]:
             }
             gemini_cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             installed.append(str(gemini_cfg))
+
+            # Sync schema caches for Antigravity lazy-loaded tools
+            for mcp_cache_dir in [
+                home / ".gemini" / "antigravity-cli" / "mcp" / "agentdroid",
+                home / ".gemini" / "antigravity" / "mcp" / "agentdroid",
+            ]:
+                if mcp_cache_dir.is_dir():
+                    for tool in TOOL_DEFINITIONS:
+                        tool_file = mcp_cache_dir / f"{tool['name']}.json"
+                        t_data = {
+                            "name": tool["name"],
+                            "description": tool["description"],
+                            "parameters": tool["inputSchema"],
+                        }
+                        tool_file.write_text(json.dumps(t_data, indent=2) + "\n", encoding="utf-8")
         except OSError as exc:
             logger.debug("Failed writing %s: %s", gemini_cfg, exc)
 

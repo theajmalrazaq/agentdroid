@@ -298,9 +298,10 @@ class CompoundPipeline:
                         report["errors"].append(f"Failed to launch {target_launch}")
 
             # 8. Open URLs / deep links if requested
+            pkg_target = spec.locked_app_package or (target_launch if spec.launch_target and spec.launch_target != "auto" else None)
             for uri in spec.open_urls:
                 self._log_watch(watch_enabled, f"Opening URI {uri}...")
-                opened = self.adb.open_url(uri, package=spec.locked_app_package)
+                opened = self.adb.open_url(uri, package=pkg_target)
                 report["opened_urls"].append(opened)
 
             # 9. Pre-shell commands
